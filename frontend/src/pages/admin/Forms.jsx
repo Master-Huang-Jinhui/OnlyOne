@@ -63,8 +63,8 @@ export default function Forms() {
   useEffect(() => { load() }, [])
 
   const load = () => {
-    api.getForms().then(setForms).catch(() => {})
-    api.getAllMenus().then(setMenus).catch(() => {})
+    api.getForms().then(data => setForms(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
@@ -236,7 +236,7 @@ export default function Forms() {
             <Input label="菜单名称 *" value={menuForm.name} onChange={e => setMenuForm({ ...menuForm, name: e.target.value })} />
             <Input label="图标（emoji）" value={menuForm.icon} onChange={e => setMenuForm({ ...menuForm, icon: e.target.value })} placeholder="如 📝" />
           </div>
-          <Select label="上级菜单" value={menuForm.parent_id} onChange={e => setMenuForm({ ...menuForm, parent_id: parseInt(e.target.value) })} options={[{ value: 0, label: '一级菜单（无上级）' }, ...menus.filter(m => m.parent_id === 0).map(m => ({ value: m.id, label: m.name }))]} />
+          <Select label="上级菜单" value={menuForm.parent_id} onChange={e => setMenuForm({ ...menuForm, parent_id: parseInt(e.target.value) })} options={[{ value: 0, label: '一级菜单（无上级）' }, ...(menus || []).filter(m => m.parent_id === 0).map(m => ({ value: m.id, label: m.name }))]} />
           <Input label="排序" type="number" value={menuForm.sort_order} onChange={e => setMenuForm({ ...menuForm, sort_order: parseInt(e.target.value) || 0 })} />
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
             <p>菜单路径将自动设置为：<code className="bg-white px-1 rounded">/admin/form/{currentForm ? currentForm.id : ''}</code></p>
