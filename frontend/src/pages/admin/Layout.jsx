@@ -11,8 +11,12 @@ export default function AdminLayout() {
 
   useEffect(() => {
     api.getMenus().then(data => {
-      if (!isAdmin) { setMenus(data.filter(m => m.path === '/admin/platforms')) }
-      else { setMenus(data) }
+      const menuList = Array.isArray(data) ? data : []
+      if (!isAdmin) {
+        setMenus(menuList.filter(m => m.path === '/admin/platforms'))
+      } else {
+        setMenus(menuList)
+      }
     }).catch(() => {})
   }, [isAdmin])
 
@@ -31,7 +35,7 @@ export default function AdminLayout() {
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-400 hover:text-gray-600 p-1">{sidebarOpen ? '◀' : '▶'}</button>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
-          {menus.map(menu => (
+          {(menus || []).map(menu => (
             <NavLink key={menu.id} to={menu.path}
               className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
               <span className="text-lg">{menu.icon || '📄'}</span>
