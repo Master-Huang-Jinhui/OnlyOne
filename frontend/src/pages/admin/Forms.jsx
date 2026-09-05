@@ -13,6 +13,54 @@ const fieldTypes = [
 
 const emptyForm = { name: '', description: '', fields: [], enabled: true }
 
+const quickTemplates = [
+  {
+    icon: '📋', name: '顾客反馈表', description: '收集顾客对菜品和服务的反馈',
+    fields: [
+      { type: 'text', label: '顾客姓名', placeholder: '请输入姓名', required: true, options: '' },
+      { type: 'tel', label: '联系电话', placeholder: '请输入电话', required: false, options: '' },
+      { type: 'select', label: '满意度', placeholder: '', required: true, options: '非常满意,满意,一般,不满意' },
+      { type: 'textarea', label: '具体建议', placeholder: '请输入您的建议', required: false, options: '' },
+      { type: 'date', label: '到店日期', placeholder: '', required: false, options: '' }
+    ]
+  },
+  {
+    icon: '📅', name: '包间预订表', description: '顾客预订包间或大型聚餐',
+    fields: [
+      { type: 'text', label: '预订人姓名', placeholder: '请输入姓名', required: true, options: '' },
+      { type: 'tel', label: '联系电话', placeholder: '请输入电话', required: true, options: '' },
+      { type: 'date', label: '预订日期', placeholder: '', required: true, options: '' },
+      { type: 'time', label: '到店时间', placeholder: '', required: true, options: '' },
+      { type: 'number', label: '用餐人数', placeholder: '请输入人数', required: true, options: '' },
+      { type: 'select', label: '取餐方式', placeholder: '', required: false, options: '堂吃,自取,配送' },
+      { type: 'textarea', label: '特殊要求', placeholder: '如忌口、生日布置等', required: false, options: '' }
+    ]
+  },
+  {
+    icon: '💼', name: '员工入职表', description: '新员工基本信息登记',
+    fields: [
+      { type: 'text', label: '姓名', placeholder: '请输入姓名', required: true, options: '' },
+      { type: 'tel', label: '电话', placeholder: '请输入电话', required: true, options: '' },
+      { type: 'text', label: '身份证号', placeholder: '请输入身份证号', required: false, options: '' },
+      { type: 'text', label: '住址', placeholder: '请输入住址', required: false, options: '' },
+      { type: 'date', label: '入职日期', placeholder: '', required: true, options: '' },
+      { type: 'select', label: '岗位', placeholder: '', required: true, options: '前台,后厨,服务员,外卖打包,管理' },
+      { type: 'textarea', label: '备注', placeholder: '其他信息', required: false, options: '' }
+    ]
+  },
+  {
+    icon: '📦', name: '采购申请表', description: '店内物资和食材采购申请',
+    fields: [
+      { type: 'text', label: '申请人', placeholder: '请输入姓名', required: true, options: '' },
+      { type: 'date', label: '申请日期', placeholder: '', required: true, options: '' },
+      { type: 'textarea', label: '采购物品清单', placeholder: '请列出需要采购的物品和数量', required: true, options: '' },
+      { type: 'number', label: '预估金额', placeholder: '请输入预估金额', required: false, options: '' },
+      { type: 'select', label: '紧急程度', placeholder: '', required: true, options: '普通,较急,紧急' },
+      { type: 'textarea', label: '备注', placeholder: '其他说明', required: false, options: '' }
+    ]
+  }
+]
+
 export default function Forms() {
   const [forms, setForms] = useState([])
   const [dialog, setDialog] = useState(false)
@@ -25,6 +73,12 @@ export default function Forms() {
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
   const openEdit = (f) => { setEditing(f); setForm({ ...f, fields: f.fields || [] }); setDialog(true) }
+
+  const createFromTemplate = (tpl) => {
+    setEditing(null)
+    setForm({ name: tpl.name, description: tpl.description, fields: JSON.parse(JSON.stringify(tpl.fields)), enabled: true })
+    setDialog(true)
+  }
 
   const save = async () => {
     if (!form.name) { toast('表单名称必填', 'error'); return }
@@ -59,11 +113,39 @@ export default function Forms() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">表单管理</h2><p className="text-sm text-gray-400 mt-1">自定义表单，支持文本、下拉、日期、时间等主流字段</p></div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">表单管理</h2>
+          <p className="text-sm text-gray-400 mt-1">自定义动态表单，支持12种字段类型</p>
+        </div>
         <Button onClick={openAdd}>+ 创建表单</Button>
       </div>
 
+      {forms.length === 0 ? (
+        <div className="space-y-6">
+          <Card className="p-12 text-center">
+            <div className="text-6xl mb-4">📝</div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">还没有表单</h3>
+            <p className="text-gray-500 mb-6">创建自定义动态表单，支持文本、数字、下拉、单选、多选、日期、时间、开关等12种字段类型</p>
+            <Button size="lg" onClick={openAdd}>+ 创建表单</Button>
+          </Card>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-3">或从快速模板开始</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickTemplates.map((tpl, i) => (
+                <button key={i} onClick={() => createFromTemplate(tpl)}
+                  className="p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:shadow-md transition-all text-left">
+                  <div className="text-3xl mb-2">{tpl.icon}</div>
+                  <p className="font-medium text-gray-800 text-sm">{tpl.name}</p>
+                  <p className="text-xs text-gray-400 mt-1">{tpl.fields.length} 个字段</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
       <Card>
+        <div className="p-4 border-b flex justify-end"><Button onClick={openAdd}>+ 创建表单</Button></div>
         <Table columns={[
           { header: '表单名称', render: f => <div><p className="font-medium text-gray-800">{f.name}</p><p className="text-xs text-gray-400">{f.description || '-'}</p></div> },
           { header: '字段数', render: f => <Badge variant="primary">{f.fields ? f.fields.length : 0} 个字段</Badge> },
@@ -77,6 +159,7 @@ export default function Forms() {
           </div>
         )} />
       </Card>
+      )}
 
       <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑表单' : '创建表单'} width="max-w-3xl"
         footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={save}>保存</Button></>}>
