@@ -2,13 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from './components/ui'
 import { useAuth } from './context/AuthContext'
 
-// 前台
 import Home from './pages/customer/Home'
 import Menu from './pages/customer/Menu'
 import Cart from './pages/customer/Cart'
 import Checkout from './pages/customer/Checkout'
 
-// 后台
 import Login from './pages/admin/Login'
 import AdminLayout from './pages/admin/Layout'
 import Dashboard from './pages/admin/Dashboard'
@@ -20,6 +18,7 @@ import Orders from './pages/admin/Orders'
 import Settings from './pages/admin/Settings'
 import Menus from './pages/admin/Menus'
 import Forms from './pages/admin/Forms'
+import FormRenderer from './pages/admin/FormRenderer'
 import Content from './pages/admin/Content'
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -35,16 +34,11 @@ export default function App() {
     <>
       <ToastContainer />
       <Routes>
-        {/* 前台公开页面 */}
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
-
-        {/* 登录 */}
         <Route path="/login" element={<Login />} />
-
-        {/* 后台 */}
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
@@ -55,9 +49,9 @@ export default function App() {
           <Route path="settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
           <Route path="menus" element={<ProtectedRoute adminOnly><Menus /></ProtectedRoute>} />
           <Route path="forms" element={<ProtectedRoute adminOnly><Forms /></ProtectedRoute>} />
+          <Route path="form/:id" element={<FormRenderer />} />
           <Route path="content" element={<ProtectedRoute adminOnly><Content /></ProtectedRoute>} />
         </Route>
-
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
