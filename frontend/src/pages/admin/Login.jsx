@@ -12,13 +12,22 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!username || !password) { toast('请输入账号和密码', 'error'); return }
+    if (!username || !password) {
+      toast('请输入账号和密码', 'error')
+      return
+    }
     setLoading(true)
     try {
       const user = await login(username, password)
       toast('登录成功')
-      navigate(user.role === 'admin' ? '/admin' : '/')
-    } catch (err) { toast(err.message, 'error') } finally { setLoading(false) }
+      if (user.role === 'admin') navigate('/admin')
+      else if (user.role === 'employee') navigate('/employee')
+      else navigate('/')
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -33,12 +42,29 @@ export default function Login() {
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Input label="账号" value={username} onChange={e => setUsername(e.target.value)} placeholder="请输入账号" autoComplete="username" />
-            <Input label="密码" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="请输入密码" autoComplete="current-password" />
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? '登录中...' : '登 录'}</Button>
+            <Input
+              label="账号"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="请输入账号"
+              autoComplete="username"
+            />
+            <Input
+              label="密码"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="请输入密码"
+              autoComplete="current-password"
+            />
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? '登录中...' : '登 录'}
+            </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-gray-400">
-            <p>默认账号：admin / admin</p>
+          <div className="mt-6 text-center text-sm text-gray-400 space-y-1">
+            <p>管理员登录进入管理后台</p>
+            <p>员工登录进入点餐界面</p>
+            <p className="text-xs">默认账号：admin / admin</p>
             <Link to="/" className="text-primary-500 hover:text-primary-600 mt-2 inline-block">← 返回前台</Link>
           </div>
         </div>
