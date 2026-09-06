@@ -60,5 +60,10 @@ export const api = {
   getMemos: (type) => request(`/memos${type ? `?type=${type}` : ''}`),
   createMemo: (data) => request('/memos', { method: 'POST', body: JSON.stringify(data) }),
   updateMemo: (id, data) => request(`/memos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteMemo: (id) => request(`/memos/${id}`, { method: 'DELETE' })
+  deleteMemo: (id) => request(`/memos/${id}`, { method: 'DELETE' }),
+  getFlavorTags: () => request('/flavor-tags'),
+  getAllFlavorTags: () => request('/flavor-tags/all'),
+  createFlavorTag: (data) => request('/flavor-tags', { method: 'POST', body: JSON.stringify(data) }),
+  updateFlavorTag: (id, data) => request(`/flavor-tags/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFlavorTag: (id) => request(`/flavor-tags/${id}`, { method: 'DELETE' })
 }
