@@ -23,6 +23,10 @@ app.use('/api/content', require('./routes/content'));
 app.use('/api/memos', require('./routes/memos'));
 app.use('/api/flavor-tags', require('./routes/flavorTags'));
 app.use('/api/flavor-categories', require('./routes/flavorCategories'));
+app.use('/api/upload', require('./routes/upload'));
+
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
