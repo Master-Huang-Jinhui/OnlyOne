@@ -14,7 +14,7 @@ export default function Content() {
   const [sections, setSections] = useState([])
   const [sectionDialog, setSectionDialog] = useState(false)
   const [sectionEditing, setSectionEditing] = useState(null)
-  const [sectionForm, setSectionForm] = useState({ title: '', title_en: '', content: '', content_en: '', icon: '📌', sort_order: 0, enabled: true })
+  const [sectionForm, setSectionForm] = useState({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true })
 
   useEffect(() => { load() }, [])
 
@@ -71,7 +71,7 @@ export default function Content() {
   }
 
   // 自定义板块
-  const openSectionAdd = () => { setSectionEditing(null); setSectionForm({ title: '', title_en: '', content: '', content_en: '', icon: '📌', sort_order: 0, enabled: true }); setSectionDialog(true) }
+  const openSectionAdd = () => { setSectionEditing(null); setSectionForm({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true }); setSectionDialog(true) }
   const openSectionEdit = (s) => { setSectionEditing(s); setSectionForm({ ...s, enabled: !!s.enabled }); setSectionDialog(true) }
 
   const saveSection = async () => {
@@ -197,9 +197,10 @@ export default function Content() {
             <Button onClick={openSectionAdd}>+ 添加板块</Button>
           </div>
           <Table columns={[
-            { header: '图标', render: s => <span className="text-2xl">{s.icon || '📌'}</span> },
+            { header: '图片', render: s => s.image ? <img src={s.image} alt={s.title} className="w-12 h-12 rounded-lg object-cover" /> : <span className="text-2xl">{s.icon || '📌'}</span> },
             { header: '标题', render: s => <div><p className="font-medium text-gray-800">{s.title}</p>{s.title_en && <p className="text-xs text-gray-400">{s.title_en}</p>}</div> },
-            { header: '内容', render: s => <p className="text-sm text-gray-500 line-clamp-2 max-w-[300px]">{s.content || '-'}</p> },
+            { header: '布局', render: s => <Badge variant="default">{s.layout === 'right' ? '右图左文' : '左图右文'}</Badge> },
+            { header: '内容', render: s => <p className="text-sm text-gray-500 line-clamp-2 max-w-[250px]">{s.content || '-'}</p> },
             { header: '排序', key: 'sort_order' },
             { header: '状态', render: s => <Badge variant={s.enabled ? 'success' : 'default'}>{s.enabled ? '显示' : '隐藏'}</Badge> }
           ]} data={sections} actions={s => (
@@ -231,15 +232,29 @@ export default function Content() {
             <Input label="标题（英文）" value={sectionForm.title_en} onChange={e => setSectionForm({ ...sectionForm, title_en: e.target.value })} placeholder="Business Hours" />
           </div>
           <Input label="图标 (emoji)" value={sectionForm.icon} onChange={e => setSectionForm({ ...sectionForm, icon: e.target.value })} placeholder="📌 🕐 📍" />
-          <Textarea label="内容（中文）" rows={3} value={sectionForm.content} onChange={e => setSectionForm({ ...sectionForm, content: e.target.value })} placeholder="板块的详细内容" />
-          <Textarea label="内容（英文）" rows={3} value={sectionForm.content_en} onChange={e => setSectionForm({ ...sectionForm, content_en: e.target.value })} placeholder="Detailed content" />
+          <Input label="图片 URL" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg" />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="排序" type="number" value={sectionForm.sort_order} onChange={e => setSectionForm({ ...sectionForm, sort_order: parseInt(e.target.value) || 0 })} />
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">图片位置</label>
+              <select value={sectionForm.layout} onChange={e => setSectionForm({ ...sectionForm, layout: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400">
+                <option value="left">左图右文</option>
+                <option value="right">右图左文</option>
+              </select>
+            </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer pb-2">
                 <input type="checkbox" checked={sectionForm.enabled} onChange={e => setSectionForm({ ...sectionForm, enabled: e.target.checked })} className="w-4 h-4" />
                 <span className="text-sm text-gray-700">前台显示</span>
               </label>
+            </div>
+          </div>
+          <Textarea label="内容（中文）" rows={3} value={sectionForm.content} onChange={e => setSectionForm({ ...sectionForm, content: e.target.value })} placeholder="板块的详细内容" />
+          <Textarea label="内容（英文）" rows={3} value={sectionForm.content_en} onChange={e => setSectionForm({ ...sectionForm, content_en: e.target.value })} placeholder="Detailed content" />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="排序" type="number" value={sectionForm.sort_order} onChange={e => setSectionForm({ ...sectionForm, sort_order: parseInt(e.target.value) || 0 })} />
+            <div className="flex items-end justify-center">
+              {sectionForm.image && <img src={sectionForm.image} alt="预览" className="h-16 rounded-lg object-cover" />}
             </div>
           </div>
           <div className="flex gap-2 pt-2">
