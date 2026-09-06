@@ -26,11 +26,12 @@ import Permissions from './pages/admin/Permissions'
 
 import EmployeeOrder from './pages/employee/EmployeeOrder'
 
-function ProtectedRoute({ children, adminOnly = false, employeeOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, employeeOnly = false }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">加载中...</div>
   if (!user) return <Navigate to="/login" />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/" />
+  if (superAdminOnly && user.role !== 'admin') return <Navigate to="/" />
+  if (adminOnly && user.role !== 'admin' && user.role !== 'manager') return <Navigate to="/" />
   if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/" />
   return children
 }
@@ -45,15 +46,12 @@ export default function App() {
         <Route path="/cart" element={<Navigate to="/menu" />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-status" element={<OrderStatus />} />
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/employee" element={<ProtectedRoute employeeOnly><EmployeeOrder /></ProtectedRoute>} />
-
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
-          <Route path="users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-          <Route path="permissions" element={<ProtectedRoute adminOnly><Permissions /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute superAdminOnly><Users /></ProtectedRoute>} />
+          <Route path="permissions" element={<ProtectedRoute superAdminOnly><Permissions /></ProtectedRoute>} />
           <Route path="platforms" element={<Platforms />} />
           <Route path="products" element={<ProtectedRoute adminOnly><Products /></ProtectedRoute>} />
           <Route path="flavors" element={<ProtectedRoute adminOnly><Flavors /></ProtectedRoute>} />
@@ -65,7 +63,6 @@ export default function App() {
           <Route path="form/:id" element={<FormRenderer />} />
           <Route path="content" element={<ProtectedRoute adminOnly><Content /></ProtectedRoute>} />
         </Route>
-
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>

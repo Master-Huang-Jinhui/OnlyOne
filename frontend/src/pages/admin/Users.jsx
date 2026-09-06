@@ -23,15 +23,9 @@ export default function Users() {
     try {
       const data = { ...form }
       if (!data.password) delete data.password
-      if (editing) {
-        await api.updateUser(editing.id, data)
-        toast('更新成功')
-      } else {
-        await api.createUser(data)
-        toast('添加成功')
-      }
-      setDialog(false)
-      load()
+      if (editing) { await api.updateUser(editing.id, data); toast('更新成功') }
+      else { await api.createUser(data); toast('添加成功') }
+      setDialog(false); load()
     } catch (e) { toast(e.message, 'error') }
   }
 
@@ -46,18 +40,8 @@ export default function Users() {
   }
 
   const columns = [
-    { header: '账号', render: u => (
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-medium text-sm">
-          {(u.name || u.username).charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <p className="font-medium text-gray-800">{u.username}</p>
-          <p className="text-xs text-gray-400">{u.name || '-'}</p>
-        </div>
-      </div>
-    )},
-    { header: '角色', render: u => <Badge variant={u.role === 'admin' ? 'primary' : u.role === 'employee' ? 'success' : 'default'}>{u.role === 'admin' ? '超级管理员' : u.role === 'employee' ? '员工' : '普通用户'}</Badge> },
+    { header: '账号', render: u => (<div className="flex items-center gap-3"><div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-medium text-sm">{(u.name || u.username).charAt(0).toUpperCase()}</div><div><p className="font-medium text-gray-800">{u.username}</p><p className="text-xs text-gray-400">{u.name || '-'}</p></div></div>) },
+    { header: '角色', render: u => <Badge variant={u.role === 'admin' ? 'primary' : u.role === 'manager' ? 'success' : u.role === 'employee' ? 'warning' : 'default'}>{u.role === 'admin' ? '超级管理员' : u.role === 'manager' ? '管理员' : u.role === 'employee' ? '员工' : '普通用户'}</Badge> },
     { header: '电话', render: u => <span className="text-sm text-gray-600">{u.phone || '-'}</span> },
     { header: '邮箱', render: u => <span className="text-sm text-gray-600">{u.email || '-'}</span> },
     { header: '状态', render: u => <Badge variant={u.enabled ? 'success' : 'danger'}>{u.enabled ? '正常' : '禁用'}</Badge> }
@@ -68,7 +52,7 @@ export default function Users() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">用户管理</h2>
-          <p className="text-sm text-gray-400 mt-1">admin 超级管理员 / employee 员工点餐 / user 普通用户</p>
+          <p className="text-sm text-gray-400 mt-1">admin 超级管理员 / manager 管理员(可分配权限) / employee 员工 / user 普通用户</p>
         </div>
         <Button onClick={openAdd}>+ 添加用户</Button>
       </div>
@@ -83,8 +67,7 @@ export default function Users() {
         )} />
       </Card>
 
-      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑用户' : '添加用户'}
-        footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={save}>保存</Button></>}>
+      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑用户' : '添加用户'} footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={save}>保存</Button></>}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="账号 *" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} disabled={!!editing} />
@@ -92,8 +75,7 @@ export default function Users() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="姓名" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <Select label="角色" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-              options={[{ value: 'user', label: '普通用户' }, { value: 'employee', label: '员工' }, { value: 'admin', label: '超级管理员' }]} />
+            <Select label="角色" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} options={[{ value: 'user', label: '普通用户' }, { value: 'employee', label: '员工' }, { value: 'manager', label: '管理员' }, { value: 'admin', label: '超级管理员' }]} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="电话" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />

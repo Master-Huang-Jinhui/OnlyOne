@@ -1,15 +1,13 @@
 const express = require('express');
 const db = require('../db');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const settings = {};
-  rows.forEach(r => {
-    try { settings[r.key] = JSON.parse(r.value); } catch { settings[r.key] = r.value; }
-  });
+  rows.forEach(r => { try { settings[r.key] = JSON.parse(r.value); } catch { settings[r.key] = r.value; } });
   res.json(settings);
 });
 
@@ -19,7 +17,7 @@ router.get('/:key', (req, res) => {
   try { res.json(JSON.parse(row.value)); } catch { res.json(row.value); }
 });
 
-router.put('/', auth, adminOnly, (req, res) => {
+router.put('/', auth, managerAccess, (req, res) => {
   const updates = req.body;
   const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
   const tx = db.transaction((items) => {

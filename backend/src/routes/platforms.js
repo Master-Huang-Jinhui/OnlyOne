@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.get('/public', (req, res) => {
   res.json(platforms);
 });
 
-router.post('/', auth, adminOnly, (req, res) => {
+router.post('/', auth, managerAccess, (req, res) => {
   const { name, logo, url, account, password, phone, note, enabled = 1, weekly_status = {}, sort_order = 0 } = req.body;
   if (!name) return res.status(400).json({ error: '平台名称必填' });
   const result = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -24,7 +24,7 @@ router.post('/', auth, adminOnly, (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
-router.put('/:id', auth, adminOnly, (req, res) => {
+router.put('/:id', auth, managerAccess, (req, res) => {
   const fields = [];
   const values = [];
   const allowed = ['name', 'logo', 'url', 'account', 'password', 'phone', 'note', 'enabled', 'weekly_status', 'sort_order'];
@@ -40,7 +40,7 @@ router.put('/:id', auth, adminOnly, (req, res) => {
   res.json({ success: true });
 });
 
-router.delete('/:id', auth, adminOnly, (req, res) => {
+router.delete('/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM platforms WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });

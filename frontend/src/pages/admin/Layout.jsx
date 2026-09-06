@@ -4,21 +4,29 @@ import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 
 export default function AdminLayout() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menus, setMenus] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     api.getMenus().then(data => {
-      const menuList = Array.isArray(data) ? data : []
-      if (!isAdmin) {
-        setMenus(menuList.filter(m => m.path === '/admin/platforms'))
-      } else {
-        setMenus(menuList)
+      let menuList = Array.isArray(data) ? data : []
+      if (user?.role === 'manager') {
+        try {
+          const perms = JSON.parse(user.permissions || '{}')
+          const allowedIds = perms.menus || []
+          if (allowedIds.length > 0) {
+            const allowed = menuList.filter(m => allowedIds.includes(m.id))
+            const parentIds = [...new Set(allowed.filter(m => m.parent_id && m.parent_id !== 0).map(m => m.parent_id))]
+            const parents = menuList.filter(m => parentIds.includes(m.id))
+            menuList = [...new Map([...parents, ...allowed].map(m => [m.id, m])).values()]
+          }
+        } catch {}
       }
+      setMenus(menuList)
     }).catch(() => {})
-  }, [isAdmin])
+  }, [user])
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -26,30 +34,20 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-gray-50 flex">
       <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-white border-r border-gray-200 flex flex-col transition-all duration-200 fixed h-full z-40`}>
         <div className="h-16 flex items-center justify-between px-4 border-b">
-          {sidebarOpen && (
-            <Link to="/admin" className="flex items-center gap-2">
-              <span className="text-xl">🍵</span>
-              <span className="font-bold text-gray-800 text-sm">OnlyOne 管理</span>
-            </Link>
-          )}
+          {sidebarOpen && (<Link to="/admin" className="flex items-center gap-2"><span className="text-xl">🍵</span><span className="font-bold text-gray-800 text-sm">OnlyOne 管理</span></Link>)}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-400 hover:text-gray-600 p-1">{sidebarOpen ? '◀' : '▶'}</button>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           {(menus || []).map(menu => (
-            <NavLink key={menu.id} to={menu.path}
-              className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <NavLink key={menu.id} to={menu.path} className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
               <span className="text-lg">{menu.icon || '📄'}</span>
               {sidebarOpen && <span>{menu.name}</span>}
             </NavLink>
           ))}
         </nav>
         <div className="p-4 border-t">
-          <Link to="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-3">
-            <span>🌐</span>{sidebarOpen && <span>查看前台</span>}
-          </Link>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-500 w-full">
-            <span>🚪</span>{sidebarOpen && <span>退出登录</span>}
-          </button>
+          <Link to="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-3"><span>🌐</span>{sidebarOpen && <span>查看前台</span>}</Link>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-500 w-full"><span>🚪</span>{sidebarOpen && <span>退出登录</span>}</button>
         </div>
       </aside>
 
@@ -58,7 +56,9 @@ export default function AdminLayout() {
           <div><h1 className="text-lg font-semibold text-gray-800">OnlyOne 平台管理</h1></div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">{user?.name || user?.username}</span>
-            <span className={`px-2 py-0.5 rounded text-xs ${isAdmin ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>{isAdmin ? '管理员' : '用户'}</span>
+            <span className={`px-2 py-0.5 rounded text-xs ${user?.role === 'admin' ? 'bg-primary-100 text-primary-700' : user?.role === 'manager' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+              {user?.role === 'admin' ? '超级管理员' : user?.role === 'manager' ? '管理员' : '用户'}
+            </span>
           </div>
         </header>
         <main className="p-6"><Outlet /></main>

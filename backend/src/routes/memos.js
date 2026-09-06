@@ -1,11 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(auth);
 
-// 备忘录列表
 router.get('/', (req, res) => {
   const { type } = req.query;
   let sql = 'SELECT * FROM memos';
@@ -16,16 +15,14 @@ router.get('/', (req, res) => {
   res.json(memos);
 });
 
-// 创建备忘录
-router.post('/', adminOnly, (req, res) => {
+router.post('/', managerAccess, (req, res) => {
   const { title, content, type = 'memo', priority = 'normal' } = req.body;
   if (!title) return res.status(400).json({ error: '标题必填' });
   const result = db.prepare('INSERT INTO memos (title, content, type, priority) VALUES (?, ?, ?, ?)').run(title, content, type, priority);
   res.json({ id: result.lastInsertRowid });
 });
 
-// 更新备忘录
-router.put('/:id', adminOnly, (req, res) => {
+router.put('/:id', managerAccess, (req, res) => {
   const { title, content, type, priority, completed } = req.body;
   const fields = [];
   const values = [];
@@ -40,8 +37,7 @@ router.put('/:id', adminOnly, (req, res) => {
   res.json({ success: true });
 });
 
-// 删除备忘录
-router.delete('/:id', adminOnly, (req, res) => {
+router.delete('/:id', managerAccess, (req, res) => {
   db.prepare('DELETE FROM memos WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });

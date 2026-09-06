@@ -12,18 +12,21 @@ const statusMap = {
 
 const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
 
-// 获取今天的日期字符串 YYYY-MM-DD
 const today = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const now = () => {
+  const d = new Date()
+  return `${today()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 export default function Orders() {
   const [orders, setOrders] = useState([])
   const [summary, setSummary] = useState({ total: 0, revenue: 0 })
   const [statusFilter, setStatusFilter] = useState('')
-  const [startDate, setStartDate] = useState(today())
-  const [endDate, setEndDate] = useState(today())
+  const [startDate, setStartDate] = useState(today() + 'T00:00')
+  const [endDate, setEndDate] = useState(now())
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState('desc')
   const [detail, setDetail] = useState(null)
@@ -75,15 +78,15 @@ export default function Orders() {
     if (detail?.id === id) setDetail({ ...detail, status })
   }
 
-  const setToday = () => { const t = today(); setStartDate(t); setEndDate(t); load({ startDate: t, endDate: t }) }
+  const setToday = () => { const s = today() + 'T00:00'; const e = now(); setStartDate(s); setEndDate(e); load({ startDate: s, endDate: e }) }
   const setThisWeek = () => {
     const d = new Date()
     const day = d.getDay() || 7
     const monday = new Date(d)
     monday.setDate(d.getDate() - day + 1)
     const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-    const start = fmt(monday)
-    const end = today()
+    const start = fmt(monday) + 'T00:00'
+    const end = now()
     setStartDate(start)
     setEndDate(end)
     load({ startDate: start, endDate: end })
@@ -91,30 +94,13 @@ export default function Orders() {
   const setAll = () => { setStartDate(''); setEndDate(''); load({ startDate: '', endDate: '' }) }
 
   const columns = [
-    {
-      header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">订单号{sortIcon('order_no')}</button>,
-      render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button>
-    },
-    {
-      header: '商品',
-      render: o => (
-        <div className="max-w-[200px]">
-          {o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}
-          {o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} 件</p>}
-        </div>
-      )
-    },
+    { header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">订单号{sortIcon('order_no')}</button>, render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button> },
+    { header: '商品', render: o => (<div className="max-w-[200px]">{o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}{o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} 件</p>}</div>) },
     { header: '顾客', render: o => <div><p className="text-sm text-gray-700">{o.customer_name || '-'}</p><p className="text-xs text-gray-400">{o.customer_phone || '-'}</p></div> },
     { header: '取餐方式', render: o => <Badge variant="default">{diningMap[o.dining_type] || o.dining_type}</Badge> },
-    {
-      header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">金额{sortIcon('total')}</button>,
-      render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span>
-    },
+    { header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">金额{sortIcon('total')}</button>, render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span> },
     { header: '状态', render: o => <Badge variant={statusMap[o.status]?.variant || 'default'}>{statusMap[o.status]?.label || o.status}</Badge> },
-    {
-      header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">时间{sortIcon('created_at')}</button>,
-      render: o => <span className="text-xs text-gray-400">{o.created_at}</span>
-    }
+    { header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">时间{sortIcon('created_at')}</button>, render: o => <span className="text-xs text-gray-400">{o.created_at}</span> }
   ]
 
   return (
@@ -122,34 +108,24 @@ export default function Orders() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">订单管理</h2>
-          <p className="text-sm text-gray-400 mt-1">按日期查询订单，支持按订单号/金额/时间排序</p>
+          <p className="text-sm text-gray-400 mt-1">按时间查询订单，支持按订单号/金额/时间排序</p>
         </div>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">订单总数</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{summary.total}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">总金额</p>
-          <p className="text-2xl font-bold text-primary-600 mt-1">${parseFloat(summary.revenue).toFixed(2)}</p>
-        </Card>
+        <Card className="p-4"><p className="text-sm text-gray-500">订单总数</p><p className="text-2xl font-bold text-gray-800 mt-1">{summary.total}</p></Card>
+        <Card className="p-4"><p className="text-sm text-gray-500">总金额</p><p className="text-2xl font-bold text-primary-600 mt-1">${parseFloat(summary.revenue).toFixed(2)}</p></Card>
       </div>
 
-      {/* 日期查询 */}
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">开始日期</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <label className="block text-xs text-gray-500 mb-1">开始时间</label>
+            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">结束日期</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <label className="block text-xs text-gray-500 mb-1">结束时间</label>
+            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <Button onClick={handleSearch}>查询</Button>
           <div className="flex gap-2 ml-auto">
@@ -160,28 +136,19 @@ export default function Orders() {
         </div>
       </Card>
 
-      {/* 状态筛选 */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => { setStatusFilter(''); load({ statusFilter: '' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>全部</button>
         {Object.entries(statusMap).map(([key, val]) => (
-          <button key={key} onClick={() => { setStatusFilter(key); load({ statusFilter: key }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
-            {val.label}
-          </button>
+          <button key={key} onClick={() => { setStatusFilter(key); load({ statusFilter: key }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{val.label}</button>
         ))}
       </div>
 
       <Card>
-        {orders.length === 0 ? (
-          <Empty text="该时间段暂无订单" icon="📋" />
-        ) : (
-          <Table columns={columns} data={orders} actions={o => (
-            <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)}
-              options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
-          )} />
+        {orders.length === 0 ? (<Empty text="该时间段暂无订单" icon="📋" />) : (
+          <Table columns={columns} data={orders} actions={o => (<Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />)} />
         )}
       </Card>
 
-      {/* 订单详情 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`订单详情 - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
