@@ -67,15 +67,39 @@ router.post('/', (req, res) => {
 
 // 订单列表（后台）
 router.get('/', auth, adminOnly, (req, res) => {
-  const { status, limit = 50, offset = 0 } = req.query;
-  let sql = 'SELECT * FROM orders';
+  const { status, start_date, end_date, sort_by = 'created_at', sort_order = 'desc', limit = 200, offset = 0 } = req.query;
+  let sql = 'SELECT * FROM orders WHERE 1=1';
   const params = [];
-  if (status) { sql += ' WHERE status = ?'; params.push(status); }
-  sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
+
+  // 状态筛选
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+
+  // 日期范围筛选
+  if (start_date) { sql += ' AND date(created_at) >= date(?)'; params.push(start_date); }
+  if (end_date) { sql += ' AND date(created_at) <= date(?)'; params.push(end_date); }
+
+  // 排序（白名单防止注入）
+  const allowedSortBy = ['order_no', 'total', 'created_at', 'id'];
+  const allowedSortOrder = ['asc', 'desc'];
+  const sortBy = allowedSortBy.includes(sort_by) ? sort_by : 'created_at';
+  const sortOrder = allowedSortOrder.includes(sort_order) ? sort_order : 'desc';
+  sql += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+
+  sql += ' LIMIT ? OFFSET ?';
   params.push(parseInt(limit), parseInt(offset));
+
   const orders = db.prepare(sql).all(...params);
   orders.forEach(o => o.items = JSON.parse(o.items || '[]'));
-  res.json(orders);
+
+  // 同时返回统计信息
+  let countSql = 'SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE 1=1';
+  const countParams = [];
+  if (status) { countSql += ' AND status = ?'; countParams.push(status); }
+  if (start_date) { countSql += ' AND date(created_at) >= date(?)'; countParams.push(start_date); }
+  if (end_date) { countSql += ' AND date(created_at) <= date(?)'; countParams.push(end_date); }
+  const summary = db.prepare(countSql).get(...countParams);
+
+  res.json({ orders, total: summary.cnt, revenue: summary.revenue });
 });
 
 // 订单统计
