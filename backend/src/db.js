@@ -334,6 +334,12 @@ if (carouselCount === 0) {
 
 // ===== 数据迁移（已存在数据库自动补充新增数据）=====
 
+// 给旧版 flavor_tags 表添加 category_id 列
+const tagColumns = db.prepare("PRAGMA table_info(flavor_tags)").all();
+if (!tagColumns.find(c => c.name === 'category_id')) {
+  db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run();
+}
+
 // 补充"其他"分类
 const otherCat = db.prepare("SELECT id FROM categories WHERE name = '其他'").get();
 if (!otherCat) {
