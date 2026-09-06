@@ -4,7 +4,6 @@ import { useAuth } from './context/AuthContext'
 
 import Home from './pages/customer/Home'
 import Menu from './pages/customer/Menu'
-import Cart from './pages/customer/Cart'
 import Checkout from './pages/customer/Checkout'
 
 import Login from './pages/admin/Login'
@@ -37,7 +36,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
-        <Route path="/cart" element={<Cart />} />
+        <Route path="/cart" element={<Navigate to="/menu" />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
