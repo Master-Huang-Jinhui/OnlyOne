@@ -1,129 +1,190 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Table, Badge, Dialog, Input, Select, Switch, Empty, toast } from '../../components/ui'
-
-const emptyForm = { category: '其他', name: '', extra_price: 0, is_default: false, sort_order: 0, enabled: true }
-const categoryOptions = [
-  { value: '辣度', label: '辣度' }, { value: '冰度', label: '冰度' },
-  { value: '甜度', label: '甜度' }, { value: '配料', label: '配料' }, { value: '其他', label: '其他' }
-]
+import { Card, Button, Table, Badge, Dialog, Input, Select, Empty, toast } from '../../components/ui'
 
 export default function Flavors() {
-  const [tags, setTags] = useState([])
-  const [dialog, setDialog] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [filterCategory, setFilterCategory] = useState('all')
+  const [categories, setCategories] = useState([])
+  const [catDialog, setCatDialog] = useState(null)
+  const [tagDialog, setTagDialog] = useState(null)
+  const [expanded, setExpanded] = useState({})
 
   useEffect(() => { load() }, [])
 
-  const load = () => {
-    api.getAllFlavorTags().then(data => setTags(Array.isArray(data) ? data : [])).catch(() => {})
-  }
+  const load = () => api.getAllFlavorCategories().then(data => {
+    const list = Array.isArray(data) ? data : []
+    setCategories(list)
+    if (list.length > 0) setExpanded(prev => ({ ...prev, [list[0].id]: true }))
+  }).catch(() => {})
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
-  const openEdit = (t) => {
-    setEditing(t)
-    setForm({ ...t, is_default: !!t.is_default, enabled: !!t.enabled, extra_price: t.extra_price || 0 })
-    setDialog(true)
-  }
-
-  const save = async () => {
-    if (!form.name) { toast('标签名称必填', 'error'); return }
+  const saveCategory = async () => {
+    const { mode, data } = catDialog
+    const name = data.name.trim()
+    if (!name) { toast('请填写分类名称', 'error'); return }
     try {
-      const data = { ...form, extra_price: parseFloat(form.extra_price) || 0 }
-      if (editing) { await api.updateFlavorTag(editing.id, data); toast('更新成功') }
-      else { await api.createFlavorTag(data); toast('添加成功') }
-      setDialog(false); load()
+      if (mode === 'add') {
+        await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 })
+        toast('分类已添加')
+      } else {
+        await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 })
+        toast('分类已更新')
+      }
+      setCatDialog(null)
+      load()
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const remove = async (id) => {
-    if (!confirm('确定删除该口味标签？')) return
-    await api.deleteFlavorTag(id); toast('已删除'); load()
-  }
-
-  const toggleEnabled = async (t) => {
-    await api.updateFlavorTag(t.id, { enabled: !t.enabled })
-    toast(t.enabled ? '已禁用' : '已启用')
+  const toggleCategory = async (cat) => {
+    await api.updateFlavorCategory(cat.id, { enabled: cat.enabled ? 0 : 1 })
+    toast(cat.enabled ? '已禁用该分类' : '已启用该分类')
     load()
   }
 
-  const filtered = filterCategory === 'all' ? tags : tags.filter(t => t.category === filterCategory)
-  const categories = [...new Set(tags.map(t => t.category))]
+  const deleteCategory = async (cat) => {
+    if (!confirm(`确定删除分类"${cat.name}"吗？该分类下没有标签才能删除。`)) return
+    try {
+      await api.deleteFlavorCategory(cat.id)
+      toast('分类已删除')
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
 
-  const columns = [
-    { key: 'category', label: '分类', render: (t) => <Badge variant="info">{t.category}</Badge> },
-    { key: 'name', label: '标签名称' },
-    { key: 'extra_price', label: '额外加价', render: (t) => t.extra_price > 0 ? <span className="text-orange-600 font-medium">+${t.extra_price.toFixed(2)}</span> : <span className="text-gray-400">$0.00</span> },
-    { key: 'is_default', label: '默认选中', render: (t) => t.is_default ? <Badge variant="success">是</Badge> : <span className="text-gray-400">否</span> },
-    { key: 'sort_order', label: '排序' },
-    { key: 'enabled', label: '启用', render: (t) => <Switch checked={!!t.enabled} onChange={() => toggleEnabled(t)} /> },
-    { key: 'actions', label: '操作', render: (t) => (
-      <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={() => openEdit(t)}>编辑</Button>
-        <Button size="sm" variant="danger" onClick={() => remove(t.id)}>删除</Button>
-      </div>
-    )}
+  const saveTag = async () => {
+    const { mode, categoryId, data } = tagDialog
+    const name = data.name.trim()
+    if (!name) { toast('请填写标签名称', 'error'); return }
+    try {
+      const payload = {
+        category_id: categoryId,
+        name,
+        extra_price: parseFloat(data.extra_price) || 0,
+        is_default: data.is_default ? 1 : 0,
+        sort_order: data.sort_order || 0,
+        enabled: data.enabled ? 1 : 0
+      }
+      if (mode === 'add') {
+        await api.createFlavorTag(payload)
+        toast('标签已添加')
+      } else {
+        await api.updateFlavorTag(data.id, payload)
+        toast('标签已更新')
+      }
+      setTagDialog(null)
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  const toggleTag = async (tag) => {
+    await api.updateFlavorTag(tag.id, { enabled: tag.enabled ? 0 : 1 })
+    toast(tag.enabled ? '已禁用该标签' : '已启用该标签')
+    load()
+  }
+
+  const deleteTag = async (tag) => {
+    if (!confirm(`确定删除标签"${tag.name}"吗？`)) return
+    await api.deleteFlavorTag(tag.id)
+    toast('标签已删除')
+    load()
+  }
+
+  const tagColumns = [
+    { header: '标签', render: t => <span className="font-medium text-gray-800">{t.name}</span> },
+    { header: '加价', render: t => t.extra_price > 0 ? <span className="text-primary-600 font-medium">+${t.extra_price.toFixed(2)}</span> : <span className="text-gray-400">-</span> },
+    { header: '默认', render: t => t.is_default ? <Badge variant="success">默认选中</Badge> : <span className="text-gray-400">-</span> },
+    { header: '排序', render: t => <span className="text-gray-500">{t.sort_order}</span> },
+    { header: '状态', render: t => t.enabled ? <Badge variant="success">启用</Badge> : <Badge variant="default">禁用</Badge> }
   ]
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">口味管理</h1>
-          <p className="text-sm text-gray-500 mt-1">管理商品的口味标签、加价和默认选项</p>
+          <h2 className="text-xl font-bold text-gray-800">口味管理</h2>
+          <p className="text-sm text-gray-400 mt-1">管理口味大类和小类，可单独启用/禁用</p>
         </div>
-        <Button onClick={openAdd}>+ 新增口味</Button>
+        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', sort_order: 0, enabled: true } })}>+ 新增大类</Button>
       </div>
 
-      <Card className="mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">筛选分类：</span>
-          <Select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="w-40">
-            <option value="all">全部分类</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </Select>
-          <span className="text-sm text-gray-400 ml-auto">共 {filtered.length} 个标签</span>
-        </div>
-      </Card>
+      {categories.length === 0 ? (
+        <Card><Empty text="暂无口味分类，点击右上角添加" icon="🌶️" /></Card>
+      ) : categories.map(cat => (
+        <Card key={cat.id} className="overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 bg-gray-50 border-b">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} className="text-gray-500 hover:text-gray-700 w-6">
+                {expanded[cat.id] ? '▼' : '▶'}
+              </button>
+              <h3 className="font-bold text-gray-800 text-lg">{cat.name}</h3>
+              <Badge variant={cat.enabled ? 'success' : 'default'}>{cat.enabled ? '启用中' : '已禁用'}</Badge>
+              <span className="text-xs text-gray-400">{cat.tags?.length || 0} 个标签</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => toggleCategory(cat)}>{cat.enabled ? '禁用' : '启用'}</Button>
+              <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat } })}>编辑</Button>
+              <Button size="sm" variant="outline" onClick={() => setTagDialog({ mode: 'add', categoryId: cat.id, data: { name: '', extra_price: 0, is_default: false, sort_order: 0, enabled: true } })}>+ 标签</Button>
+              <button onClick={() => deleteCategory(cat)} className="text-red-400 hover:text-red-600 text-sm px-2">删除</button>
+            </div>
+          </div>
 
-      <Card>
-        {filtered.length === 0 ? (
-          <Empty text="暂无口味标签，点击右上角新增" icon="🌶️" />
-        ) : (
-          <Table columns={columns} data={filtered} rowKey="id" />
+          {expanded[cat.id] && (
+            <div className="p-5">
+              {(!cat.tags || cat.tags.length === 0) ? (
+                <Empty text="该分类下暂无标签，点击右上角 + 标签 添加" icon="🏷️" />
+              ) : (
+                <Table
+                  columns={tagColumns}
+                  data={cat.tags}
+                  actions={t => (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleTag(t)} className={`text-xs ${t.enabled ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{t.enabled ? '禁用' : '启用'}</button>
+                      <button onClick={() => setTagDialog({ mode: 'edit', categoryId: cat.id, data: { ...t } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
+                      <button onClick={() => deleteTag(t)} className="text-xs text-red-400 hover:text-red-600">删除</button>
+                    </div>
+                  )}
+                />
+              )}
+            </div>
+          )}
+        </Card>
+      ))}
+
+      <Dialog open={!!catDialog} onClose={() => setCatDialog(null)} title={catDialog?.mode === 'add' ? '新增大类' : '编辑大类'} width="max-w-sm">
+        {catDialog && (
+          <div className="space-y-4">
+            <Input label="大类名称 *" value={catDialog.data.name} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name: e.target.value } })} placeholder="如：冰度、辣度、甜度" />
+            <Input label="排序" type="number" value={catDialog.data.sort_order} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={catDialog.data.enabled} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, enabled: e.target.checked } })} className="w-4 h-4" />
+              <span className="text-sm text-gray-700">启用该分类（禁用后前台不显示）</span>
+            </label>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setCatDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={saveCategory}>保存</Button>
+            </div>
+          </div>
         )}
-      </Card>
+      </Dialog>
 
-      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑口味' : '新增口味'}>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Select label="分类" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-              {categoryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </Select>
-            <Input label="标签名称 *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="如：少辣、去冰" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="额外加价 ($)" type="number" step="0.01" min="0" value={form.extra_price} onChange={e => setForm({ ...form, extra_price: e.target.value })} placeholder="0.00" />
-            <Input label="排序" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
-          </div>
-          <div className="flex items-center gap-6">
+      <Dialog open={!!tagDialog} onClose={() => setTagDialog(null)} title={tagDialog?.mode === 'add' ? '新增标签' : '编辑标签'} width="max-w-sm">
+        {tagDialog && (
+          <div className="space-y-4">
+            <div className="text-sm text-gray-500">所属大类：<span className="font-medium text-gray-700">{categories.find(c => c.id === tagDialog.categoryId)?.name || '-'}</span></div>
+            <Input label="标签名称 *" value={tagDialog.data.name} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, name: e.target.value } })} placeholder="如：少冰、去冰、正常冰" />
+            <Input label="额外加价 ($)" type="number" step="0.01" value={tagDialog.data.extra_price} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, extra_price: e.target.value } })} placeholder="0 表示不加价" />
+            <Input label="排序" type="number" value={tagDialog.data.sort_order} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             <label className="flex items-center gap-2 cursor-pointer">
-              <Switch checked={form.is_default} onChange={v => setForm({ ...form, is_default: v })} />
-              <span className="text-sm text-gray-700">默认选中（新商品自动带上此口味）</span>
+              <input type="checkbox" checked={tagDialog.data.is_default} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, is_default: e.target.checked } })} className="w-4 h-4" />
+              <span className="text-sm text-gray-700">默认选中（商品加入购物车时自动带上）</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} />
-              <span className="text-sm text-gray-700">启用</span>
+              <input type="checkbox" checked={tagDialog.data.enabled} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, enabled: e.target.checked } })} className="w-4 h-4" />
+              <span className="text-sm text-gray-700">启用该标签（禁用后前台不显示）</span>
             </label>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setTagDialog(false)}>取消</Button>
+              <Button className="flex-1" onClick={saveTag}>保存</Button>
+            </div>
           </div>
-          <p className="text-xs text-gray-400">提示：默认选中的标签（如正常冰、正常糖）会在商品加入购物车时自动选中，顾客可在购物车中修改。</p>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <Button variant="outline" className="flex-1" onClick={() => setDialog(false)}>取消</Button>
-          <Button className="flex-1" onClick={save}>{editing ? '保存修改' : '确认添加'}</Button>
-        </div>
+        )}
       </Dialog>
     </div>
   )
