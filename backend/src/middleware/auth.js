@@ -18,6 +18,14 @@ function auth(req, res, next) {
 
 function adminOnly(req, res, next) {
   if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '需要超级管理员权限' });
+  }
+  next();
+}
+
+// 允许超级管理员和管理员（manager）访问后台
+function managerAccess(req, res, next) {
+  if (req.user.role !== 'admin' && req.user.role !== 'manager') {
     return res.status(403).json({ error: '需要管理员权限' });
   }
   next();
@@ -31,4 +39,4 @@ function signToken(user) {
   );
 }
 
-module.exports = { auth, adminOnly, signToken, SECRET };
+module.exports = { auth, adminOnly, managerAccess, signToken, SECRET };
