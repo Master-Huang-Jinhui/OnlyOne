@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useCart } from '../../context/CartContext'
 import { Button, Badge } from '../../components/ui'
+import MilkTeaMaker from '../../components/MilkTeaMaker'
 
 const sections = [
   { id: 'brand', label: '品牌' }, { id: 'tea', label: '茶品' }, { id: 'craft', label: '工艺' },
@@ -171,6 +172,19 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="py-20 bg-gradient-to-br from-primary-50 via-white to-blue-50">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="reveal">
+            <Badge variant="primary" className="mb-4">互动体验</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">一杯奶茶的诞生</h2>
+            <p className="text-gray-500 mb-10">点击按钮，亲手体验奶茶制作的每一步</p>
+          </div>
+          <div className="reveal bg-white/70 backdrop-blur rounded-3xl p-8 shadow-lg border border-primary-100">
+            <MilkTeaMaker />
+          </div>
+        </div>
+      </section>
+
       <section id="about" className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">关于我们</Badge>
@@ -179,7 +193,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 自定义内容板块 - 图片左右布局 + 奶茶制作过程悬停动画 */}
       {contentSections.map((section, idx) => (
         <section key={section.id} className={`py-20 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} section-hover`}>
           <div className="max-w-6xl mx-auto px-4">
