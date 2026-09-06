@@ -6,7 +6,7 @@ import { Button, Input, Textarea, Empty, toast } from '../../components/ui'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, subtotal, clear } = useCart()
+  const { items, subtotal, clear, addToHistory } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
   const [diningType, setDiningType] = useState('takeout')
@@ -39,7 +39,10 @@ export default function Checkout() {
         dining_type: diningType, customer_name: customerName, customer_phone: customerPhone,
         customer_address: diningType === 'delivery' ? customerAddress : '', note
       })
-      setOrderResult(result); clear(); toast('下单成功！')
+      setOrderResult(result)
+      addToHistory()
+      clear()
+      toast('下单成功！')
     } catch (e) { toast(e.message, 'error') } finally { setSubmitting(false) }
   }
 
