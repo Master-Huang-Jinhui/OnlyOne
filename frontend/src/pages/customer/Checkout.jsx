@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { api } from '../../lib/api'
+import { getOrderIdentity } from '../../lib/guest'
 import { Button, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Checkout() {
@@ -37,7 +38,8 @@ export default function Checkout() {
       const result = await api.createOrder({
         items: items.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') })),
         dining_type: diningType, customer_name: customerName, customer_phone: customerPhone,
-        customer_address: diningType === 'delivery' ? customerAddress : '', note
+        customer_address: diningType === 'delivery' ? customerAddress : '', note,
+        ...getOrderIdentity()
       })
       setOrderResult(result)
       addToHistory()
