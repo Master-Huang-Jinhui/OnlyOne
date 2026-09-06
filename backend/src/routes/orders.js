@@ -112,6 +112,37 @@ router.get('/lookup/:orderNo', (req, res) => {
   res.json(order);
 });
 
+router.get('/search', (req, res) => {
+  const { type, value } = req.query;
+  if (!type || !value) {
+    return res.status(400).json({ error: '请提供查询类型和查询值' });
+  }
+
+  const allowedTypes = ['order_no', 'phone', 'name'];
+  if (!allowedTypes.includes(type)) {
+    return res.status(400).json({ error: '无效的查询类型' });
+  }
+
+  let sql = 'SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at FROM orders WHERE ';
+  let searchValue = value.trim();
+
+  if (type === 'order_no') {
+    sql += 'order_no = ?';
+  } else if (type === 'phone') {
+    const cleanPhone = searchValue.replace(/\D/g, '');
+    sql += "REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ?";
+    searchValue = `%${cleanPhone}%`;
+  } else {
+    sql += 'customer_name LIKE ?';
+    searchValue = `%${searchValue}%`;
+  }
+
+  sql += ' ORDER BY created_at DESC LIMIT 50';
+
+  const orders = db.prepare(sql).all(searchValue);
+  res.json({ orders, count: orders.length });
+});
+
 router.get('/:id', auth, (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: '订单不存在' });
