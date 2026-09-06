@@ -11,15 +11,16 @@ import Login from './pages/admin/Login'
 import AdminLayout from './pages/admin/Layout'
 import Dashboard from './pages/admin/Dashboard'
 import Users from './pages/admin/Users'
-import Permissions from './pages/admin/Permissions'
 import Platforms from './pages/admin/Platforms'
 import Products from './pages/admin/Products'
+import Flavors from './pages/admin/Flavors'
 import Orders from './pages/admin/Orders'
 import Settings from './pages/admin/Settings'
 import Menus from './pages/admin/Menus'
 import Forms from './pages/admin/Forms'
 import FormRenderer from './pages/admin/FormRenderer'
 import Content from './pages/admin/Content'
+import Permissions from './pages/admin/Permissions'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="permissions" element={<ProtectedRoute adminOnly><Permissions /></ProtectedRoute>} />
           <Route path="platforms" element={<Platforms />} />
           <Route path="products" element={<ProtectedRoute adminOnly><Products /></ProtectedRoute>} />
+          <Route path="flavors" element={<ProtectedRoute adminOnly><Flavors /></ProtectedRoute>} />
           <Route path="orders" element={<ProtectedRoute adminOnly><Orders /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
           <Route path="menus" element={<ProtectedRoute adminOnly><Menus /></ProtectedRoute>} />
