@@ -38,16 +38,14 @@ function formatPhone(phone) {
   return phone
 }
 
-function isValidPhone(phone) {
-  const clean = normalizePhone(phone)
-  return clean.length === 10
+function looksLikePhone(input) {
+  return /^[\d\s\-()]+$/.test(input.trim())
 }
 
 export default function OrderStatus() {
   const [searchParams] = useSearchParams()
-  const [searchType, setSearchType] = useState('order_no')
-  const [searchValue, setSearchValue] = useState('')
-  const [phoneError, setPhoneError] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [phoneHint, setPhoneHint] = useState('')
   const [orderList, setOrderList] = useState(null)
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -57,34 +55,25 @@ export default function OrderStatus() {
   useEffect(() => {
     const autoOrder = searchParams.get('order')
     if (autoOrder) {
-      setSearchType('order_no')
-      setSearchValue(autoOrder)
-      handleSearch(autoOrder, 'order_no')
+      setKeyword(autoOrder)
+      handleSearch(autoOrder)
     }
   }, [])
 
-  const handlePhoneChange = (e) => {
+  const handleKeywordChange = (e) => {
     const val = e.target.value
-    setSearchValue(val)
-    if (val && !isValidPhone(val)) {
-      setPhoneError('请输入10位手机号码')
+    setKeyword(val)
+    if (val && looksLikePhone(val) && normalizePhone(val).length > 0 && normalizePhone(val).length !== 10) {
+      setPhoneHint(`手机号需要10位数字，当前${normalizePhone(val).length}位`)
     } else {
-      setPhoneError('')
+      setPhoneHint('')
     }
   }
 
-  const handleSearch = async (value, type) => {
-    const queryType = type || searchType
-    const queryValue = value || searchValue
-
-    if (!queryValue.trim()) {
-      toast(queryType === 'order_no' ? '请输入订单号' : queryType === 'phone' ? '请输入手机号' : '请输入姓名', 'error')
-      return
-    }
-
-    if (queryType === 'phone' && !isValidPhone(queryValue)) {
-      setPhoneError('请输入10位手机号码')
-      toast('手机号格式不正确', 'error')
+  const handleSearch = async (kw) => {
+    const queryKw = kw || keyword
+    if (!queryKw.trim()) {
+      toast('请输入订单号、手机号或姓名', 'error')
       return
     }
 
@@ -94,13 +83,18 @@ export default function OrderStatus() {
     setOrderList(null)
 
     try {
-      if (queryType === 'order_no') {
-        const data = await api.getOrderByNo(queryValue.trim().toUpperCase())
-        setOrder(data)
+      const data = await api.searchOrders(queryKw.trim())
+      const orders = data.orders || []
+
+      if (orders.length === 0) {
+        setOrderList([])
+        setView('list')
+      } else if (orders.length === 1) {
+        const detail = await api.getOrderByNo(orders[0].order_no)
+        setOrder(detail)
         setView('detail')
       } else {
-        const data = await api.searchOrders(queryType, queryValue.trim())
-        setOrderList(data.orders || [])
+        setOrderList(orders)
         setView('list')
       }
     } catch (e) {
@@ -126,26 +120,20 @@ export default function OrderStatus() {
 
   const handleBack = () => {
     setOrder(null)
-    setView(orderList ? 'list' : 'search')
+    setView(orderList && orderList.length > 0 ? 'list' : 'search')
   }
 
   const handleNewSearch = () => {
     setOrder(null)
     setOrderList(null)
-    setSearchValue('')
-    setPhoneError('')
+    setKeyword('')
+    setPhoneHint('')
     setSearched(false)
     setView('search')
   }
 
   const status = order ? statusMap[order.status] || statusMap.pending : null
   const currentStep = status?.step || 0
-
-  const searchTypes = [
-    { key: 'order_no', label: '订单号', placeholder: '如：OO20240101001', icon: '📋' },
-    { key: 'phone', label: '手机号', placeholder: '如：(123) 456-7890', icon: '📱' },
-    { key: 'name', label: '姓名', placeholder: '请输入下单时的姓名', icon: '👤' }
-  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,36 +158,29 @@ export default function OrderStatus() {
         {view === 'search' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
             <h1 className="text-xl font-bold text-gray-800 mb-1">查询订单</h1>
-            <p className="text-sm text-gray-400 mb-6">选择查询方式，输入信息查看订单状态</p>
-
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {searchTypes.map(t => (
-                <button key={t.key} onClick={() => { setSearchType(t.key); setSearchValue(''); setPhoneError('') }}
-                  className={`p-3 rounded-xl border-2 text-center transition-all ${
-                    searchType === t.key ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
-                  <div className="text-xl mb-1">{t.icon}</div>
-                  <div className={`text-sm font-medium ${searchType === t.key ? 'text-primary-700' : 'text-gray-600'}`}>{t.label}</div>
-                </button>
-              ))}
-            </div>
+            <p className="text-sm text-gray-400 mb-6">输入订单号、手机号或姓名，一键查询</p>
 
             <div className="mb-4">
-              <Input
-                value={searchValue}
-                onChange={searchType === 'phone' ? handlePhoneChange : e => setSearchValue(e.target.value)}
-                placeholder={searchTypes.find(t => t.key === searchType)?.placeholder}
-                onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              />
-              {searchType === 'phone' && phoneError && (
-                <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={handleKeywordChange}
+                  placeholder="输入订单号、手机号或姓名"
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                />
+              </div>
+              {phoneHint && (
+                <p className="text-xs text-amber-600 mt-2">💡 {phoneHint}</p>
               )}
-              {searchType === 'phone' && !phoneError && (
-                <p className="text-xs text-gray-400 mt-1">请输入10位美国手机号码，用于查询您的订单</p>
+              {!phoneHint && (
+                <p className="text-xs text-gray-400 mt-2">支持订单号精确查询、手机号模糊匹配、姓名模糊匹配</p>
               )}
             </div>
 
-            <Button className="w-full" onClick={() => handleSearch()} disabled={loading || (searchType === 'phone' && !!phoneError)}>
+            <Button className="w-full" onClick={() => handleSearch()} disabled={loading}>
               {loading ? '查询中...' : '查询订单'}
             </Button>
           </div>
@@ -387,7 +368,7 @@ export default function OrderStatus() {
           <div className="bg-white rounded-2xl p-12 shadow-sm text-center">
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-lg font-bold text-gray-800 mb-2">查询您的订单</h3>
-            <p className="text-sm text-gray-400 mb-6">在上方选择查询方式，输入信息即可查看订单状态</p>
+            <p className="text-sm text-gray-400 mb-6">在上方输入订单号、手机号或姓名即可查询</p>
             <div className="flex gap-3 justify-center">
               <Link to="/"><Button variant="outline">返回首页</Button></Link>
               <Link to="/menu"><Button>去点餐</Button></Link>
