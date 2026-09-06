@@ -3,9 +3,17 @@ import { createContext, useContext, useState, useEffect } from 'react'
 const CartContext = createContext(null)
 
 export function CartProvider({ children }) {
+  const genId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
+
+  const migrateItems = (items) => {
+    if (!Array.isArray(items)) return []
+    return items.map(item => item.cartId ? item : { ...item, cartId: genId() })
+  }
+
   const [items, setItems] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('cart') || '[]')
+      const raw = JSON.parse(localStorage.getItem('cart') || '[]')
+      return migrateItems(raw)
     } catch {
       return []
     }
@@ -14,8 +22,6 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(items))
   }, [items])
-
-  const genId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
   const addItem = (product) => {
     setItems(prev => {
