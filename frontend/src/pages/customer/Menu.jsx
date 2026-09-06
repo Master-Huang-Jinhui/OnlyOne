@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useCart } from '../../context/CartContext'
-import { Button, Badge, Empty, Input, toast } from '../../components/ui'
+import { flavorTags, getTagInfo, calcTagsExtraPrice } from '../../lib/flavorTags'
+import { Button, Badge, Empty, toast } from '../../components/ui'
 
 export default function Menu() {
   const navigate = useNavigate()
-  const { items, addItem, updateQuantity, updateNote, removeItem, clear, subtotal, totalCount, history, reorderFromHistory } = useCart()
+  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
   const [business, setBusiness] = useState({ open: true })
   const [cartOpen, setCartOpen] = useState(false)
-  const [noteDialog, setNoteDialog] = useState(null)
-  const [noteText, setNoteText] = useState('')
+  const [tagsDialog, setTagsDialog] = useState(null)
+  const [selectedTags, setSelectedTags] = useState([])
   const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
@@ -23,17 +24,62 @@ export default function Menu() {
   }, [])
 
   const filtered = activeCategory === 'all' ? products : products.filter(p => p.category_id == activeCategory)
-  const getItemCount = (productId) => items.filter(i => i.id === productId && !i.note).reduce((sum, i) => sum + i.quantity, 0)
 
-  const handleAdd = (product) => { if (!business.open) return; addItem(product) }
-  const openNoteDialog = (item) => { setNoteDialog(item); setNoteText(item.note || '') }
-  const saveNote = () => { if (noteDialog) updateNote(noteDialog.cartId, noteText); setNoteDialog(null) }
+  const getItemCount = (productId) => {
+    return items.filter(i => i.id === productId && (!i.notes || i.notes.length === 0)).reduce((sum, i) => sum + i.quantity, 0)
+  }
+
+  const handleAdd = (product) => {
+    if (!business.open) return
+    addItem(product)
+  }
+
+  const openTagsDialog = (item) => {
+    setTagsDialog(item)
+    setSelectedTags([...(item.notes || [])])
+  }
+
+  const toggleTag = (tagName) => {
+    setSelectedTags(prev =>
+      prev.includes(tagName)
+        ? prev.filter(t => t !== tagName)
+        : [...prev, tagName]
+    )
+  }
+
+  const saveTags = () => {
+    if (tagsDialog) updateNotes(tagsDialog.cartId, selectedTags)
+    setTagsDialog(null)
+  }
 
   const handleCheckout = () => {
     if (items.length === 0) { toast('购物车是空的', 'error'); return }
     setCartOpen(false)
     navigate('/checkout')
   }
+
+  const tagsByCategory = useMemo(() => {
+    const groups = {}
+    flavorTags.forEach(tag => {
+      if (!groups[tag.category]) groups[tag.category] = []
+      groups[tag.category].push(tag)
+    })
+    return groups
+  }, [])
+
+  const renderTags = (tags = [], small = false) => (
+    <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>
+      {tags.map((tagName, i) => {
+        const info = getTagInfo(tagName)
+        return (
+          <span key={i} className={`inline-flex items-center gap-0.5 bg-primary-50 text-primary-700 rounded-full ${small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'}`}>
+            {tagName}
+            {info.extraPrice > 0 && <span className="text-primary-500">+${info.extraPrice.toFixed(2)}</span>}
+          </span>
+        )
+      })}
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16 pb-20">
@@ -80,7 +126,7 @@ export default function Menu() {
                   <div className="p-5">
                     <h3 className="font-bold text-gray-800 mb-1">{product.name}</h3>
                     {product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{product.description}</p>
+                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{product.description}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-bold text-primary-600">${product.price?.toFixed(2)}</span>
                       <Button size="sm" onClick={() => handleAdd(product)} disabled={!business.open}>{business.open ? '+ 加入' : '休息中'}</Button>
@@ -139,28 +185,33 @@ export default function Menu() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {items.length === 0 ? <Empty text="购物车是空的" icon="🛒" /> : items.map(item => (
-                    <div key={item.cartId} className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-800 text-sm">{item.name}</p>
-                          {item.note && <span className="inline-block mt-1 text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded">📝 {item.note}</span>}
+                  {items.length === 0 ? <Empty text="购物车是空的" icon="🛒" /> : items.map(item => {
+                    const unitPrice = getItemUnitPrice(item)
+                    return (
+                      <div key={item.cartId} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800 text-sm">{item.name}</p>
+                            {item.notes && item.notes.length > 0 && renderTags(item.notes, true)}
+                          </div>
+                          <span className="font-bold text-primary-600 text-sm">${(unitPrice * item.quantity).toFixed(2)}</span>
                         </div>
-                        <span className="font-bold text-primary-600 text-sm">${(item.price * item.quantity).toFixed(2)}</span>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => updateQuantity(item.cartId, item.quantity - 1)} className="w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 flex items-center justify-center text-sm">−</button>
+                            <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.cartId, item.quantity + 1)} className="w-6 h-6 rounded-full bg-primary-100 hover:bg-primary-200 text-primary-600 flex items-center justify-center text-sm">+</button>
+                          </div>
+                          <div className="flex gap-2 text-xs">
+                            <button onClick={() => openTagsDialog(item)} className="text-primary-600 hover:text-primary-700">
+                              {item.notes && item.notes.length > 0 ? '改口味' : '选口味'}
+                            </button>
+                            <button onClick={() => removeItem(item.cartId)} className="text-red-400 hover:text-red-600">删除</button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => updateQuantity(item.cartId, item.quantity - 1)} className="w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 flex items-center justify-center text-sm">−</button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.cartId, item.quantity + 1)} className="w-6 h-6 rounded-full bg-primary-100 hover:bg-primary-200 text-primary-600 flex items-center justify-center text-sm">+</button>
-                        </div>
-                        <div className="flex gap-2 text-xs">
-                          <button onClick={() => openNoteDialog(item)} className="text-primary-600 hover:text-primary-700">{item.note ? '改备注' : '加备注'}</button>
-                          <button onClick={() => removeItem(item.cartId)} className="text-red-400 hover:text-red-600">删除</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -181,17 +232,54 @@ export default function Menu() {
         </div>
       )}
 
-      {noteDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setNoteDialog(null)} />
-          <div className="relative bg-white rounded-xl p-6 w-full max-w-sm">
-            <h3 className="font-bold text-gray-800 mb-1">添加备注</h3>
-            <p className="text-sm text-gray-500 mb-4">商品：{noteDialog.name}</p>
-            <Input placeholder="例如：少冰、半糖、不要香菜..." value={noteText} onChange={e => setNoteText(e.target.value)} />
-            <p className="text-xs text-gray-400 mt-2">不同备注的同款商品会分开计算</p>
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setNoteDialog(null)} className="flex-1">取消</Button>
-              <Button onClick={saveNote} className="flex-1">保存</Button>
+      {tagsDialog && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTagsDialog(null)} />
+          <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-800">选择口味</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{tagsDialog.name}</p>
+              </div>
+              <button onClick={() => setTagsDialog(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {Object.entries(tagsByCategory).map(([category, tags]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">{category}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map(tag => {
+                      const selected = selectedTags.includes(tag.name)
+                      return (
+                        <button
+                          key={tag.name}
+                          onClick={() => toggleTag(tag.name)}
+                          className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                            selected
+                              ? 'bg-primary-600 text-white border-primary-600'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
+                          }`}
+                        >
+                          {tag.name}
+                          {tag.extraPrice > 0 && <span className={selected ? 'text-primary-100 ml-1' : 'text-gray-400 ml-1'}>+${tag.extraPrice.toFixed(2)}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t bg-white">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-gray-500">已选 {selectedTags.length} 项</span>
+                <span className="text-sm text-primary-600">+${calcTagsExtraPrice(selectedTags).toFixed(2)}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setSelectedTags([])} className="flex-1">清空</Button>
+                <Button onClick={saveTags} className="flex-1">确认</Button>
+              </div>
             </div>
           </div>
         </div>
