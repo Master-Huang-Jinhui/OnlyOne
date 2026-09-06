@@ -6,7 +6,7 @@ import { Button, Input, Textarea, Select, Empty, toast } from '../../components/
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, subtotal, clear, addToHistory, getTagInfo } = useCart()
+  const { items, subtotal, clear, addToHistory, getTagInfo, getItemUnitPrice } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
   const [diningType, setDiningType] = useState('takeout')
@@ -35,7 +35,7 @@ export default function Checkout() {
     setSubmitting(true)
     try {
       const result = await api.createOrder({
-        items: items.map(i => ({ id: i.id, quantity: i.quantity, note: (i.notes || []).join(', ') })),
+        items: items.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') })),
         dining_type: diningType, customer_name: customerName, customer_phone: customerPhone,
         customer_address: diningType === 'delivery' ? customerAddress : '', note
       })
