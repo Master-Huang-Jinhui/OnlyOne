@@ -66,30 +66,34 @@ export const api = {
   deleteCarousel: (id) => request(`/content/carousel/${id}`, { method: 'DELETE' }),
   getContentBlocks: () => request('/content/blocks'),
   updateContentBlock: (key, data) => request(`/content/blocks/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
-
-  // 自定义内容板块
   getContentSections: () => request('/content/sections'),
   getAllContentSections: () => request('/content/sections/all'),
   createContentSection: (data) => request('/content/sections', { method: 'POST', body: JSON.stringify(data) }),
   updateContentSection: (id, data) => request(`/content/sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteContentSection: (id) => request(`/content/sections/${id}`, { method: 'DELETE' }),
-
   getMemos: (type) => request(`/memos${type ? `?type=${type}` : ''}`),
   createMemo: (data) => request('/memos', { method: 'POST', body: JSON.stringify(data) }),
   updateMemo: (id, data) => request(`/memos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMemo: (id) => request(`/memos/${id}`, { method: 'DELETE' }),
-
-  // 口味标签
   getFlavorTags: () => request('/flavor-tags'),
   getAllFlavorTags: () => request('/flavor-tags/all'),
   createFlavorTag: (data) => request('/flavor-tags', { method: 'POST', body: JSON.stringify(data) }),
   updateFlavorTag: (id, data) => request(`/flavor-tags/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteFlavorTag: (id) => request(`/flavor-tags/${id}`, { method: 'DELETE' }),
-
-  // 口味分类（大类）
   getFlavorCategories: () => request('/flavor-categories'),
   getAllFlavorCategories: () => request('/flavor-categories/all'),
   createFlavorCategory: (data) => request('/flavor-categories', { method: 'POST', body: JSON.stringify(data) }),
   updateFlavorCategory: (id, data) => request(`/flavor-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteFlavorCategory: (id) => request(`/flavor-categories/${id}`, { method: 'DELETE' })
+  deleteFlavorCategory: (id) => request(`/flavor-categories/${id}`, { method: 'DELETE' }),
+  uploadImage: async (file) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const token = getToken()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${BASE}/upload/image`, { method: 'POST', body: formData, headers })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || '上传失败')
+    return data
+  }
 }
