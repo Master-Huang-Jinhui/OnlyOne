@@ -24,6 +24,7 @@ app.use('/api/memos', require('./routes/memos'));
 app.use('/api/flavor-tags', require('./routes/flavorTags'));
 app.use('/api/flavor-categories', require('./routes/flavorCategories'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/tables', require('./routes/tables'));
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
