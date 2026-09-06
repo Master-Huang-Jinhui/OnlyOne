@@ -2,13 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from './components/ui'
 import { useAuth } from './context/AuthContext'
 
-// 前台
 import Home from './pages/customer/Home'
 import Menu from './pages/customer/Menu'
 import Cart from './pages/customer/Cart'
 import Checkout from './pages/customer/Checkout'
+import OrderStatus from './pages/customer/OrderStatus'
 
-// 后台
 import Login from './pages/admin/Login'
 import AdminLayout from './pages/admin/Layout'
 import Dashboard from './pages/admin/Dashboard'
@@ -24,7 +23,6 @@ import FormRenderer from './pages/admin/FormRenderer'
 import Content from './pages/admin/Content'
 import Permissions from './pages/admin/Permissions'
 
-// 员工
 import EmployeeOrder from './pages/employee/EmployeeOrder'
 
 function ProtectedRoute({ children, adminOnly = false, employeeOnly = false }) {
@@ -41,19 +39,16 @@ export default function App() {
     <>
       <ToastContainer />
       <Routes>
-        {/* 前台公开页面 */}
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/cart" element={<Navigate to="/menu" />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/order-status" element={<OrderStatus />} />
 
-        {/* 登录 */}
         <Route path="/login" element={<Login />} />
 
-        {/* 员工点餐 */}
         <Route path="/employee" element={<ProtectedRoute employeeOnly><EmployeeOrder /></ProtectedRoute>} />
 
-        {/* 后台 */}
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
