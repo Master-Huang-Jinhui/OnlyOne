@@ -15,6 +15,7 @@ import Users from './pages/admin/Users'
 import Platforms from './pages/admin/Platforms'
 import Products from './pages/admin/Products'
 import Flavors from './pages/admin/Flavors'
+import Tables from './pages/admin/Tables'
 import Orders from './pages/admin/Orders'
 import Settings from './pages/admin/Settings'
 import Menus from './pages/admin/Menus'
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="platforms" element={<Platforms />} />
           <Route path="products" element={<ProtectedRoute adminOnly><Products /></ProtectedRoute>} />
           <Route path="flavors" element={<ProtectedRoute adminOnly><Flavors /></ProtectedRoute>} />
+          <Route path="tables" element={<ProtectedRoute adminOnly><Tables /></ProtectedRoute>} />
           <Route path="orders" element={<ProtectedRoute adminOnly><Orders /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
           <Route path="menus" element={<ProtectedRoute adminOnly><Menus /></ProtectedRoute>} />
