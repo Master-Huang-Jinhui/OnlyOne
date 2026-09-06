@@ -2,10 +2,13 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from './components/ui'
 import { useAuth } from './context/AuthContext'
 
+// 前台
 import Home from './pages/customer/Home'
 import Menu from './pages/customer/Menu'
+import Cart from './pages/customer/Cart'
 import Checkout from './pages/customer/Checkout'
 
+// 后台
 import Login from './pages/admin/Login'
 import AdminLayout from './pages/admin/Layout'
 import Dashboard from './pages/admin/Dashboard'
@@ -21,11 +24,15 @@ import FormRenderer from './pages/admin/FormRenderer'
 import Content from './pages/admin/Content'
 import Permissions from './pages/admin/Permissions'
 
-function ProtectedRoute({ children, adminOnly = false }) {
+// 员工
+import EmployeeOrder from './pages/employee/EmployeeOrder'
+
+function ProtectedRoute({ children, adminOnly = false, employeeOnly = false }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">加载中...</div>
   if (!user) return <Navigate to="/login" />
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" />
+  if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/" />
   return children
 }
 
@@ -34,11 +41,19 @@ export default function App() {
     <>
       <ToastContainer />
       <Routes>
+        {/* 前台公开页面 */}
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/cart" element={<Navigate to="/menu" />} />
         <Route path="/checkout" element={<Checkout />} />
+
+        {/* 登录 */}
         <Route path="/login" element={<Login />} />
+
+        {/* 员工点餐 */}
+        <Route path="/employee" element={<ProtectedRoute employeeOnly><EmployeeOrder /></ProtectedRoute>} />
+
+        {/* 后台 */}
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
@@ -53,6 +68,7 @@ export default function App() {
           <Route path="form/:id" element={<FormRenderer />} />
           <Route path="content" element={<ProtectedRoute adminOnly><Content /></ProtectedRoute>} />
         </Route>
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
