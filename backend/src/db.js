@@ -8,6 +8,7 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// 初始化表结构
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,6 +22,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS platforms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -35,6 +37,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -42,6 +45,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -56,6 +60,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no TEXT UNIQUE NOT NULL,
@@ -72,7 +77,12 @@ db.exec(`
     status TEXT DEFAULT 'pending',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
-  CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS menus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER DEFAULT 0,
@@ -82,6 +92,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS forms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -90,12 +101,14 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS form_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     form_id INTEGER,
     data TEXT DEFAULT '{}',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_blocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     block_key TEXT UNIQUE,
@@ -107,6 +120,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS carousel (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image TEXT,
@@ -115,6 +129,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS memos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -124,6 +139,18 @@ db.exec(`
     completed INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
+  CREATE TABLE IF NOT EXISTS content_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    title_en TEXT,
+    content TEXT,
+    content_en TEXT,
+    icon TEXT DEFAULT '📌',
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1
+  );
+
   CREATE TABLE IF NOT EXISTS role_permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -131,8 +158,17 @@ db.exec(`
     can_view INTEGER DEFAULT 1,
     can_edit INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS flavor_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1
+  );
+
   CREATE TABLE IF NOT EXISTS flavor_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER,
     category TEXT NOT NULL DEFAULT '其他',
     name TEXT NOT NULL,
     extra_price REAL DEFAULT 0,
@@ -142,12 +178,14 @@ db.exec(`
   );
 `);
 
+// 插入默认 admin 用户
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
   const hash = bcrypt.hashSync('admin', 10);
   db.prepare(`INSERT INTO users (username, password, role, name, permissions) VALUES (?, ?, 'admin', '超级管理员', '{}')`).run('admin', hash);
 }
 
+// 插入默认设置
 const defaultSettings = {
   'store_name': 'Only One BBQ & Tea',
   'store_name_en': 'Only One BBQ & Tea',
@@ -189,6 +227,7 @@ for (const [key, value] of Object.entries(defaultSettings)) {
   insertSetting.run(key, value);
 }
 
+// 插入默认菜单
 const defaultMenus = [
   { parent_id: 0, name: '外卖平台', icon: '🛵', path: '/admin/platforms', sort_order: 1 },
   { parent_id: 0, name: '商品管理', icon: '🍔', path: '/admin/products', sort_order: 2 },
@@ -210,6 +249,7 @@ if (menuCount === 0) {
   }
 }
 
+// 插入示例分类和商品
 const catCount = db.prepare('SELECT COUNT(*) as cnt FROM categories').get().cnt;
 if (catCount === 0) {
   const insertCat = db.prepare('INSERT INTO categories (name, name_en, sort_order) VALUES (?, ?, ?)');
@@ -221,6 +261,7 @@ if (catCount === 0) {
     ['其他', 'Others', 5]
   ];
   cats.forEach(c => insertCat.run(...c));
+
   const insertProd = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`);
   const products = [
     ['黑糖珍珠奶茶', 'Brown Sugar Boba Milk Tea', 1, 5.99, '香浓黑糖搭配Q弹珍珠', 1, 1],
@@ -235,19 +276,54 @@ if (catCount === 0) {
   products.forEach(p => insertProd.run(...p));
 }
 
+// 插入默认口味标签
 const flavorCount = db.prepare('SELECT COUNT(*) as cnt FROM flavor_tags').get().cnt;
 if (flavorCount === 0) {
-  const insertFlavor = db.prepare('INSERT INTO flavor_tags (category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, 1)');
-  const flavors = [
-    ['辣度', '不辣', 0, 0, 1], ['辣度', '微辣', 0, 0, 2], ['辣度', '少辣', 0, 0, 3], ['辣度', '中辣', 0, 0, 4], ['辣度', '特辣', 0, 0, 5],
-    ['冰度', '去冰', 1, 0, 1], ['冰度', '少冰', 0, 0, 2], ['冰度', '正常冰', 0, 1, 3], ['冰度', '多冰', 0, 0, 4], ['冰度', '热饮', 0, 0, 5],
-    ['甜度', '无糖', 0, 0, 1], ['甜度', '半糖', 0, 0, 2], ['甜度', '少糖', 0, 0, 3], ['甜度', '正常糖', 0, 1, 4], ['甜度', '全糖', 0, 0, 5],
-    ['配料', '加珍珠', 0.75, 0, 1], ['配料', '加椰果', 0.75, 0, 2], ['配料', '加布丁', 0.75, 0, 3], ['配料', '加芋圆', 1, 0, 4],
-    ['其他', '不要葱', 0, 0, 1], ['其他', '不要香菜', 0, 0, 2], ['其他', '不要蒜', 0, 0, 3], ['其他', '打包', 0, 0, 4]
+  const insertCat = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');
+  const insertFlavor = db.prepare('INSERT INTO flavor_tags (category_id, category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
+  const categories = [
+    { name: '辣度', sort: 1 },
+    { name: '冰度', sort: 2 },
+    { name: '甜度', sort: 3 },
+    { name: '配料', sort: 4 },
+    { name: '其他', sort: 5 }
   ];
-  flavors.forEach(f => insertFlavor.run(...f));
+  const catIds = {};
+  categories.forEach(c => { const r = insertCat.run(c.name, c.sort); catIds[c.name] = r.lastInsertRowid; });
+  const flavors = [
+    // 辣度
+    ['辣度', '不辣', 0, 0, 1],
+    ['辣度', '微辣', 0, 0, 2],
+    ['辣度', '少辣', 0, 0, 3],
+    ['辣度', '中辣', 0, 0, 4],
+    ['辣度', '特辣', 0, 0, 5],
+    // 冰度
+    ['冰度', '去冰', 1, 0, 1],
+    ['冰度', '少冰', 0, 0, 2],
+    ['冰度', '正常冰', 0, 1, 3],
+    ['冰度', '多冰', 0, 0, 4],
+    ['冰度', '热饮', 0, 0, 5],
+    // 甜度
+    ['甜度', '无糖', 0, 0, 1],
+    ['甜度', '半糖', 0, 0, 2],
+    ['甜度', '少糖', 0, 0, 3],
+    ['甜度', '正常糖', 0, 1, 4],
+    ['甜度', '全糖', 0, 0, 5],
+    // 配料
+    ['配料', '加珍珠', 0.75, 0, 1],
+    ['配料', '加椰果', 0.75, 0, 2],
+    ['配料', '加布丁', 0.75, 0, 3],
+    ['配料', '加芋圆', 1, 0, 4],
+    // 其他
+    ['其他', '不要葱', 0, 0, 1],
+    ['其他', '不要香菜', 0, 0, 2],
+    ['其他', '不要蒜', 0, 0, 3],
+    ['其他', '打包', 0, 0, 4]
+  ];
+  flavors.forEach(f => insertFlavor.run(catIds[f[0]], f[0], f[1], f[2], f[3], f[4]));
 }
 
+// 插入示例轮播图
 const carouselCount = db.prepare('SELECT COUNT(*) as cnt FROM carousel').get().cnt;
 if (carouselCount === 0) {
   const insertCarousel = db.prepare('INSERT INTO carousel (image, title, sort_order, enabled) VALUES (?, ?, ?, 1)');
@@ -256,12 +332,15 @@ if (carouselCount === 0) {
   insertCarousel.run('', '烧烤串串 鲜香四溢', 3);
 }
 
-// 数据迁移（已存在数据库自动补充新增数据）
+// ===== 数据迁移（已存在数据库自动补充新增数据）=====
+
+// 补充"其他"分类
 const otherCat = db.prepare("SELECT id FROM categories WHERE name = '其他'").get();
 if (!otherCat) {
   db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)').run('其他', 'Others', 5);
 }
 
+// 补充"感谢支持，祝你发大财"商品
 const thankProduct = db.prepare("SELECT id FROM products WHERE name = '感谢支持，祝你发大财'").get();
 if (!thankProduct) {
   const otherCatId = db.prepare("SELECT id FROM categories WHERE name = '其他'").get()?.id;
@@ -272,9 +351,23 @@ if (!thankProduct) {
   }
 }
 
+// 补充"口味管理"菜单
 const flavorMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/flavors'").get();
 if (!flavorMenu) {
   db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors');
+}
+
+// 迁移口味分类：把 flavor_tags.category 字符串转成 flavor_categories 记录
+const existingCats = db.prepare('SELECT DISTINCT category FROM flavor_tags WHERE category_id IS NULL').all();
+if (existingCats.length > 0) {
+  const insertCat = db.prepare('INSERT OR IGNORE INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');
+  const getCatId = db.prepare('SELECT id FROM flavor_categories WHERE name = ?');
+  const updateTag = db.prepare('UPDATE flavor_tags SET category_id = ? WHERE category = ? AND category_id IS NULL');
+  existingCats.forEach((c, i) => {
+    insertCat.run(c.category, i + 1);
+    const cat = getCatId.get(c.category);
+    if (cat) updateTag.run(cat.id, c.category);
+  });
 }
 
 module.exports = db;
