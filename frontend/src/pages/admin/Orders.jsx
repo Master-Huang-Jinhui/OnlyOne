@@ -30,11 +30,16 @@ export default function Orders() {
 
   useEffect(() => { load() }, [])
 
-  const load = () => {
-    const params = { sort_by: sortBy, sort_order: sortOrder }
-    if (statusFilter) params.status = statusFilter
-    if (startDate) params.start_date = startDate
-    if (endDate) params.end_date = endDate
+  const load = (overrides = {}) => {
+    const curStatus = overrides.statusFilter !== undefined ? overrides.statusFilter : statusFilter
+    const curStart = overrides.startDate !== undefined ? overrides.startDate : startDate
+    const curEnd = overrides.endDate !== undefined ? overrides.endDate : endDate
+    const curSortBy = overrides.sortBy || sortBy
+    const curSortOrder = overrides.sortOrder || sortOrder
+    const params = { sort_by: curSortBy, sort_order: curSortOrder }
+    if (curStatus) params.status = curStatus
+    if (curStart) params.start_date = curStart
+    if (curEnd) params.end_date = curEnd
     api.getOrders(params).then(data => {
       if (data && Array.isArray(data.orders)) {
         setOrders(data.orders)
@@ -48,13 +53,14 @@ export default function Orders() {
   const handleSearch = () => load()
 
   const handleSort = (field) => {
+    let newSortBy = field
+    let newSortOrder = 'desc'
     if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('desc')
+      newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc'
     }
-    setTimeout(load, 0)
+    setSortBy(newSortBy)
+    setSortOrder(newSortOrder)
+    load({ sortBy: newSortBy, sortOrder: newSortOrder })
   }
 
   const sortIcon = (field) => {
@@ -69,17 +75,20 @@ export default function Orders() {
     if (detail?.id === id) setDetail({ ...detail, status })
   }
 
-  const setToday = () => { setStartDate(today()); setEndDate(today()) }
+  const setToday = () => { const t = today(); setStartDate(t); setEndDate(t); load({ startDate: t, endDate: t }) }
   const setThisWeek = () => {
     const d = new Date()
     const day = d.getDay() || 7
     const monday = new Date(d)
     monday.setDate(d.getDate() - day + 1)
     const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-    setStartDate(fmt(monday))
-    setEndDate(today())
+    const start = fmt(monday)
+    const end = today()
+    setStartDate(start)
+    setEndDate(end)
+    load({ startDate: start, endDate: end })
   }
-  const setAll = () => { setStartDate(''); setEndDate('') }
+  const setAll = () => { setStartDate(''); setEndDate(''); load({ startDate: '', endDate: '' }) }
 
   const columns = [
     {
@@ -153,9 +162,9 @@ export default function Orders() {
 
       {/* 状态筛选 */}
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => { setStatusFilter(''); setTimeout(load, 0) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>全部</button>
+        <button onClick={() => { setStatusFilter(''); load({ statusFilter: '' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>全部</button>
         {Object.entries(statusMap).map(([key, val]) => (
-          <button key={key} onClick={() => { setStatusFilter(key); setTimeout(load, 0) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+          <button key={key} onClick={() => { setStatusFilter(key); load({ statusFilter: key }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
             {val.label}
           </button>
         ))}
