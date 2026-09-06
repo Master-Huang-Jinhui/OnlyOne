@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const os = require('os');
-require('./db');
+require('./db'); // 初始化数据库
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// API 路由
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/platforms', require('./routes/platforms'));
@@ -25,26 +26,34 @@ app.use('/api/flavor-tags', require('./routes/flavorTags'));
 app.use('/api/flavor-categories', require('./routes/flavorCategories'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/tables', require('./routes/tables'));
+app.use('/api/attendance', require('./routes/attendance'));
 
+// 上传文件静态服务
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
+// 健康检查
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// 前端静态文件
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
 
+// SPA 路由回退
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API 不存在' });
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
+// 获取局域网 IP
 function getLocalIPs() {
   const interfaces = os.networkInterfaces();
   const ips = [];
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) ips.push(iface.address);
+      if (iface.family === 'IPv4' && !iface.internal) {
+        ips.push(iface.address);
+      }
     }
   }
   return ips;
@@ -55,7 +64,10 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  Only One 一站式管理系统 已启动');
   console.log('========================================');
   console.log(`  本机访问:   http://localhost:${PORT}`);
-  getLocalIPs().forEach(ip => console.log(`  局域网访问: http://${ip}:${PORT}`));
+  const ips = getLocalIPs();
+  ips.forEach(ip => {
+    console.log(`  局域网访问: http://${ip}:${PORT}`);
+  });
   console.log('========================================');
   console.log('  默认账号: admin  密码: admin');
   console.log('  按 Ctrl+C 停止服务');

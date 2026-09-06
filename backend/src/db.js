@@ -8,6 +8,7 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// 初始化表结构
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,14 +190,26 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
+  CREATE TABLE IF NOT EXISTS attendance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    user_name TEXT,
+    date TEXT NOT NULL,
+    clock_in TEXT,
+    clock_out TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
+  );
 `);
 
+// 插入默认 admin 用户
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
   const hash = bcrypt.hashSync('admin', 10);
   db.prepare(`INSERT INTO users (username, password, role, name, permissions) VALUES (?, ?, 'admin', '超级管理员', '{}')`).run('admin', hash);
 }
 
+// 插入默认设置
 const defaultSettings = {
   'store_name': 'Only One BBQ & Tea',
   'store_name_en': 'Only One BBQ & Tea',
@@ -238,18 +251,18 @@ for (const [key, value] of Object.entries(defaultSettings)) {
   insertSetting.run(key, value);
 }
 
+// 插入默认菜单
 const defaultMenus = [
   { parent_id: 0, name: '外卖平台', icon: '🛵', path: '/admin/platforms', sort_order: 1 },
   { parent_id: 0, name: '商品管理', icon: '🍔', path: '/admin/products', sort_order: 2 },
   { parent_id: 0, name: '口味管理', icon: '🌶️', path: '/admin/flavors', sort_order: 3 },
-  { parent_id: 0, name: '餐桌管理', icon: '🪑', path: '/admin/tables', sort_order: 4 },
-  { parent_id: 0, name: '订单管理', icon: '📋', path: '/admin/orders', sort_order: 5 },
-  { parent_id: 0, name: '用户管理', icon: '👥', path: '/admin/users', sort_order: 6 },
-  { parent_id: 0, name: '权限管理', icon: '🔐', path: '/admin/permissions', sort_order: 7 },
-  { parent_id: 0, name: '菜单管理', icon: '📑', path: '/admin/menus', sort_order: 8 },
-  { parent_id: 0, name: '表单管理', icon: '📝', path: '/admin/forms', sort_order: 9 },
-  { parent_id: 0, name: '内容管理', icon: '🖼️', path: '/admin/content', sort_order: 10 },
-  { parent_id: 0, name: '系统设置', icon: '⚙️', path: '/admin/settings', sort_order: 11 }
+  { parent_id: 0, name: '订单管理', icon: '📋', path: '/admin/orders', sort_order: 4 },
+  { parent_id: 0, name: '用户管理', icon: '👥', path: '/admin/users', sort_order: 5 },
+  { parent_id: 0, name: '权限管理', icon: '🔐', path: '/admin/permissions', sort_order: 6 },
+  { parent_id: 0, name: '菜单管理', icon: '📑', path: '/admin/menus', sort_order: 7 },
+  { parent_id: 0, name: '表单管理', icon: '📝', path: '/admin/forms', sort_order: 8 },
+  { parent_id: 0, name: '内容管理', icon: '🖼️', path: '/admin/content', sort_order: 9 },
+  { parent_id: 0, name: '系统设置', icon: '⚙️', path: '/admin/settings', sort_order: 10 }
 ];
 
 const menuCount = db.prepare('SELECT COUNT(*) as cnt FROM menus').get().cnt;
@@ -260,6 +273,7 @@ if (menuCount === 0) {
   }
 }
 
+// 插入示例分类和商品
 const catCount = db.prepare('SELECT COUNT(*) as cnt FROM categories').get().cnt;
 if (catCount === 0) {
   const insertCat = db.prepare('INSERT INTO categories (name, name_en, sort_order) VALUES (?, ?, ?)');
@@ -286,6 +300,7 @@ if (catCount === 0) {
   products.forEach(p => insertProd.run(...p));
 }
 
+// 插入默认口味标签
 const flavorCount = db.prepare('SELECT COUNT(*) as cnt FROM flavor_tags').get().cnt;
 if (flavorCount === 0) {
   const insertCat = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');
@@ -327,6 +342,7 @@ if (flavorCount === 0) {
   flavors.forEach(f => insertFlavor.run(catIds[f[0]], f[0], f[1], f[2], f[3], f[4]));
 }
 
+// 插入示例轮播图
 const carouselCount = db.prepare('SELECT COUNT(*) as cnt FROM carousel').get().cnt;
 if (carouselCount === 0) {
   const insertCarousel = db.prepare('INSERT INTO carousel (image, title, sort_order, enabled) VALUES (?, ?, ?, 1)');
@@ -335,11 +351,15 @@ if (carouselCount === 0) {
   insertCarousel.run('', '烧烤串串 鲜香四溢', 3);
 }
 
+// ===== 数据迁移（已存在数据库自动补充新增数据）=====
+
+// 给旧版 flavor_tags 表添加 category_id 列
 const tagColumns = db.prepare("PRAGMA table_info(flavor_tags)").all();
 if (!tagColumns.find(c => c.name === 'category_id')) {
   db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run();
 }
 
+// 给旧版 content_sections 表添加 image 和 layout 列
 const sectionColumns = db.prepare("PRAGMA table_info(content_sections)").all();
 if (!sectionColumns.find(c => c.name === 'image')) {
   db.prepare('ALTER TABLE content_sections ADD COLUMN image TEXT').run();
@@ -348,6 +368,7 @@ if (!sectionColumns.find(c => c.name === 'layout')) {
   db.prepare('ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT \'left\'').run();
 }
 
+// 给旧版 orders 表添加 guest_id / table_id / table_session 列
 const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
 if (!orderColumns.find(c => c.name === 'guest_id')) {
   db.prepare('ALTER TABLE orders ADD COLUMN guest_id TEXT').run();
@@ -359,6 +380,7 @@ if (!orderColumns.find(c => c.name === 'table_session')) {
   db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run();
 }
 
+// 补充默认餐桌（A1-A4, B1-B4）
 const tableCount = db.prepare('SELECT COUNT(*) as cnt FROM tables').get().cnt;
 if (tableCount === 0) {
   const crypto = require('crypto');
@@ -369,11 +391,13 @@ if (tableCount === 0) {
   });
 }
 
+// 补充"其他"分类
 const otherCat = db.prepare("SELECT id FROM categories WHERE name = '其他'").get();
 if (!otherCat) {
   db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)').run('其他', 'Others', 5);
 }
 
+// 补充"感谢支持，祝你发大财"商品
 const thankProduct = db.prepare("SELECT id FROM products WHERE name = '感谢支持，祝你发大财'").get();
 if (!thankProduct) {
   const otherCatId = db.prepare("SELECT id FROM categories WHERE name = '其他'").get()?.id;
@@ -384,16 +408,19 @@ if (!thankProduct) {
   }
 }
 
+// 补充"口味管理"菜单
 const flavorMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/flavors'").get();
 if (!flavorMenu) {
   db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors');
 }
 
+// 补充"餐桌管理"菜单
 const tableMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/tables'").get();
 if (!tableMenu) {
   db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables');
 }
 
+// 迁移口味分类：把 flavor_tags.category 字符串转成 flavor_categories 记录
 const existingCats = db.prepare('SELECT DISTINCT category FROM flavor_tags WHERE category_id IS NULL').all();
 if (existingCats.length > 0) {
   const insertCat = db.prepare('INSERT OR IGNORE INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');

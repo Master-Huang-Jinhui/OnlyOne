@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Button, Badge, Dialog, toast } from '../../components/ui'
@@ -11,6 +12,7 @@ const diningOptions = [
 
 export default function EmployeeOrder() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCat, setActiveCat] = useState(0)
@@ -88,7 +90,7 @@ export default function EmployeeOrder() {
       {/* 顶部导航 */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/employee')}>
             <span className="text-2xl">🍵</span>
             <div>
               <h1 className="text-lg font-bold text-gray-800">Only One 员工点餐</h1>
