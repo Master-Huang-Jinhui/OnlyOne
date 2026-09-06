@@ -52,7 +52,8 @@ export default function Checkout() {
         <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md w-full mx-4 text-center">
           <div className="text-6xl mb-4">✅</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">下单成功</h2>
-          <p className="text-gray-500 mb-6">订单号：{orderResult.order_no}</p>
+          <p className="text-gray-500 mb-2">订单号</p>
+          <p className="text-xl font-bold text-primary-600 mb-6 tracking-wider">{orderResult.order_no}</p>
           <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
             <div className="flex justify-between text-sm text-gray-600 mb-1"><span>商品小计</span><span>${orderResult.subtotal?.toFixed(2)}</span></div>
             <div className="flex justify-between text-sm text-gray-600 mb-1"><span>税费</span><span>${orderResult.tax?.toFixed(2)}</span></div>
@@ -60,6 +61,9 @@ export default function Checkout() {
             <div className="border-t pt-2 mt-2 flex justify-between font-bold"><span>合计</span><span className="text-primary-600">${orderResult.total?.toFixed(2)}</span></div>
           </div>
           <p className="text-sm text-gray-400 mb-6">请到店出示订单号取餐 / 等待配送</p>
+          <Link to={`/order-status?order=${orderResult.order_no}`} className="block mb-3">
+            <Button className="w-full">📋 查看订单状态</Button>
+          </Link>
           <div className="flex gap-3">
             <Link to="/" className="flex-1"><Button variant="outline" className="w-full">返回首页</Button></Link>
             <Link to="/menu" className="flex-1"><Button className="w-full">继续点餐</Button></Link>
