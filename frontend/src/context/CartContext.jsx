@@ -15,44 +15,51 @@ export function CartProvider({ children }) {
     localStorage.setItem('cart', JSON.stringify(items))
   }, [items])
 
+  const genId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
+
   const addItem = (product) => {
     setItems(prev => {
       const existing = prev.find(i => i.id === product.id && !i.note)
       if (existing) {
-        return prev.map(i => i.id === product.id && !i.note ? { ...i, quantity: i.quantity + 1 } : i)
+        return prev.map(i => i.cartId === existing.cartId ? { ...i, quantity: i.quantity + 1 } : i)
       }
-      return [...prev, { id: product.id, name: product.name, name_en: product.name_en, price: product.price, image: product.image, quantity: 1, note: '' }]
+      return [...prev, {
+        cartId: genId(),
+        id: product.id,
+        name: product.name,
+        name_en: product.name_en,
+        price: product.price,
+        image: product.image,
+        quantity: 1,
+        note: ''
+      }]
     })
   }
 
-  const updateQuantity = (id, quantity, note = '') => {
-    if (quantity <= 0) {
-      removeItem(id, note)
-      return
-    }
-    setItems(prev => prev.map(i => (i.id === id && i.note === note) ? { ...i, quantity } : i))
+  const updateQuantity = (cartId, quantity) => {
+    if (quantity <= 0) { removeItem(cartId); return }
+    setItems(prev => prev.map(i => i.cartId === cartId ? { ...i, quantity } : i))
   }
 
-  const updateNote = (id, note) => {
+  const updateNote = (cartId, note) => {
     setItems(prev => {
-      const item = prev.find(i => i.id === id)
+      const item = prev.find(i => i.cartId === cartId)
       if (!item) return prev
-      const existingWithNote = prev.find(i => i.id === id && i.note === note && i !== item)
+      const trimmedNote = note.trim()
+      const existingWithNote = prev.find(i => i.id === item.id && i.note === trimmedNote && i.cartId !== cartId)
       if (existingWithNote) {
         return prev
-          .filter(i => i !== item)
-          .map(i => i === existingWithNote ? { ...i, quantity: i.quantity + item.quantity } : i)
+          .filter(i => i.cartId !== cartId)
+          .map(i => i.cartId === existingWithNote.cartId ? { ...i, quantity: i.quantity + item.quantity } : i)
       }
-      return prev.map(i => i.id === id ? { ...i, note } : i)
+      return prev.map(i => i.cartId === cartId ? { ...i, note: trimmedNote } : i)
     })
   }
 
-  const clearNote = (id) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, note: '' } : i))
-  }
+  const clearNote = (cartId) => { updateNote(cartId, '') }
 
-  const removeItem = (id, note = '') => {
-    setItems(prev => prev.filter(i => !(i.id === id && i.note === note)))
+  const removeItem = (cartId) => {
+    setItems(prev => prev.filter(i => i.cartId !== cartId))
   }
 
   const clear = () => setItems([])
