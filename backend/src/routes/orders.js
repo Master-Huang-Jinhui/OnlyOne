@@ -113,33 +113,22 @@ router.get('/lookup/:orderNo', (req, res) => {
 });
 
 router.get('/search', (req, res) => {
-  const { type, value } = req.query;
-  if (!type || !value) {
-    return res.status(400).json({ error: '请提供查询类型和查询值' });
+  const { keyword } = req.query;
+  if (!keyword || !keyword.trim()) {
+    return res.status(400).json({ error: '请输入订单号、手机号或姓名' });
   }
 
-  const allowedTypes = ['order_no', 'phone', 'name'];
-  if (!allowedTypes.includes(type)) {
-    return res.status(400).json({ error: '无效的查询类型' });
-  }
+  const kw = keyword.trim();
+  const cleanPhone = kw.replace(/\D/g, '');
 
-  let sql = 'SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at FROM orders WHERE ';
-  let searchValue = value.trim();
+  const sql = `SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at 
+    FROM orders 
+    WHERE order_no LIKE ? 
+       OR REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ? 
+       OR customer_name LIKE ?
+    ORDER BY created_at DESC LIMIT 50`;
 
-  if (type === 'order_no') {
-    sql += 'order_no = ?';
-  } else if (type === 'phone') {
-    const cleanPhone = searchValue.replace(/\D/g, '');
-    sql += "REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ?";
-    searchValue = `%${cleanPhone}%`;
-  } else {
-    sql += 'customer_name LIKE ?';
-    searchValue = `%${searchValue}%`;
-  }
-
-  sql += ' ORDER BY created_at DESC LIMIT 50';
-
-  const orders = db.prepare(sql).all(searchValue);
+  const orders = db.prepare(sql).all(`%${kw}%`, `%${cleanPhone}%`, `%${kw}%`);
   res.json({ orders, count: orders.length });
 });
 
