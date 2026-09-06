@@ -2,35 +2,167 @@
 @tailwind components;
 @tailwind utilities;
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   background: #f8fafc;
   color: #1e293b;
 }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
-.reveal.visible { opacity: 1; transform: translateY(0); }
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 
+/* 滚动入场动画 */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 悬浮侧边导航 */
 .float-nav {
-  position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
-  z-index: 40; display: flex; flex-direction: column; gap: 12px;
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .float-nav-dot {
-  width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1;
-  cursor: pointer; transition: all 0.3s; position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
 }
-.float-nav-dot:hover, .float-nav-dot.active { background: #3b82f6; transform: scale(1.3); }
+.float-nav-dot:hover,
+.float-nav-dot.active {
+  background: #3b82f6;
+  transform: scale(1.3);
+}
 .float-nav-dot .tooltip {
-  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-  background: #1e293b; color: white; padding: 4px 10px; border-radius: 4px;
-  font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
 }
-.float-nav-dot:hover .tooltip { opacity: 1; }
-@media (max-width: 768px) { .float-nav { display: none; } }
+.float-nav-dot:hover .tooltip {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .float-nav {
+    display: none;
+  }
+}
+
+/* ===== 奶茶制作过程动画 ===== */
+.tea-animation { perspective: 1000px; }
+
+/* 奶茶液体填充 */
+.tea-fill {
+  height: 0;
+  animation: teaFill 2s ease-out forwards;
+}
+@keyframes teaFill {
+  0% { height: 0; }
+  100% { height: 75%; }
+}
+
+/* 珍珠浮动 */
+.pearl-1 { animation: pearlFloat 1.5s ease-in-out infinite; animation-delay: 0s; }
+.pearl-2 { animation: pearlFloat 1.5s ease-in-out infinite; animation-delay: 0.3s; }
+.pearl-3 { animation: pearlFloat 1.5s ease-in-out infinite; animation-delay: 0.6s; }
+.pearl-4 { animation: pearlFloat 1.5s ease-in-out infinite; animation-delay: 0.9s; }
+@keyframes pearlFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* 吸管晃动 */
+.straw {
+  animation: strawSway 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+@keyframes strawSway {
+  0%, 100% { transform: rotate(12deg); }
+  50% { transform: rotate(8deg); }
+}
+
+/* 蒸汽上升 */
+.steam-1 { animation: steamRise 2s ease-out infinite; animation-delay: 0s; display: inline-block; }
+.steam-2 { animation: steamRise 2s ease-out infinite; animation-delay: 0.5s; display: inline-block; }
+.steam-3 { animation: steamRise 2s ease-out infinite; animation-delay: 1s; display: inline-block; }
+@keyframes steamRise {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px) scale(1.2); }
+}
+
+/* 茶叶飘落 */
+.leaf-1 { animation: leafFall 3s linear infinite; animation-delay: 0s; }
+.leaf-2 { animation: leafFall 3s linear infinite; animation-delay: 1s; }
+.leaf-3 { animation: leafFall 3s linear infinite; animation-delay: 2s; }
+@keyframes leafFall {
+  0% { opacity: 0; transform: translateY(-20px) rotate(0deg) translateX(0); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(120px) rotate(360deg) translateX(20px); }
+}
+
+/* 水滴落下 */
+.drop-1 { animation: dropFall 1.5s ease-in infinite; animation-delay: 0s; }
+.drop-2 { animation: dropFall 1.5s ease-in infinite; animation-delay: 0.75s; }
+@keyframes dropFall {
+  0% { opacity: 0; transform: translateY(-10px) scale(0.5); }
+  20% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(60px) scale(0.8); }
+}
+
+/* 板块悬停整体提升 */
+.section-hover {
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.section-hover:hover {
+  transform: translateY(-4px);
+}
