@@ -10,7 +10,6 @@ export default function Content() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ image: '', title: '', link: '', sort_order: 0, enabled: true })
 
-  // 自定义板块
   const [sections, setSections] = useState([])
   const [sectionDialog, setSectionDialog] = useState(false)
   const [sectionEditing, setSectionEditing] = useState(null)
@@ -24,7 +23,6 @@ export default function Content() {
     api.getAllContentSections().then(data => setSections(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
-  // 轮播图
   const openAdd = () => { setEditing(null); setForm({ image: '', title: '', link: '', sort_order: 0, enabled: true }); setDialog(true) }
   const openEdit = (c) => { setEditing(c); setForm({ ...c, enabled: !!c.enabled }); setDialog(true) }
 
@@ -41,7 +39,6 @@ export default function Content() {
     await api.deleteCarousel(id); toast('已删除'); load()
   }
 
-  // 保存文本设置
   const saveText = async (key, value) => {
     try {
       await api.updateSettings({ [key]: value })
@@ -50,27 +47,18 @@ export default function Content() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 茶品溯源编辑
   const [teaSourcing, setTeaSourcing] = useState([])
   useEffect(() => {
     if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing)
   }, [settings.tea_sourcing])
+  const saveTeaSourcing = () => { saveText('tea_sourcing', teaSourcing) }
 
-  const saveTeaSourcing = () => {
-    saveText('tea_sourcing', teaSourcing)
-  }
-
-  // 奶茶工艺编辑
   const [craftPhilosophy, setCraftPhilosophy] = useState([])
   useEffect(() => {
     if (settings.craft_philosophy) setCraftPhilosophy(settings.craft_philosophy)
   }, [settings.craft_philosophy])
+  const saveCraftPhilosophy = () => { saveText('craft_philosophy', craftPhilosophy) }
 
-  const saveCraftPhilosophy = () => {
-    saveText('craft_philosophy', craftPhilosophy)
-  }
-
-  // 自定义板块
   const openSectionAdd = () => { setSectionEditing(null); setSectionForm({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true }); setSectionDialog(true) }
   const openSectionEdit = (s) => { setSectionEditing(s); setSectionForm({ ...s, enabled: !!s.enabled }); setSectionDialog(true) }
 
@@ -104,7 +92,6 @@ export default function Content() {
         { key: 'sections', label: '自定义板块' }
       ]} active={tab} onChange={setTab} />
 
-      {/* 轮播图 */}
       {tab === 'carousel' && (
         <Card>
           <div className="p-4 border-b flex justify-end">
@@ -125,7 +112,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 品牌故事 */}
       {tab === 'brand' && (
         <Card className="p-6 space-y-4">
           <div>
@@ -140,7 +126,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 茶品溯源 */}
       {tab === 'tea' && (
         <Card className="p-6 space-y-4">
           <p className="text-sm text-gray-400">三栏卡片，介绍乌龙茶、绿茶、红茶</p>
@@ -160,7 +145,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 奶茶工艺 */}
       {tab === 'craft' && (
         <Card className="p-6 space-y-4">
           <p className="text-sm text-gray-400">四点介绍：原叶现萃、鲜果鲜做、甜度可控、现点现做</p>
@@ -174,7 +158,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 关于区块 */}
       {tab === 'about' && (
         <Card className="p-6 space-y-4">
           <div>
@@ -189,7 +172,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 自定义板块 */}
       {tab === 'sections' && (
         <Card>
           <div className="p-4 border-b flex justify-between items-center">
@@ -212,7 +194,6 @@ export default function Content() {
         </Card>
       )}
 
-      {/* 轮播图对话框 */}
       <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑轮播' : '添加轮播'}
         footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={saveCarousel}>保存</Button></>}>
         <div className="space-y-4">
@@ -224,7 +205,6 @@ export default function Content() {
         </div>
       </Dialog>
 
-      {/* 自定义板块对话框 */}
       <Dialog open={sectionDialog} onClose={() => setSectionDialog(false)} title={sectionEditing ? '编辑板块' : '添加板块'} width="max-w-lg">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -232,7 +212,10 @@ export default function Content() {
             <Input label="标题（英文）" value={sectionForm.title_en} onChange={e => setSectionForm({ ...sectionForm, title_en: e.target.value })} placeholder="Business Hours" />
           </div>
           <Input label="图标 (emoji)" value={sectionForm.icon} onChange={e => setSectionForm({ ...sectionForm, icon: e.target.value })} placeholder="📌 🕐 📍" />
-          <Input label="图片 URL" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg" />
+          <div>
+            <Input label="图片 URL" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg" />
+            <p className="text-xs text-gray-400 mt-1">本地图片放到 frontend/public/images/ 后填 /images/文件名.jpg</p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-500 mb-1">图片位置</label>
