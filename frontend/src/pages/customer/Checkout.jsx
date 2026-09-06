@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { api } from '../../lib/api'
-import { Button, Input, Textarea, Empty, toast } from '../../components/ui'
+import { flavorTags } from '../../lib/flavorTags'
+import { Button, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -35,7 +36,7 @@ export default function Checkout() {
     setSubmitting(true)
     try {
       const result = await api.createOrder({
-        items: items.map(i => ({ id: i.id, quantity: i.quantity, note: i.note })),
+        items: items.map(i => ({ id: i.id, quantity: i.quantity, note: (i.notes || []).join(', ') })),
         dining_type: diningType, customer_name: customerName, customer_phone: customerPhone,
         customer_address: diningType === 'delivery' ? customerAddress : '', note
       })
@@ -118,12 +119,27 @@ export default function Checkout() {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">订单明细</h3>
           <div className="space-y-3 mb-4">
-            {items.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-gray-700">{item.name} × {item.quantity}{item.note && <span className="text-xs text-yellow-600 ml-1">({item.note})</span>}</span>
-                <span className="text-gray-600">${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-            ))}
+            {items.map((item, i) => {
+              const tagsExtra = (item.notes || []).reduce((sum, t) => {
+                const tag = flavorTags.find(ft => ft.name === t)
+                return sum + (tag?.extraPrice || 0)
+              }, 0)
+              return (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-gray-700">
+                    {item.name} × {item.quantity}
+                    {item.notes && item.notes.length > 0 && (
+                      <span className="flex flex-wrap gap-1 mt-1">
+                        {item.notes.map((t, j) => (
+                          <span key={j} className="inline-block bg-primary-50 text-primary-700 rounded-full px-1.5 py-0.5 text-[10px]">{t}</span>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-gray-600">${((item.price + tagsExtra) * item.quantity).toFixed(2)}</span>
+                </div>
+              )
+            })}
           </div>
           <div className="border-t pt-3 space-y-2">
             <div className="flex justify-between text-sm text-gray-600"><span>商品小计</span><span>${subtotal.toFixed(2)}</span></div>
