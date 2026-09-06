@@ -32,7 +32,16 @@ export const api = {
   updateCategory: (id, data) => request(`/products/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCategory: (id) => request(`/products/categories/${id}`, { method: 'DELETE' }),
   createOrder: (data) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
-  getOrders: (status) => request(`/orders${status ? `?status=${status}` : ''}`),
+  getOrders: (params) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.append('status', params.status)
+    if (params?.start_date) qs.append('start_date', params.start_date)
+    if (params?.end_date) qs.append('end_date', params.end_date)
+    if (params?.sort_by) qs.append('sort_by', params.sort_by)
+    if (params?.sort_order) qs.append('sort_order', params.sort_order)
+    const query = qs.toString()
+    return request(`/orders${query ? `?${query}` : ''}`)
+  },
   getOrderStats: () => request('/orders/stats'),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getSettings: () => request('/settings'),
