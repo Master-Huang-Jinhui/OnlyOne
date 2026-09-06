@@ -48,7 +48,7 @@ export default function Checkout() {
 
   if (orderResult) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md w-full mx-4 text-center">
           <div className="text-6xl mb-4">✅</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">下单成功</h2>
@@ -71,7 +71,7 @@ export default function Checkout() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <Empty text="购物车是空的" icon="🛒" />
         <Link to="/menu"><Button className="mt-4">去点餐</Button></Link>
       </div>
@@ -79,9 +79,14 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50 pb-8">
+      <div className="bg-white border-b sticky top-0 z-30">
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
+          <Link to="/menu" className="text-gray-600 hover:text-primary-600 text-sm">← 返回菜单</Link>
+          <h1 className="text-lg font-bold text-gray-800 ml-4">结算</h1>
+        </div>
+      </div>
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">结算</h1>
         {!business.open && (<div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6"><p className="text-red-600 font-medium">⚠️ 今日门店休息，暂不接受下单</p></div>)}
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
@@ -144,7 +149,7 @@ export default function Checkout() {
         </div>
 
         <div className="flex gap-4">
-          <Link to="/cart"><Button variant="outline">返回购物车</Button></Link>
+          <Link to="/menu"><Button variant="outline">返回菜单</Button></Link>
           <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !business.open}>{submitting ? '提交中...' : '提交订单'}</Button>
         </div>
       </div>
