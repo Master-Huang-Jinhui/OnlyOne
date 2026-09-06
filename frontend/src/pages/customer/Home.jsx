@@ -38,17 +38,34 @@ export default function Home() {
   }, [carousel.length])
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    const sectionObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
-          if (entry.isIntersecting) { entry.target.classList.add('visible'); setActiveSection(entry.target.id) }
+          if (entry.isIntersecting) setActiveSection(entry.target.id)
         })
       },
       { threshold: 0.3 }
     )
-    sections.forEach(s => { const el = document.getElementById(s.id); if (el) observer.observe(el) })
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
-    return () => observer.disconnect()
+    sections.forEach(s => { const el = document.getElementById(s.id); if (el) sectionObserver.observe(el) })
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+          } else {
+            entry.target.classList.remove('visible')
+          }
+        })
+      },
+      { threshold: 0.15 }
+    )
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el))
+
+    return () => {
+      sectionObserver.disconnect()
+      revealObserver.disconnect()
+    }
   }, [products])
 
   const scrollTo = (id) => {
