@@ -46,6 +46,22 @@ export const api = {
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getOrderByNo: (orderNo) => request(`/orders/lookup/${orderNo}`),
   searchOrders: (keyword) => request(`/orders/search?keyword=${encodeURIComponent(keyword)}`),
+  getMyOrders: (guestId, tableId, tableSession) => {
+    const params = new URLSearchParams()
+    if (guestId) params.append('guest_id', guestId)
+    if (tableId) params.append('table_id', tableId)
+    if (tableSession) params.append('table_session', tableSession)
+    const qs = params.toString()
+    return request(`/orders/mine${qs ? `?${qs}` : ''}`)
+  },
+  getTableByNo: (tableNo) => request(`/tables/by-no/${encodeURIComponent(tableNo)}`),
+  getPublicTables: () => request('/tables/public'),
+  getTables: () => request('/tables'),
+  createTable: (data) => request('/tables', { method: 'POST', body: JSON.stringify(data) }),
+  updateTable: (id, data) => request(`/tables/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTable: (id) => request(`/tables/${id}`, { method: 'DELETE' }),
+  clearTable: (id) => request(`/tables/${id}/clear`, { method: 'POST' }),
+  occupyTable: (id) => request(`/tables/${id}/occupy`, { method: 'POST' }),
   getSettings: () => request('/settings'),
   updateSettings: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   getTodayBusiness: () => request('/settings/business/today'),
