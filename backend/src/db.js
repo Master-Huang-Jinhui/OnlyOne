@@ -131,6 +131,15 @@ db.exec(`
     can_view INTEGER DEFAULT 1,
     can_edit INTEGER DEFAULT 0
   );
+  CREATE TABLE IF NOT EXISTS flavor_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL DEFAULT '其他',
+    name TEXT NOT NULL,
+    extra_price REAL DEFAULT 0,
+    is_default INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1
+  );
 `);
 
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
@@ -183,13 +192,14 @@ for (const [key, value] of Object.entries(defaultSettings)) {
 const defaultMenus = [
   { parent_id: 0, name: '外卖平台', icon: '🛵', path: '/admin/platforms', sort_order: 1 },
   { parent_id: 0, name: '商品管理', icon: '🍔', path: '/admin/products', sort_order: 2 },
-  { parent_id: 0, name: '订单管理', icon: '📋', path: '/admin/orders', sort_order: 3 },
-  { parent_id: 0, name: '用户管理', icon: '👥', path: '/admin/users', sort_order: 4 },
-  { parent_id: 0, name: '权限管理', icon: '🔐', path: '/admin/permissions', sort_order: 5 },
-  { parent_id: 0, name: '菜单管理', icon: '📑', path: '/admin/menus', sort_order: 6 },
-  { parent_id: 0, name: '表单管理', icon: '📝', path: '/admin/forms', sort_order: 7 },
-  { parent_id: 0, name: '内容管理', icon: '🖼️', path: '/admin/content', sort_order: 8 },
-  { parent_id: 0, name: '系统设置', icon: '⚙️', path: '/admin/settings', sort_order: 9 }
+  { parent_id: 0, name: '口味管理', icon: '🌶️', path: '/admin/flavors', sort_order: 3 },
+  { parent_id: 0, name: '订单管理', icon: '📋', path: '/admin/orders', sort_order: 4 },
+  { parent_id: 0, name: '用户管理', icon: '👥', path: '/admin/users', sort_order: 5 },
+  { parent_id: 0, name: '权限管理', icon: '🔐', path: '/admin/permissions', sort_order: 6 },
+  { parent_id: 0, name: '菜单管理', icon: '📑', path: '/admin/menus', sort_order: 7 },
+  { parent_id: 0, name: '表单管理', icon: '📝', path: '/admin/forms', sort_order: 8 },
+  { parent_id: 0, name: '内容管理', icon: '🖼️', path: '/admin/content', sort_order: 9 },
+  { parent_id: 0, name: '系统设置', icon: '⚙️', path: '/admin/settings', sort_order: 10 }
 ];
 
 const menuCount = db.prepare('SELECT COUNT(*) as cnt FROM menus').get().cnt;
@@ -207,7 +217,8 @@ if (catCount === 0) {
     ['招牌奶茶', 'Signature Milk Tea', 1],
     ['鲜果茶', 'Fresh Fruit Tea', 2],
     ['烧烤串', 'BBQ Skewers', 3],
-    ['小食', 'Snacks', 4]
+    ['小食', 'Snacks', 4],
+    ['其他', 'Others', 5]
   ];
   cats.forEach(c => insertCat.run(...c));
   const insertProd = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`);
@@ -218,9 +229,23 @@ if (catCount === 0) {
     ['烤羊肉串', 'Lamb Skewer', 3, 3.99, '新疆风味，鲜嫩多汁', 1, 1],
     ['烤牛肉串', 'Beef Skewer', 3, 4.49, '秘制酱料，香气四溢', 1, 0],
     ['烤鸡翅', 'Grilled Chicken Wings', 3, 5.99, '外焦里嫩，回味无穷', 1, 0],
-    ['炸薯条', 'French Fries', 4, 3.49, '金黄酥脆', 1, 0]
+    ['炸薯条', 'French Fries', 4, 3.49, '金黄酥脆', 1, 0],
+    ['感谢支持，祝你发大财', 'Thank You for Your Support', 5, 1.00, '感谢您的支持，祝您财源广进，生意兴隆！', 1, 0]
   ];
   products.forEach(p => insertProd.run(...p));
+}
+
+const flavorCount = db.prepare('SELECT COUNT(*) as cnt FROM flavor_tags').get().cnt;
+if (flavorCount === 0) {
+  const insertFlavor = db.prepare('INSERT INTO flavor_tags (category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, 1)');
+  const flavors = [
+    ['辣度', '不辣', 0, 0, 1], ['辣度', '微辣', 0, 0, 2], ['辣度', '少辣', 0, 0, 3], ['辣度', '中辣', 0, 0, 4], ['辣度', '特辣', 0, 0, 5],
+    ['冰度', '去冰', 1, 0, 1], ['冰度', '少冰', 0, 0, 2], ['冰度', '正常冰', 0, 1, 3], ['冰度', '多冰', 0, 0, 4], ['冰度', '热饮', 0, 0, 5],
+    ['甜度', '无糖', 0, 0, 1], ['甜度', '半糖', 0, 0, 2], ['甜度', '少糖', 0, 0, 3], ['甜度', '正常糖', 0, 1, 4], ['甜度', '全糖', 0, 0, 5],
+    ['配料', '加珍珠', 0.75, 0, 1], ['配料', '加椰果', 0.75, 0, 2], ['配料', '加布丁', 0.75, 0, 3], ['配料', '加芋圆', 1, 0, 4],
+    ['其他', '不要葱', 0, 0, 1], ['其他', '不要香菜', 0, 0, 2], ['其他', '不要蒜', 0, 0, 3], ['其他', '打包', 0, 0, 4]
+  ];
+  flavors.forEach(f => insertFlavor.run(...f));
 }
 
 const carouselCount = db.prepare('SELECT COUNT(*) as cnt FROM carousel').get().cnt;
@@ -229,6 +254,27 @@ if (carouselCount === 0) {
   insertCarousel.run('', '招牌奶茶 限时优惠', 1);
   insertCarousel.run('', '新品上市 香芋冰沙', 2);
   insertCarousel.run('', '烧烤串串 鲜香四溢', 3);
+}
+
+// 数据迁移（已存在数据库自动补充新增数据）
+const otherCat = db.prepare("SELECT id FROM categories WHERE name = '其他'").get();
+if (!otherCat) {
+  db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)').run('其他', 'Others', 5);
+}
+
+const thankProduct = db.prepare("SELECT id FROM products WHERE name = '感谢支持，祝你发大财'").get();
+if (!thankProduct) {
+  const otherCatId = db.prepare("SELECT id FROM categories WHERE name = '其他'").get()?.id;
+  if (otherCatId) {
+    db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, 0, 99)`).run(
+      '感谢支持，祝你发大财', 'Thank You for Your Support', otherCatId, 1.00, '感谢您的支持，祝您财源广进，生意兴隆！'
+    );
+  }
+}
+
+const flavorMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/flavors'").get();
+if (!flavorMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors');
 }
 
 module.exports = db;
