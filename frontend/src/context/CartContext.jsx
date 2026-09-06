@@ -23,22 +23,21 @@ export function CartProvider({ children }) {
     localStorage.setItem('cart', JSON.stringify(items))
   }, [items])
 
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('order_history') || '[]') } catch { return [] }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('order_history', JSON.stringify(history))
+  }, [history])
+
   const addItem = (product) => {
     setItems(prev => {
       const existing = prev.find(i => i.id === product.id && !i.note)
       if (existing) {
         return prev.map(i => i.cartId === existing.cartId ? { ...i, quantity: i.quantity + 1 } : i)
       }
-      return [...prev, {
-        cartId: genId(),
-        id: product.id,
-        name: product.name,
-        name_en: product.name_en,
-        price: product.price,
-        image: product.image,
-        quantity: 1,
-        note: ''
-      }]
+      return [...prev, { cartId: genId(), id: product.id, name: product.name, name_en: product.name_en, price: product.price, image: product.image, quantity: 1, note: '' }]
     })
   }
 
@@ -54,27 +53,35 @@ export function CartProvider({ children }) {
       const trimmedNote = note.trim()
       const existingWithNote = prev.find(i => i.id === item.id && i.note === trimmedNote && i.cartId !== cartId)
       if (existingWithNote) {
-        return prev
-          .filter(i => i.cartId !== cartId)
-          .map(i => i.cartId === existingWithNote.cartId ? { ...i, quantity: i.quantity + item.quantity } : i)
+        return prev.filter(i => i.cartId !== cartId).map(i => i.cartId === existingWithNote.cartId ? { ...i, quantity: i.quantity + item.quantity } : i)
       }
       return prev.map(i => i.cartId === cartId ? { ...i, note: trimmedNote } : i)
     })
   }
 
   const clearNote = (cartId) => { updateNote(cartId, '') }
+  const removeItem = (cartId) => { setItems(prev => prev.filter(i => i.cartId !== cartId)) }
+  const clear = () => setItems([])
 
-  const removeItem = (cartId) => {
-    setItems(prev => prev.filter(i => i.cartId !== cartId))
+  const addToHistory = () => {
+    if (items.length === 0) return
+    const record = { id: genId(), date: new Date().toLocaleString('zh-CN'), items: items.map(i => ({ ...i })), total: subtotal }
+    setHistory(prev => [record, ...prev].slice(0, 20))
   }
 
-  const clear = () => setItems([])
+  const reorderFromHistory = (recordId) => {
+    const record = history.find(r => r.id === recordId)
+    if (!record) return
+    record.items.forEach(item => { addItem({ id: item.id, name: item.name, name_en: item.name_en, price: item.price, image: item.image }) })
+  }
+
+  const clearHistory = () => setHistory([])
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const totalCount = items.reduce((sum, i) => sum + i.quantity, 0)
 
   return (
-    <CartContext.Provider value={{ items, addItem, updateQuantity, updateNote, clearNote, removeItem, clear, subtotal, totalCount }}>
+    <CartContext.Provider value={{ items, addItem, updateQuantity, updateNote, clearNote, removeItem, clear, subtotal, totalCount, history, addToHistory, reorderFromHistory, clearHistory }}>
       {children}
     </CartContext.Provider>
   )
