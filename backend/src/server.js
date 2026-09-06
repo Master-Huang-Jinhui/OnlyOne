@@ -22,6 +22,7 @@ app.use('/api/menus', require('./routes/menus'));
 app.use('/api/content', require('./routes/content'));
 app.use('/api/memos', require('./routes/memos'));
 app.use('/api/flavor-tags', require('./routes/flavorTags'));
+app.use('/api/flavor-categories', require('./routes/flavorCategories'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
