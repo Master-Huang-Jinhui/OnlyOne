@@ -1,68 +1,106 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Switch, Tabs, Empty, toast } from '../../components/ui'
-
-const emptyProduct = { name: '', name_en: '', category_id: '', price: '', description: '', description_en: '', image: '', available: true, is_recommend: false, sort_order: 0 }
-const emptyCategory = { name: '', name_en: '', sort_order: 0 }
+import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Products() {
-  const [tab, setTab] = useState('products')
-  const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
-  const [dialog, setDialog] = useState(false)
-  const [catDialog, setCatDialog] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [catEditing, setCatEditing] = useState(null)
-  const [form, setForm] = useState(emptyProduct)
-  const [catForm, setCatForm] = useState(emptyCategory)
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [expanded, setExpanded] = useState({})
+  const [catDialog, setCatDialog] = useState(null)
+  const [productDialog, setProductDialog] = useState(null)
 
   useEffect(() => { load() }, [])
 
   const load = () => {
-    api.getAllProducts().then(data => setProducts(Array.isArray(data) ? data : [])).catch(() => {})
-    api.getAllCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
+    Promise.all([api.getAllCategories(), api.getAllProducts()]).then(([cats, prods]) => {
+      const categoryList = Array.isArray(cats) ? cats : []
+      const productList = Array.isArray(prods) ? prods : []
+      const withProducts = categoryList.map(c => ({
+        ...c,
+        products: productList.filter(p => p.category_id === c.id)
+      }))
+      const uncategorized = productList.filter(p => !p.category_id)
+      if (uncategorized.length > 0) {
+        withProducts.push({ id: 0, name: '未分类', name_en: 'Uncategorized', enabled: 1, sort_order: 999, products: uncategorized })
+      }
+      setCategories(withProducts)
+      if (withProducts.length > 0) setExpanded(prev => ({ ...prev, [withProducts[0].id]: true }))
+    }).catch(() => {})
   }
 
-  const openAdd = () => { setEditing(null); setForm(emptyProduct); setDialog(true) }
-  const openEdit = (p) => { setEditing(p); setForm({ ...p, available: !!p.available, is_recommend: !!p.is_recommend }); setDialog(true) }
-
-  const save = async () => {
-    if (!form.name || form.price === '') { toast('名称和价格必填', 'error'); return }
+  const saveCategory = async () => {
+    const { mode, data } = catDialog
+    const name = data.name.trim()
+    if (!name) { toast('请填写分类名称', 'error'); return }
     try {
-      const data = { ...form, price: parseFloat(form.price) }
-      if (editing) { await api.updateProduct(editing.id, data); toast('更新成功') }
-      else { await api.createProduct(data); toast('添加成功') }
-      setDialog(false); load()
+      const payload = { name, name_en: data.name_en || '', sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 }
+      if (mode === 'add') { await api.createCategory(payload); toast('分类已添加') }
+      else { await api.updateCategory(data.id, payload); toast('分类已更新') }
+      setCatDialog(null); load()
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const remove = async (id) => {
-    if (!confirm('确定删除该商品？')) return
-    await api.deleteProduct(id); toast('已删除'); load()
+  const toggleCategory = async (cat) => {
+    if (cat.id === 0) return
+    await api.updateCategory(cat.id, { enabled: cat.enabled ? 0 : 1 })
+    toast(cat.enabled ? '已禁用该分类' : '已启用该分类')
+    load()
   }
 
-  const openCatAdd = () => { setCatEditing(null); setCatForm(emptyCategory); setCatDialog(true) }
-  const openCatEdit = (c) => { setCatEditing(c); setCatForm({ ...c }); setCatDialog(true) }
-  const saveCat = async () => {
-    if (!catForm.name) { toast('分类名称必填', 'error'); return }
+  const deleteCategory = async (cat) => {
+    if (cat.id === 0) return
+    if (!confirm(`确定删除分类"${cat.name}"吗？分类下商品将变为未分类。`)) return
+    try { await api.deleteCategory(cat.id); toast('分类已删除'); load() } catch (e) { toast(e.message, 'error') }
+  }
+
+  const saveProduct = async () => {
+    const { mode, data } = productDialog
+    if (!data.name.trim() || data.price === '') { toast('名称和价格必填', 'error'); return }
     try {
-      if (catEditing) { await api.updateCategory(catEditing.id, catForm); toast('更新成功') }
-      else { await api.createCategory(catForm); toast('添加成功') }
-      setCatDialog(false); load()
+      const payload = {
+        name: data.name.trim(),
+        name_en: data.name_en || '',
+        category_id: data.category_id || null,
+        price: parseFloat(data.price),
+        description: data.description || '',
+        description_en: data.description_en || '',
+        image: data.image || '',
+        available: data.available ? 1 : 0,
+        is_recommend: data.is_recommend ? 1 : 0,
+        sort_order: data.sort_order || 0
+      }
+      if (mode === 'add') { await api.createProduct(payload); toast('商品已添加') }
+      else { await api.updateProduct(data.id, payload); toast('商品已更新') }
+      setProductDialog(null); load()
     } catch (e) { toast(e.message, 'error') }
   }
-  const removeCat = async (id) => {
-    if (!confirm('确定删除该分类？分类下商品将变为未分类')) return
-    await api.deleteCategory(id); toast('已删除'); load()
+
+  const toggleProduct = async (p) => {
+    await api.updateProduct(p.id, { available: p.available ? 0 : 1 })
+    toast(p.available ? '已下架' : '已上架')
+    load()
+  }
+
+  const deleteProduct = async (p) => {
+    if (!confirm(`确定删除商品"${p.name}"吗？`)) return
+    await api.deleteProduct(p.id); toast('商品已删除'); load()
   }
 
   const productColumns = [
-    { header: '商品', render: p => (<div className="flex items-center gap-3"><div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl overflow-hidden">{p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : '🍜'}</div><div><p className="font-medium text-gray-800">{p.name}</p><p className="text-xs text-gray-400">{p.name_en || '-'}</p></div></div>) },
-    { header: '分类', render: p => <Badge variant="primary">{p.category_name || '未分类'}</Badge> },
+    { header: '商品', render: p => (
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
+          {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : '🍜'}
+        </div>
+        <div className="min-w-0">
+          <p className="font-medium text-gray-800 truncate">{p.name}</p>
+          <p className="text-xs text-gray-400 truncate">{p.name_en || '-'}</p>
+        </div>
+      </div>
+    )},
     { header: '价格', render: p => <span className="font-medium text-primary-600">${parseFloat(p.price).toFixed(2)}</span> },
     { header: '推荐', render: p => p.is_recommend ? <Badge variant="danger">推荐</Badge> : <span className="text-gray-300">-</span> },
-    { header: '状态', render: p => <Badge variant={p.available ? 'success' : 'default'}>{p.available ? '在售' : '下架'}</Badge> }
+    { header: '排序', render: p => <span className="text-gray-500 text-sm">{p.sort_order}</span> },
+    { header: '状态', render: p => p.available ? <Badge variant="success">在售</Badge> : <Badge variant="default">下架</Badge> }
   ]
 
   return (
@@ -70,71 +108,111 @@ export default function Products() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">商品管理</h2>
-          <p className="text-sm text-gray-400 mt-1">管理商品和分类</p>
+          <p className="text-sm text-gray-400 mt-1">按分类管理商品，点击分类展开查看商品列表</p>
         </div>
-        <Button onClick={tab === 'products' ? openAdd : openCatAdd}>+ 添加{tab === 'products' ? '商品' : '分类'}</Button>
+        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', name_en: '', sort_order: 0, enabled: true } })}>+ 新增分类</Button>
       </div>
 
-      <Tabs tabs={[{ key: 'products', label: '商品列表' }, { key: 'categories', label: '分类管理' }]} active={tab} onChange={setTab} />
-
-      {tab === 'products' ? (
-        <>
-          <div className="flex gap-2 flex-wrap mb-4">
-            <button onClick={() => setSelectedCategory(null)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === null ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>全部 ({products.length})</button>
-            {categories.map(c => {
-              const count = products.filter(p => p.category_id === c.id).length
-              return (<button key={c.id} onClick={() => setSelectedCategory(c.id)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === c.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{c.name} ({count})</button>)
-            })}
-          </div>
-          <Card>
-            <Table columns={productColumns} data={selectedCategory ? products.filter(p => p.category_id === selectedCategory) : products} actions={p => (
-              <div className="flex gap-2">
-                <button onClick={() => openEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
-                <button onClick={() => remove(p.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
-              </div>
-            )} />
-          </Card>
-        </>
-      ) : (
-        <Card>
-          <Table columns={[{ header: '分类名称', render: c => <div><p className="font-medium text-gray-800">{c.name}</p><p className="text-xs text-gray-400">{c.name_en || '-'}</p></div> }, { header: '排序', key: 'sort_order' }, { header: '状态', render: c => <Badge variant={c.enabled ? 'success' : 'default'}>{c.enabled ? '启用' : '停用'}</Badge> }]} data={categories} actions={c => (
-            <div className="flex gap-2">
-              <button onClick={() => openCatEdit(c)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
-              <button onClick={() => removeCat(c.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
+      {categories.length === 0 ? (
+        <Card><Empty text="暂无商品分类，点击右上角添加" icon="🍜" /></Card>
+      ) : categories.map(cat => (
+        <Card key={cat.id} className="overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 bg-gray-50 border-b">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} className="text-gray-500 hover:text-gray-700 w-6 text-center">
+                {expanded[cat.id] ? '▼' : '▶'}
+              </button>
+              <h3 className="font-bold text-gray-800 text-lg">{cat.name}</h3>
+              {cat.name_en && <span className="text-xs text-gray-400">{cat.name_en}</span>}
+              {cat.id !== 0 && <Badge variant={cat.enabled ? 'success' : 'default'}>{cat.enabled ? '启用中' : '已禁用'}</Badge>}
+              <span className="text-xs text-gray-400">{cat.products?.length || 0} 个商品</span>
             </div>
-          )} />
-        </Card>
-      )}
+            <div className="flex items-center gap-2">
+              {cat.id !== 0 && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => toggleCategory(cat)}>{cat.enabled ? '禁用' : '启用'}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat } })}>编辑分类</Button>
+                </>
+              )}
+              <Button size="sm" onClick={() => setProductDialog({ mode: 'add', data: { name: '', name_en: '', category_id: cat.id || '', price: '', description: '', description_en: '', image: '', available: true, is_recommend: false, sort_order: 0 } })}>+ 商品</Button>
+              {cat.id !== 0 && <button onClick={() => deleteCategory(cat)} className="text-red-400 hover:text-red-600 text-sm px-2">删除</button>}
+            </div>
+          </div>
 
-      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑商品' : '添加商品'} width="max-w-2xl" footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={save}>保存</Button></>}>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="商品名称 *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <Input label="英文名" value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} />
+          {expanded[cat.id] && (
+            <div className="p-5">
+              {(!cat.products || cat.products.length === 0) ? (
+                <Empty text="该分类下暂无商品，点击右上角 + 商品 添加" icon="🍜" />
+              ) : (
+                <Table
+                  columns={productColumns}
+                  data={cat.products}
+                  actions={p => (
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggleProduct(p)} className={`text-xs ${p.available ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{p.available ? '下架' : '上架'}</button>
+                      <button onClick={() => setProductDialog({ mode: 'edit', data: { ...p } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
+                      <button onClick={() => deleteProduct(p)} className="text-xs text-red-400 hover:text-red-600">删除</button>
+                    </div>
+                  )}
+                />
+              )}
+            </div>
+          )}
+        </Card>
+      ))}
+
+      <Dialog open={!!catDialog} onClose={() => setCatDialog(null)} title={catDialog?.mode === 'add' ? '新增分类' : '编辑分类'} width="max-w-sm">
+        {catDialog && (
+          <div className="space-y-4">
+            <Input label="分类名称 *" value={catDialog.data.name} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name: e.target.value } })} placeholder="如：烧烤、奶茶、小吃" />
+            <Input label="英文名" value={catDialog.data.name_en} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name_en: e.target.value } })} placeholder="如：BBQ、Milk Tea" />
+            <Input label="排序" type="number" value={catDialog.data.sort_order} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={catDialog.data.enabled} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, enabled: e.target.checked } })} className="w-4 h-4" />
+              <span className="text-sm text-gray-700">启用该分类（禁用后前台不显示）</span>
+            </label>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setCatDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={saveCategory}>保存</Button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Select label="分类" value={form.category_id || ''} onChange={e => setForm({ ...form, category_id: e.target.value })} options={[{ value: '', label: '未分类' }, ...categories.map(c => ({ value: c.id, label: c.name }))]} />
-            <Input label="价格 *" type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
-            <Input label="排序" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
-          </div>
-          <Input label="图片 URL" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://..." />
-          <div className="grid grid-cols-2 gap-4">
-            <Textarea label="描述" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
-            <Textarea label="英文描述" value={form.description_en} onChange={e => setForm({ ...form, description_en: e.target.value })} rows={2} />
-          </div>
-          <div className="flex gap-6">
-            <Switch checked={form.available} onChange={v => setForm({ ...form, available: v })} label="在售" />
-            <Switch checked={form.is_recommend} onChange={v => setForm({ ...form, is_recommend: v })} label="推荐商品" />
-          </div>
-        </div>
+        )}
       </Dialog>
 
-      <Dialog open={catDialog} onClose={() => setCatDialog(false)} title={catEditing ? '编辑分类' : '添加分类'} footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={saveCat}>保存</Button></>}>
-        <div className="space-y-4">
-          <Input label="分类名称 *" value={catForm.name} onChange={e => setForm({ ...catForm, name: e.target.value })} />
-          <Input label="英文名" value={catForm.name_en} onChange={e => setCatForm({ ...catForm, name_en: e.target.value })} />
-          <Input label="排序" type="number" value={catForm.sort_order} onChange={e => setCatForm({ ...catForm, sort_order: parseInt(e.target.value) || 0 })} />
-        </div>
+      <Dialog open={!!productDialog} onClose={() => setProductDialog(null)} title={productDialog?.mode === 'add' ? '新增商品' : '编辑商品'} width="max-w-2xl">
+        {productDialog && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="商品名称 *" value={productDialog.data.name} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, name: e.target.value } })} />
+              <Input label="英文名" value={productDialog.data.name_en} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, name_en: e.target.value } })} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Select label="分类" value={productDialog.data.category_id || ''} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, category_id: e.target.value } })}
+                options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+              <Input label="价格 * ($)" type="number" step="0.01" value={productDialog.data.price} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, price: e.target.value } })} />
+              <Input label="排序" type="number" value={productDialog.data.sort_order} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
+            </div>
+            <Input label="图片 URL" value={productDialog.data.image} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })} placeholder="https://... 或 /uploads/images/xxx.jpg" />
+            <div className="grid grid-cols-2 gap-4">
+              <Textarea label="描述" value={productDialog.data.description} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, description: e.target.value } })} rows={2} />
+              <Textarea label="英文描述" value={productDialog.data.description_en} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, description_en: e.target.value } })} rows={2} />
+            </div>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={productDialog.data.available} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, available: e.target.checked } })} className="w-4 h-4" />
+                <span className="text-sm text-gray-700">在售</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={productDialog.data.is_recommend} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, is_recommend: e.target.checked } })} className="w-4 h-4" />
+                <span className="text-sm text-gray-700">推荐商品</span>
+              </label>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setProductDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={saveProduct}>保存</Button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </div>
   )
