@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { api } from '../../lib/api'
-import { flavorTags } from '../../lib/flavorTags'
 import { Button, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, subtotal, clear, addToHistory } = useCart()
+  const { items, subtotal, clear, addToHistory, getTagInfo } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
   const [diningType, setDiningType] = useState('takeout')
@@ -120,19 +119,14 @@ export default function Checkout() {
           <h3 className="font-semibold text-gray-800 mb-4">订单明细</h3>
           <div className="space-y-3 mb-4">
             {items.map((item, i) => {
-              const tagsExtra = (item.notes || []).reduce((sum, t) => {
-                const tag = flavorTags.find(ft => ft.name === t)
-                return sum + (tag?.extraPrice || 0)
-              }, 0)
+              const tagsExtra = (item.notes || []).reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
               return (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-gray-700">
                     {item.name} × {item.quantity}
                     {item.notes && item.notes.length > 0 && (
                       <span className="flex flex-wrap gap-1 mt-1">
-                        {item.notes.map((t, j) => (
-                          <span key={j} className="inline-block bg-primary-50 text-primary-700 rounded-full px-1.5 py-0.5 text-[10px]">{t}</span>
-                        ))}
+                        {item.notes.map((t, j) => (<span key={j} className="inline-block bg-primary-50 text-primary-700 rounded-full px-1.5 py-0.5 text-[10px]">{t}</span>))}
                       </span>
                     )}
                   </span>
