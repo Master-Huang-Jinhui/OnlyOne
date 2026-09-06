@@ -147,6 +147,8 @@ db.exec(`
     content TEXT,
     content_en TEXT,
     icon TEXT DEFAULT '📌',
+    image TEXT,
+    layout TEXT DEFAULT 'left',
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
@@ -338,6 +340,15 @@ if (carouselCount === 0) {
 const tagColumns = db.prepare("PRAGMA table_info(flavor_tags)").all();
 if (!tagColumns.find(c => c.name === 'category_id')) {
   db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run();
+}
+
+// 给旧版 content_sections 表添加 image 和 layout 列
+const sectionColumns = db.prepare("PRAGMA table_info(content_sections)").all();
+if (!sectionColumns.find(c => c.name === 'image')) {
+  db.prepare('ALTER TABLE content_sections ADD COLUMN image TEXT').run();
+}
+if (!sectionColumns.find(c => c.name === 'layout')) {
+  db.prepare('ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT \'left\'').run();
 }
 
 // 补充"其他"分类
