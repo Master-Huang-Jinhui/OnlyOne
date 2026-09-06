@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Input, Textarea, Switch, Tabs, Empty, toast } from '../../components/ui'
 
@@ -9,6 +9,9 @@ export default function Content() {
   const [dialog, setDialog] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ image: '', title: '', link: '', sort_order: 0, enabled: true })
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+  const sectionFileInputRef = useRef(null)
 
   const [sections, setSections] = useState([])
   const [sectionDialog, setSectionDialog] = useState(false)
@@ -21,6 +24,34 @@ export default function Content() {
     api.getAllCarousel().then(data => setCarousel(Array.isArray(data) ? data : [])).catch(() => {})
     api.getSettings().then(data => setSettings(data || {})).catch(() => {})
     api.getAllContentSections().then(data => setSections(Array.isArray(data) ? data : [])).catch(() => {})
+  }
+
+  const handleFileSelect = (e, target) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    handleUpload(file, target)
+    e.target.value = ''
+  }
+
+  const handleUpload = async (file, target) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast('图片不能超过 10MB', 'error')
+      return
+    }
+    setUploading(true)
+    try {
+      const res = await api.uploadImage(file)
+      if (target === 'carousel') {
+        setForm(prev => ({ ...prev, image: res.url }))
+      } else {
+        setSectionForm(prev => ({ ...prev, image: res.url }))
+      }
+      toast('图片上传成功')
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const openAdd = () => { setEditing(null); setForm({ image: '', title: '', link: '', sort_order: 0, enabled: true }); setDialog(true) }
@@ -197,7 +228,17 @@ export default function Content() {
       <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? '编辑轮播' : '添加轮播'}
         footer={<><Button variant="outline" onClick={() => setDialog(false)}>取消</Button><Button onClick={saveCarousel}>保存</Button></>}>
         <div className="space-y-4">
-          <Input label="图片 URL" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://..." />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">图片 URL</label>
+            <div className="flex gap-2">
+              <input type="text" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://..."
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? '上传中...' : '选择图片'}
+              </Button>
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'carousel')} />
+          </div>
           <Input label="标题" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
           <Input label="跳转链接" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="可选" />
           <Input label="排序" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
@@ -213,8 +254,16 @@ export default function Content() {
           </div>
           <Input label="图标 (emoji)" value={sectionForm.icon} onChange={e => setSectionForm({ ...sectionForm, icon: e.target.value })} placeholder="📌 🕐 📍" />
           <div>
-            <Input label="图片 URL" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg" />
-            <p className="text-xs text-gray-400 mt-1">本地图片放到 frontend/public/images/ 后填 /images/文件名.jpg</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">图片 URL</label>
+            <div className="flex gap-2">
+              <input type="text" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+              <Button type="button" size="sm" variant="outline" onClick={() => sectionFileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? '上传中...' : '选择图片'}
+              </Button>
+            </div>
+            <input ref={sectionFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'section')} />
+            <p className="text-xs text-gray-400 mt-1">点击"选择图片"从电脑上传，或手动填写网络图片地址</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
