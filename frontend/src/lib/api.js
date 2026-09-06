@@ -45,6 +45,7 @@ export const api = {
   getOrderStats: () => request('/orders/stats'),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getOrderByNo: (orderNo) => request(`/orders/lookup/${orderNo}`),
+  searchOrders: (type, value) => request(`/orders/search?type=${type}&value=${encodeURIComponent(value)}`),
   getSettings: () => request('/settings'),
   updateSettings: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   getTodayBusiness: () => request('/settings/business/today'),
