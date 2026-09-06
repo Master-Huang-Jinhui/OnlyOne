@@ -12,7 +12,7 @@ function genOrderNo() {
 }
 
 router.post('/', (req, res) => {
-  const { items, dining_type = 'takeout', customer_name, customer_phone, customer_address, note } = req.body;
+  const { items, dining_type = 'takeout', customer_name, customer_phone, customer_address, note, guest_id, table_id, table_session } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: '购物车为空' });
   }
@@ -52,9 +52,13 @@ router.post('/', (req, res) => {
   const total = Math.round((subtotal + tax + delivery_fee) * 100) / 100;
   const order_no = genOrderNo();
 
-  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`).run(
-    order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note
+  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, guest_id, table_id, table_session) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`).run(
+    order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, table_session || null
   );
+
+  if (table_id && dining_type === 'dine_in') {
+    db.prepare('UPDATE tables SET status = ? WHERE id = ?').run('occupied', table_id);
+  }
 
   res.json({ order_no, total, subtotal, tax, delivery_fee });
 });
@@ -117,18 +121,32 @@ router.get('/search', (req, res) => {
   if (!keyword || !keyword.trim()) {
     return res.status(400).json({ error: '请输入订单号、手机号或姓名' });
   }
-
   const kw = keyword.trim();
   const cleanPhone = kw.replace(/\D/g, '');
-
   const sql = `SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at 
     FROM orders 
     WHERE order_no LIKE ? 
        OR REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ? 
        OR customer_name LIKE ?
     ORDER BY created_at DESC LIMIT 50`;
-
   const orders = db.prepare(sql).all(`%${kw}%`, `%${cleanPhone}%`, `%${kw}%`);
+  res.json({ orders, count: orders.length });
+});
+
+router.get('/mine', (req, res) => {
+  const { guest_id, table_id, table_session } = req.query;
+  if (!guest_id && !table_id) {
+    return res.status(400).json({ error: '缺少设备标识或餐桌标识' });
+  }
+  let sql = `SELECT id, order_no, total, dining_type, customer_name, status, created_at 
+    FROM orders WHERE status != 'cancelled' AND (`;
+  const conditions = [];
+  const params = [];
+  if (guest_id) { conditions.push('guest_id = ?'); params.push(guest_id); }
+  if (table_id && table_session) { conditions.push('(table_id = ? AND table_session = ?)'); params.push(table_id, table_session); }
+  if (conditions.length === 0) return res.status(400).json({ error: '缺少有效查询条件' });
+  sql += conditions.join(' OR ') + ') ORDER BY created_at DESC LIMIT 50';
+  const orders = db.prepare(sql).all(...params);
   res.json({ orders, count: orders.length });
 });
 
