@@ -30,14 +30,12 @@ export default function Home() {
     api.getContentSections().then(data => setContentSections(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
-  // 轮播自动播放
   useEffect(() => {
     if (carousel.length <= 1) return
     const timer = setInterval(() => setCurrentSlide(p => (p + 1) % carousel.length), 4000)
     return () => clearInterval(timer)
   }, [carousel.length])
 
-  // 滚动监听
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -76,7 +74,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 导航栏 */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -97,7 +94,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 右侧悬浮导航 */}
       <div className="float-nav">
         {sections.map(s => (
           <div key={s.id} className={`float-nav-dot ${activeSection === s.id ? 'active' : ''}`} onClick={() => scrollTo(s.id)}>
@@ -106,7 +102,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* 轮播图 */}
       <section className="pt-16">
         <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden bg-gradient-to-br from-primary-100 via-blue-50 to-white">
           {carousel.length > 0 ? carousel.map((item, i) => (
@@ -136,7 +131,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 品牌故事 */}
       <section id="brand" className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">品牌故事</Badge>
@@ -146,7 +140,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 茶品溯源 */}
       <section id="tea" className="py-20 bg-gradient-to-b from-blue-50/50 to-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">茶品溯源</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2></div>
@@ -163,7 +156,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 奶茶工艺理念 */}
       <section id="craft" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">奶茶工艺</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">我们的理念</h2></div>
@@ -179,7 +171,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 关于区块 */}
       <section id="about" className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">关于我们</Badge>
@@ -188,20 +179,58 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 自定义内容板块 */}
+      {/* 自定义内容板块 - 图片左右布局 + 奶茶制作过程悬停动画 */}
       {contentSections.map((section, idx) => (
-        <section key={section.id} className={`py-20 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-          <div className="max-w-4xl mx-auto px-4 text-center reveal">
-            <div className="text-4xl mb-4">{section.icon || '📌'}</div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">{section.title}</h2>
-            {section.title_en && <p className="text-sm text-gray-400 mb-6 tracking-wider uppercase">{section.title_en}</p>}
-            {section.content && <p className="text-gray-600 leading-relaxed whitespace-pre-line max-w-2xl mx-auto">{section.content}</p>}
-            {section.content_en && <p className="text-gray-400 text-sm leading-relaxed mt-4 max-w-2xl mx-auto">{section.content_en}</p>}
+        <section key={section.id} className={`py-20 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} section-hover`}>
+          <div className="max-w-6xl mx-auto px-4">
+            <div className={`flex flex-col md:flex-row items-center gap-10 ${section.layout === 'right' ? 'md:flex-row-reverse' : ''}`}>
+              {section.image ? (
+                <div className="w-full md:w-1/2 relative group">
+                  <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
+                    <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </div>
+                  <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                    <div className="relative w-32 h-40">
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
+                        <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
+                        <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
+                        <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
+                        <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
+                      </div>
+                      <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
+                      <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
+                        <span className="steam-1">💨</span>
+                        <span className="steam-2">💨</span>
+                        <span className="steam-3">💨</span>
+                      </div>
+                      <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
+                      <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
+                      <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
+                      <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
+                      <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full md:w-1/2 flex items-center justify-center">
+                  <div className="text-8xl">{section.icon || '📌'}</div>
+                </div>
+              )}
+              <div className="w-full md:w-1/2 text-center md:text-left reveal">
+                {section.icon && !section.image && <div className="text-4xl mb-4">{section.icon}</div>}
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">{section.title}</h2>
+                {section.title_en && <p className="text-sm text-gray-400 mb-6 tracking-wider uppercase">{section.title_en}</p>}
+                {section.content && <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">{section.content}</p>}
+                {section.content_en && <p className="text-gray-400 text-sm leading-relaxed mt-4">{section.content_en}</p>}
+              </div>
+            </div>
           </div>
         </section>
       ))}
 
-      {/* 商品菜单 */}
       <section id="menu" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
@@ -237,7 +266,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 联系我们 */}
       <section id="contact" className="py-20 bg-gradient-to-br from-primary-600 to-primary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <h2 className="text-3xl font-bold mb-8">联系我们</h2>
@@ -249,7 +277,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 页脚 */}
       <footer className="bg-gray-900 text-gray-400 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
