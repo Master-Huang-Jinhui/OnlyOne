@@ -7,7 +7,7 @@ import { Button, Input, Textarea, Select, Empty, toast } from '../../components/
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, subtotal, clear, addToHistory, getTagInfo, getItemUnitPrice } = useCart()
+  const { items, subtotal, clear, addToHistory, getTagInfo } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
   const [diningType, setDiningType] = useState('takeout')
@@ -30,27 +30,43 @@ export default function Checkout() {
   const total = Math.round((subtotal + tax + deliveryFee) * 100) / 100
 
   const handleSubmit = async () => {
-    if (!business.open) { toast('今日门店休息，无法下单', 'error'); return }
-    if (!customerName || !customerPhone) { toast('请填写姓名和电话', 'error'); return }
-    if (diningType === 'delivery' && !customerAddress) { toast('请填写配送地址', 'error'); return }
+    if (!business.open) {
+      toast('今日门店休息，无法下单', 'error')
+      return
+    }
+    if (!customerName || !customerPhone) {
+      toast('请填写姓名和电话', 'error')
+      return
+    }
+    if (diningType === 'delivery' && !customerAddress) {
+      toast('请填写配送地址', 'error')
+      return
+    }
     setSubmitting(true)
     try {
       const result = await api.createOrder({
         items: items.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') })),
-        dining_type: diningType, customer_name: customerName, customer_phone: customerPhone,
-        customer_address: diningType === 'delivery' ? customerAddress : '', note,
+        dining_type: diningType,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_address: diningType === 'delivery' ? customerAddress : '',
+        note,
         ...getOrderIdentity()
       })
       setOrderResult(result)
       addToHistory()
       clear()
       toast('下单成功！')
-    } catch (e) { toast(e.message, 'error') } finally { setSubmitting(false) }
+    } catch (e) {
+      toast(e.message, 'error')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (orderResult) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 pt-16 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md w-full mx-4 text-center">
           <div className="text-6xl mb-4">✅</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">下单成功</h2>
@@ -77,7 +93,7 @@ export default function Checkout() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gray-50 pt-16 flex flex-col items-center justify-center">
         <Empty text="购物车是空的" icon="🛒" />
         <Link to="/menu"><Button className="mt-4">去点餐</Button></Link>
       </div>
@@ -93,25 +109,36 @@ export default function Checkout() {
         </div>
       </div>
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {!business.open && (<div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6"><p className="text-red-600 font-medium">⚠️ 今日门店休息，暂不接受下单</p></div>)}
+
+        {!business.open && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+            <p className="text-red-600 font-medium">⚠️ 今日门店休息，暂不接受下单</p>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">取餐方式</h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { value: 'dinein', label: '堂吃', icon: '🍽️', desc: '店内用餐' },
               { value: 'takeout', label: '自取', icon: '🥡', desc: '到店取餐' },
               { value: 'delivery', label: '配送', icon: '🛵', desc: '送货上门' }
             ].map(opt => (
-              <button key={opt.value} onClick={() => setDiningType(opt.value)}
-                className={`p-4 rounded-xl border-2 text-center transition-all ${diningType === opt.value ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}>
+              <button
+                key={opt.value}
+                onClick={() => setDiningType(opt.value)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${diningType === opt.value ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
+              >
                 <div className="text-2xl mb-1">{opt.icon}</div>
                 <div className="font-medium text-sm text-gray-800">{opt.label}</div>
                 <div className="text-xs text-gray-400">{opt.desc}</div>
               </button>
             ))}
           </div>
-          {diningType === 'delivery' && (<p className="text-xs text-gray-400 mt-3">配送范围 {settings.delivery_range_miles || 3} 英里内，满 ${freeDeliveryMin} 免配送费，否则配送费 ${settings.delivery_fee || '3.99'}</p>)}
+          {diningType === 'delivery' && (
+            <p className="text-xs text-gray-400 mt-3">
+              配送范围 {settings.delivery_range_miles || 3} 英里内，满 ${freeDeliveryMin} 免配送费，否则配送费 ${settings.delivery_fee || '3.99'}
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
@@ -121,7 +148,9 @@ export default function Checkout() {
               <Input label="姓名 *" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="您的姓名" />
               <Input label="电话 *" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="联系电话" />
             </div>
-            {diningType === 'delivery' && (<Input label="配送地址 *" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="详细配送地址" />)}
+            {diningType === 'delivery' && (
+              <Input label="配送地址 *" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="详细配送地址" />
+            )}
             <Textarea label="订单备注" value={note} onChange={e => setNote(e.target.value)} placeholder="特殊要求，如少辣、不要葱等" rows={3} />
           </div>
         </div>
@@ -137,7 +166,9 @@ export default function Checkout() {
                     {item.name} × {item.quantity}
                     {item.notes && item.notes.length > 0 && (
                       <span className="flex flex-wrap gap-1 mt-1">
-                        {item.notes.map((t, j) => (<span key={j} className="inline-block bg-primary-50 text-primary-700 rounded-full px-1.5 py-0.5 text-[10px]">{t}</span>))}
+                        {item.notes.map((t, j) => (
+                          <span key={j} className="inline-block bg-primary-50 text-primary-700 rounded-full px-1.5 py-0.5 text-[10px]">{t}</span>
+                        ))}
                       </span>
                     )}
                   </span>
@@ -149,14 +180,24 @@ export default function Checkout() {
           <div className="border-t pt-3 space-y-2">
             <div className="flex justify-between text-sm text-gray-600"><span>商品小计</span><span>${subtotal.toFixed(2)}</span></div>
             <div className="flex justify-between text-sm text-gray-600"><span>税费 ({(taxRate * 100).toFixed(3)}%)</span><span>${tax.toFixed(2)}</span></div>
-            {diningType === 'delivery' && (<div className="flex justify-between text-sm text-gray-600"><span>配送费 {deliveryFee === 0 && <span className="text-green-600">(已免)</span>}</span><span>${deliveryFee.toFixed(2)}</span></div>)}
-            <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${total.toFixed(2)}</span></div>
+            {diningType === 'delivery' && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>配送费 {deliveryFee === 0 && <span className="text-green-600">(已免)</span>}</span>
+                <span>${deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-lg pt-2 border-t">
+              <span>合计</span>
+              <span className="text-primary-600">${total.toFixed(2)}</span>
+            </div>
           </div>
         </div>
 
         <div className="flex gap-4">
           <Link to="/menu"><Button variant="outline">返回菜单</Button></Link>
-          <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !business.open}>{submitting ? '提交中...' : '提交订单'}</Button>
+          <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !business.open}>
+            {submitting ? '提交中...' : '提交订单'}
+          </Button>
         </div>
       </div>
     </div>
