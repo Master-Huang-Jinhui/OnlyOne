@@ -10,27 +10,44 @@ export default function Dashboard() {
   const [platforms, setPlatforms] = useState([])
   const [memos, setMemos] = useState([])
   const [pendingOrders, setPendingOrders] = useState([])
+  const [pendingTotal, setPendingTotal] = useState(0)
+  const [pendingPage, setPendingPage] = useState(1)
+  const [pendingPageSize] = useState(5)
   const [memoDialog, setMemoDialog] = useState(false)
   const [memoForm, setMemoForm] = useState({ title: '', content: '', type: 'memo', priority: 'normal' })
   const lastPendingCount = useRef(0)
   const isFirstLoad = useRef(true)
 
+  const todayStart = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`
+  }
+  const nowStr = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
+  const loadPendingOrders = (page = pendingPage) => {
+    api.getOrders({ status: 'pending', page, page_size: pendingPageSize, sort_by: 'created_at', sort_order: 'desc', start_date: todayStart(), end_date: nowStr() })
+      .then(data => {
+        const orders = data?.orders || []
+        const total = data?.total || 0
+        setPendingOrders(orders)
+        setPendingTotal(total)
+        if (!isFirstLoad.current && total > lastPendingCount.current) {
+          playOrderSound()
+          vibrate()
+          toast(`🔔 有新订单！当前 ${total} 个待处理`, 'success')
+        }
+        lastPendingCount.current = total
+        isFirstLoad.current = false
+      }).catch(() => {})
+  }
+
   useEffect(() => {
     loadData()
     const timer = setInterval(() => {
-      api.getOrders({ status: 'pending', page: 1, page_size: 10, sort_by: 'created_at', sort_order: 'desc' })
-        .then(data => {
-          const orders = data?.orders || []
-          const count = orders.length
-          if (!isFirstLoad.current && count > lastPendingCount.current) {
-            playOrderSound()
-            vibrate()
-            toast(`🔔 有新订单！当前 ${count} 个待处理`, 'success')
-          }
-          lastPendingCount.current = count
-          isFirstLoad.current = false
-          setPendingOrders(orders)
-        }).catch(() => {})
+      loadPendingOrders(1)
       api.getOrderStats().then(data => setStats(data || {})).catch(() => {})
     }, 15000)
     return () => clearInterval(timer)
@@ -40,12 +57,12 @@ export default function Dashboard() {
     api.getOrderStats().then(data => setStats(data || {})).catch(() => {})
     api.getPlatforms().then(data => setPlatforms(Array.isArray(data) ? data : [])).catch(() => {})
     api.getMemos().then(data => setMemos(Array.isArray(data) ? data : [])).catch(() => {})
-    api.getOrders({ status: 'pending', page: 1, page_size: 10, sort_by: 'created_at', sort_order: 'desc' })
-      .then(data => {
-        setPendingOrders(data?.orders || [])
-        lastPendingCount.current = data?.orders?.length || 0
-        isFirstLoad.current = false
-      }).catch(() => {})
+    loadPendingOrders(1)
+  }
+
+  const handlePendingPageChange = (page) => {
+    setPendingPage(page)
+    loadPendingOrders(page)
   }
 
   const addMemo = async () => {
@@ -86,14 +103,14 @@ export default function Dashboard() {
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-gray-800">待处理订单</h3>
-            {pendingOrders.length > 0 && <Badge variant="warning">{pendingOrders.length}</Badge>}
+            <h3 className="font-semibold text-gray-800">今日待处理订单</h3>
+            {pendingTotal > 0 && <Badge variant="warning">{pendingTotal}</Badge>}
           </div>
           <Link to="/admin/orders"><Button variant="ghost" size="sm">全部订单 →</Button></Link>
         </div>
         <CardContent>
           {pendingOrders.length === 0 ? (
-            <Empty text="暂无待处理订单" icon="✅" />
+            <Empty text="今日暂无待处理订单" icon="✅" />
           ) : (
             <div className="space-y-2">
               {pendingOrders.map(o => (
@@ -123,6 +140,24 @@ export default function Dashboard() {
             </div>
           )}
         </CardContent>
+        {pendingTotal > pendingPageSize && (
+          <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
+            <span className="text-sm text-gray-500">共 {pendingTotal} 条</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePendingPageChange(pendingPage - 1)}
+                disabled={pendingPage <= 1}
+                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+              >上一页</button>
+              <span className="text-sm text-gray-600">第 {pendingPage} / {Math.max(1, Math.ceil(pendingTotal / pendingPageSize))} 页</span>
+              <button
+                onClick={() => handlePendingPageChange(pendingPage + 1)}
+                disabled={pendingPage >= Math.ceil(pendingTotal / pendingPageSize)}
+                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+              >下一页</button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
