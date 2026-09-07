@@ -325,8 +325,6 @@ if (carouselCount === 0) {
   insertCarousel.run('', '烧烤串串 鲜香四溢', 3);
 }
 
-// ===== 数据迁移 =====
-
 const tagColumns = db.prepare("PRAGMA table_info(flavor_tags)").all();
 if (!tagColumns.find(c => c.name === 'category_id')) {
   db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run();
@@ -389,7 +387,6 @@ if (!tableMenu) {
   db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables');
 }
 
-// 补充默认外卖平台
 const defaultPlatforms = [
   { name: 'Uber Eats', account: 'only16201@hotmail.com', password: '121227jJ162', url: 'https://merchants.ubereats.com', note: 'Uber Eats 商家后台', sort_order: 1 },
   { name: 'DoorDash', account: 'only16201@hotmail.com', password: '162-01Sanford', url: 'https://merchant.doordash.com', note: 'DoorDash 商家后台', sort_order: 2 },
@@ -401,10 +398,13 @@ const defaultPlatforms = [
   { name: 'BeyondMenu', account: '', password: '', phone: '6307763590', url: 'https://www.beyondmenu.com', note: '菜单更改需联系客服', sort_order: 8 }
 ];
 const insertPlatform = db.prepare('INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
+const updatePlatformAccount = db.prepare('UPDATE platforms SET account = ?, password = ?, url = COALESCE(NULLIF(url, ""), ?), phone = COALESCE(NULLIF(phone, ""), ?), note = COALESCE(NULLIF(note, ""), ?) WHERE name = ? AND (account IS NULL OR account = "")');
 defaultPlatforms.forEach(p => {
   const exists = db.prepare('SELECT id FROM platforms WHERE name = ?').get(p.name);
   if (!exists) {
     insertPlatform.run(p.name, '', p.url || '', p.account || '', p.password || '', p.phone || '', p.note || '', '{}', p.sort_order);
+  } else {
+    updatePlatformAccount.run(p.account || '', p.password || '', p.url || '', p.phone || '', p.note || '', p.name);
   }
 });
 
