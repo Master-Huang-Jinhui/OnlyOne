@@ -21,6 +21,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS platforms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -35,6 +36,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -42,6 +44,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -56,6 +59,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no TEXT UNIQUE NOT NULL,
@@ -76,6 +80,7 @@ db.exec(`
     pickup_number TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS tables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_no TEXT UNIQUE NOT NULL,
@@ -84,7 +89,9 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+
   CREATE TABLE IF NOT EXISTS menus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER DEFAULT 0,
@@ -94,6 +101,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS forms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -102,12 +110,14 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS form_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     form_id INTEGER,
     data TEXT DEFAULT '{}',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_blocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     block_key TEXT UNIQUE,
@@ -119,6 +129,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS carousel (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image TEXT,
@@ -127,6 +138,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS memos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -136,6 +148,7 @@ db.exec(`
     completed INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -148,6 +161,18 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
+  CREATE TABLE IF NOT EXISTS new_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    name_en TEXT,
+    description TEXT,
+    description_en TEXT,
+    image TEXT,
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1
+  );
+
   CREATE TABLE IF NOT EXISTS role_permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -155,12 +180,14 @@ db.exec(`
     can_view INTEGER DEFAULT 1,
     can_edit INTEGER DEFAULT 0
   );
+
   CREATE TABLE IF NOT EXISTS flavor_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS flavor_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     category_id INTEGER,
@@ -171,6 +198,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -382,11 +410,6 @@ if (!flavorMenu) {
   db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors');
 }
 
-const tableMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/tables'").get();
-if (!tableMenu) {
-  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables');
-}
-
 const defaultPlatforms = [
   { name: 'Uber Eats', account: 'only16201@hotmail.com', password: '121227jJ162', url: 'https://merchants.ubereats.com', note: 'Uber Eats 商家后台', sort_order: 1 },
   { name: 'DoorDash', account: 'only16201@hotmail.com', password: '162-01Sanford', url: 'https://merchant.doordash.com', note: 'DoorDash 商家后台', sort_order: 2 },
@@ -407,6 +430,11 @@ defaultPlatforms.forEach(p => {
     updatePlatformAccount.run(p.account || '', p.password || '', p.url || '', p.phone || '', p.note || '', p.name);
   }
 });
+
+const tableMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/tables'").get();
+if (!tableMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables');
+}
 
 const existingCats = db.prepare('SELECT DISTINCT category FROM flavor_tags WHERE category_id IS NULL').all();
 if (existingCats.length > 0) {
