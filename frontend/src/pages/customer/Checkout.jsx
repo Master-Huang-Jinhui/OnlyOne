@@ -7,7 +7,7 @@ import { Button, Input, Textarea, Select, Empty, toast } from '../../components/
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { items, subtotal, clear, addToHistory, getTagInfo } = useCart()
+  const { items, subtotal, clear, addToHistory, getTagInfo, getItemUnitPrice } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
   const [diningType, setDiningType] = useState('takeout')
