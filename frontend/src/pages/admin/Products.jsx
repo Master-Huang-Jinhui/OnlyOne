@@ -165,7 +165,7 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="space-y-3">
         <div>
           <h2 className="text-xl font-bold text-gray-800">商品管理</h2>
           <p className="text-sm text-gray-400 mt-1">按分类管理商品，点击分类展开查看商品列表</p>
