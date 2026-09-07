@@ -26,7 +26,6 @@ router.post('/', (req, res) => {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.id);
     if (!product) continue;
     const qty = Math.max(1, parseInt(item.quantity) || 1);
-    // 优先用前台传过来的单价（含口味标签加价），没有则用商品原价
     const unitPrice = item.price !== undefined ? parseFloat(item.price) : product.price;
     const itemTotal = unitPrice * qty;
     subtotal += itemTotal;
@@ -43,11 +42,9 @@ router.post('/', (req, res) => {
 
   if (orderItems.length === 0) return res.status(400).json({ error: '没有有效商品' });
 
-  // 税率
   const taxRate = parseFloat(db.prepare('SELECT value FROM settings WHERE key = ?').get('tax_rate')?.value || '0.08875');
   const tax = Math.round(subtotal * taxRate * 100) / 100;
 
-  // 配送费
   let delivery_fee = 0;
   if (dining_type === 'delivery') {
     const freeMin = parseFloat(db.prepare('SELECT value FROM settings WHERE key = ?').get('free_delivery_min')?.value || '30');
@@ -66,7 +63,6 @@ router.post('/', (req, res) => {
     order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, table_session || null, pickup_number
   );
 
-  // 如果是堂吃且有关联餐桌，自动占用
   if (table_id && (dining_type === 'dine_in' || dining_type === 'dinein')) {
     db.prepare('UPDATE tables SET status = ? WHERE id = ?').run('occupied', table_id);
   }
@@ -80,10 +76,8 @@ router.get('/', auth, managerAccess, (req, res) => {
   let sql = 'SELECT * FROM orders WHERE 1=1';
   const params = [];
 
-  // 状态筛选
   if (status) { sql += ' AND status = ?'; params.push(status); }
 
-  // 时间范围筛选（支持日期 YYYY-MM-DD 和日期时间 YYYY-MM-DDTHH:MM）
   if (start_date) {
     const start = start_date.replace('T', ' ');
     sql += ' AND created_at >= ?'; params.push(start.length === 16 ? start + ':00' : start);
@@ -94,7 +88,6 @@ router.get('/', auth, managerAccess, (req, res) => {
     else { sql += ' AND created_at <= ?'; params.push(end.length === 16 ? end + ':00' : end); }
   }
 
-  // 排序（白名单防止注入）
   const allowedSortBy = ['order_no', 'total', 'created_at', 'id'];
   const allowedSortOrder = ['asc', 'desc'];
   const sortBy = allowedSortBy.includes(sort_by) ? sort_by : 'created_at';
@@ -107,7 +100,6 @@ router.get('/', auth, managerAccess, (req, res) => {
   const orders = db.prepare(sql).all(...params);
   orders.forEach(o => o.items = JSON.parse(o.items || '[]'));
 
-  // 同时返回统计信息
   let countSql = 'SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE 1=1';
   const countParams = [];
   if (status) { countSql += ' AND status = ?'; countParams.push(status); }
@@ -122,3 +114,85 @@ router.get('/', auth, managerAccess, (req, res) => {
 router.get('/stats', auth, managerAccess, (req, res) => {
   const today = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) = date('now','localtime')").get();
   const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending'").get();
+  const week = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE created_at >= datetime('now','localtime','-7 days')").get();
+  res.json({ today_count: today.cnt, today_revenue: today.revenue, pending_count: pending.cnt, week_count: week.cnt, week_revenue: week.revenue });
+});
+
+// 更新订单状态
+router.put('/:id/status', auth, managerAccess, (req, res) => {
+  const { status } = req.body;
+  const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
+  if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
+  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  res.json({ success: true });
+});
+
+// 订单详情
+router.get('/lookup/:orderNo', (req, res) => {
+  const order = db.prepare('SELECT id, order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, created_at FROM orders WHERE order_no = ?').get(req.params.orderNo);
+  if (!order) return res.status(404).json({ error: '订单不存在，请检查订单号' });
+  order.items = JSON.parse(order.items || '[]');
+  res.json(order);
+});
+
+// 公开接口：统一搜索（同时匹配订单号、手机号、姓名）
+router.get('/search', (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword || !keyword.trim()) {
+    return res.status(400).json({ error: '请输入订单号、手机号或姓名' });
+  }
+
+  const kw = keyword.trim();
+  const cleanPhone = kw.replace(/\D/g, '');
+
+  const sql = `SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at 
+    FROM orders 
+    WHERE order_no LIKE ? 
+       OR REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ? 
+       OR customer_name LIKE ?
+    ORDER BY created_at DESC LIMIT 50`;
+
+  const orders = db.prepare(sql).all(`%${kw}%`, `%${cleanPhone}%`, `%${kw}%`);
+  res.json({ orders, count: orders.length });
+});
+
+// 公开接口：查询本设备/本餐桌的订单
+router.get('/mine', (req, res) => {
+  const { guest_id, table_id, table_session } = req.query;
+
+  if (!guest_id && !table_id) {
+    return res.status(400).json({ error: '缺少设备标识或餐桌标识' });
+  }
+
+  let sql = `SELECT id, order_no, total, dining_type, customer_name, status, created_at 
+    FROM orders WHERE status != 'cancelled' AND (`;
+  const conditions = [];
+  const params = [];
+
+  if (guest_id) {
+    conditions.push('guest_id = ?');
+    params.push(guest_id);
+  }
+  if (table_id && table_session) {
+    conditions.push('(table_id = ? AND table_session = ?)');
+    params.push(table_id, table_session);
+  }
+
+  if (conditions.length === 0) {
+    return res.status(400).json({ error: '缺少有效查询条件' });
+  }
+
+  sql += conditions.join(' OR ') + ') ORDER BY created_at DESC LIMIT 50';
+
+  const orders = db.prepare(sql).all(...params);
+  res.json({ orders, count: orders.length });
+});
+
+router.get('/:id', auth, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: '订单不存在' });
+  order.items = JSON.parse(order.items || '[]');
+  res.json(order);
+});
+
+module.exports = router;
