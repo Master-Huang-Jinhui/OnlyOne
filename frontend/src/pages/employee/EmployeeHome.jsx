@@ -47,12 +47,9 @@ export default function EmployeeHome() {
 
   const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
   const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false })
-  const hasClockedIn = !!attendance?.clock_in
-  const hasClockedOut = !!attendance?.clock_out
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50 flex flex-col">
-      {/* 顶部栏 */}
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md">
@@ -70,55 +67,49 @@ export default function EmployeeHome() {
         </div>
       </header>
 
-      {/* 主内容 */}
       <main className="flex-1 flex flex-col items-center justify-center px-8 -mt-16">
-        {/* 时间日期 */}
         <div className="text-center mb-8">
           <p className="text-5xl font-light text-gray-700 tracking-wider tabular-nums">{timeStr}</p>
           <p className="text-base text-gray-400 mt-3">{dateStr}</p>
         </div>
 
-        {/* 欢迎语 */}
         <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2 text-center">
           欢迎回来
         </h1>
-        <p className="text-xl text-gray-500 mb-12">{user?.name || user?.username}</p>
+        <p className="text-xl text-gray-500 mb-10">{user?.name || user?.username}</p>
 
-        {/* 打卡状态 */}
-        <div className="flex items-center gap-6 mb-10 text-sm">
+        <div className="flex items-center gap-8 mb-10 text-sm bg-white/70 px-6 py-3 rounded-xl shadow-sm">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${hasClockedIn ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-            <span className="text-gray-500">上班 {attendance?.clock_in || '--:--:--'}</span>
+            <span className={`w-2 h-2 rounded-full ${attendance?.clock_in ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+            <span className="text-gray-600">最早上班 <span className="font-mono font-medium text-gray-800">{attendance?.clock_in || '--:--:--'}</span></span>
           </div>
           <div className="w-px h-4 bg-gray-200"></div>
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${hasClockedOut ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-            <span className="text-gray-500">下班 {attendance?.clock_out || '--:--:--'}</span>
+            <span className={`w-2 h-2 rounded-full ${attendance?.clock_out ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+            <span className="text-gray-600">最晚下班 <span className="font-mono font-medium text-gray-800">{attendance?.clock_out || '--:--:--'}</span></span>
           </div>
         </div>
 
-        {/* 两个大按钮 */}
-        <div className="flex flex-col sm:flex-row gap-5 w-full max-w-lg">
-          {/* 打卡按钮 */}
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
           <button
-            onClick={hasClockedIn && !hasClockedOut ? handleClockOut : (!hasClockedIn ? handleClockIn : undefined)}
-            disabled={hasClockedOut}
-            className={`flex-1 py-8 px-8 rounded-2xl text-white font-bold text-xl shadow-lg transition-all duration-300 flex flex-col items-center gap-2 ${
-              hasClockedOut
-                ? 'bg-gray-300 cursor-not-allowed shadow-none'
-                : hasClockedIn
-                  ? 'bg-gradient-to-br from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 hover:shadow-xl hover:-translate-y-0.5'
-                  : 'bg-gradient-to-br from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 hover:shadow-xl hover:-translate-y-0.5'
-            }`}
+            onClick={handleClockIn}
+            className="flex-1 py-7 px-6 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 text-white font-bold text-lg shadow-lg hover:from-green-500 hover:to-green-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
           >
-            <span className="text-3xl">{hasClockedOut ? '✅' : hasClockedIn ? '🏃' : '⏰'}</span>
-            <span>{hasClockedOut ? '今日已打卡' : hasClockedIn ? '下班打卡' : '上班打卡'}</span>
+            <span className="text-3xl">⏰</span>
+            <span>上班打卡</span>
           </button>
 
-          {/* 堂吃按钮 */}
+          <button
+            onClick={handleClockOut}
+            className="flex-1 py-7 px-6 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white font-bold text-lg shadow-lg hover:from-orange-500 hover:to-orange-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
+          >
+            <span className="text-3xl">🏃</span>
+            <span>下班打卡</span>
+          </button>
+
           <button
             onClick={() => navigate('/employee/order')}
-            className="flex-1 py-8 px-8 rounded-2xl bg-white border-2 border-primary-200 text-primary-600 font-bold text-xl shadow-md hover:border-primary-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
+            className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-primary-200 text-primary-600 font-bold text-lg shadow-md hover:border-primary-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
           >
             <span className="text-3xl">🍽️</span>
             <span>开始点餐</span>
@@ -126,12 +117,10 @@ export default function EmployeeHome() {
         </div>
       </main>
 
-      {/* 底部 */}
       <footer className="text-center py-6 text-xs text-gray-300">
         Only One BBQ & Tea · 员工工作台
       </footer>
 
-      {/* 修改密码对话框 */}
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
         <div className="space-y-4">
           <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
