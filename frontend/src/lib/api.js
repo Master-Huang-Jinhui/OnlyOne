@@ -53,6 +53,7 @@ export const api = {
     const query = qs.toString()
     return request(`/orders${query ? `?${query}` : ''}`)
   },
+  getOrderById: (id) => request(`/orders/${id}`),
   getOrderStats: () => request('/orders/stats'),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getOrderByNo: (orderNo) => request(`/orders/lookup/${orderNo}`),
