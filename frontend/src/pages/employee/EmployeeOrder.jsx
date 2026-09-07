@@ -27,6 +27,8 @@ export default function EmployeeOrder() {
   const [tagsDialog, setTagsDialog] = useState(null)
   const [selectedTags, setSelectedTags] = useState([])
   const [editCartItemId, setEditCartItemId] = useState(null)
+  const [orderInfoDialog, setOrderInfoDialog] = useState(false)
+  const [orderInfo, setOrderInfo] = useState({ name: '', phone: '', address: '' })
 
   useEffect(() => {
     api.getCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
@@ -123,8 +125,7 @@ export default function EmployeeOrder() {
   const total = Math.round((subtotal + tax + deliveryFee) * 100) / 100
   const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0)
 
-  const submitOrder = async () => {
-    if (cart.length === 0) { toast('购物车为空', 'error'); return }
+  const doSubmitOrder = async (customerName = '', customerPhone = '', customerAddress = '') => {
     try {
       const res = await api.createOrder({
         items: cart.map(i => ({
@@ -132,15 +133,34 @@ export default function EmployeeOrder() {
           note: (i.notes || []).join(', ')
         })),
         dining_type: diningType,
-        customer_name: user?.name || user?.username || '员工下单',
-        customer_phone: '',
+        customer_name: customerName || (diningType === 'dinein' ? '堂吃顾客' : ''),
+        customer_phone: customerPhone,
+        customer_address: customerAddress,
         note: `员工: ${user?.username || ''}`
       })
       setSuccess(res)
       setCart([])
+      setOrderInfo({ name: '', phone: '', address: '' })
     } catch (err) {
       toast(err.message, 'error')
     }
+  }
+
+  const submitOrder = () => {
+    if (cart.length === 0) { toast('购物车为空', 'error'); return }
+    if (diningType === 'dinein') {
+      doSubmitOrder()
+    } else {
+      setOrderInfoDialog(true)
+    }
+  }
+
+  const confirmOrderInfo = () => {
+    if (!orderInfo.name.trim()) { toast('请填写顾客姓名', 'error'); return }
+    if (!orderInfo.phone.trim()) { toast('请填写手机号码', 'error'); return }
+    if (diningType === 'delivery' && !orderInfo.address.trim()) { toast('请填写配送地址', 'error'); return }
+    setOrderInfoDialog(false)
+    doSubmitOrder(orderInfo.name.trim(), orderInfo.phone.trim(), orderInfo.address.trim())
   }
 
   const handleChangePassword = async () => {
@@ -384,6 +404,20 @@ export default function EmployeeOrder() {
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog open={orderInfoDialog} onClose={() => setOrderInfoDialog(false)} title={diningType === 'delivery' ? '配送信息' : '顾客信息'} width="max-w-sm">
+        <div className="space-y-4">
+          <Input label="顾客姓名" value={orderInfo.name} onChange={e => setOrderInfo({ ...orderInfo, name: e.target.value })} placeholder="请输入姓名" />
+          <Input label="手机号码" value={orderInfo.phone} onChange={e => setOrderInfo({ ...orderInfo, phone: e.target.value })} placeholder="请输入手机号" />
+          {diningType === 'delivery' && (
+            <Input label="配送地址" value={orderInfo.address} onChange={e => setOrderInfo({ ...orderInfo, address: e.target.value })} placeholder="请输入详细地址" />
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setOrderInfoDialog(false)}>取消</Button>
+            <Button className="flex-1" onClick={confirmOrderInfo}>确认下单</Button>
+          </div>
+        </div>
       </Dialog>
 
       <Dialog open={!!success} onClose={() => setSuccess(null)} title="下单成功" width="max-w-sm">
