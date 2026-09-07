@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
-import { Dialog, Button, toast } from '../../components/ui'
+import { Dialog, Button, Input, toast } from '../../components/ui'
 
 const diningOptions = [
   { value: 'dinein', label: '堂吃', icon: '🍽️' },
@@ -20,6 +20,8 @@ export default function EmployeeOrder() {
   const [diningType, setDiningType] = useState('dinein')
   const [success, setSuccess] = useState(null)
   const [taxRate, setTaxRate] = useState(0.08875)
+  const [pwdDialog, setPwdDialog] = useState(false)
+  const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
 
   useEffect(() => {
     api.getCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
@@ -85,6 +87,17 @@ export default function EmployeeOrder() {
     }
   }
 
+  const handleChangePassword = async () => {
+    if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast('请填写完整', 'error'); return }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast('两次密码不一致', 'error'); return }
+    try {
+      await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword)
+      toast('密码修改成功')
+      setPwdDialog(false)
+      setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (e) { toast(e.message, 'error') }
+  }
+
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
       <header className="flex items-center justify-between px-4 py-2.5 bg-white border-b shadow-sm flex-shrink-0">
@@ -109,6 +122,7 @@ export default function EmployeeOrder() {
             </button>
           ))}
           <div className="w-px h-6 bg-gray-200 mx-1"></div>
+          <button onClick={() => setPwdDialog(true)} className="text-sm text-gray-500 hover:text-primary-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition">修改密码</button>
           <button onClick={logout} className="text-sm text-gray-500 hover:text-red-500 px-3 py-2 rounded-lg hover:bg-gray-100 transition">退出</button>
         </div>
       </header>
@@ -255,6 +269,18 @@ export default function EmployeeOrder() {
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
+        <div className="space-y-4">
+          <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
+          <Input label="新密码" type="password" value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} />
+          <Input label="确认新密码" type="password" value={pwdForm.confirmPassword} onChange={e => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })} />
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setPwdDialog(false)}>取消</Button>
+            <Button className="flex-1" onClick={handleChangePassword}>确认修改</Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   )
