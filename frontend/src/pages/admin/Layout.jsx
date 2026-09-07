@@ -36,10 +36,9 @@ export default function AdminLayout() {
 
   const closeSidebar = () => setSidebarOpen(false)
 
-  // 侧边栏内容（桌面和手机共用）
   const SidebarContent = ({ onNavigate, showCollapse }) => (
     <>
-      <div className="h-16 flex items-center justify-between px-4 border-b">
+      <div className="h-16 flex items-center justify-between px-4 border-b flex-shrink-0">
         <Link to="/admin" className="flex items-center gap-2" onClick={onNavigate}>
           <span className="text-xl">🍵</span>
           {!desktopCollapsed && <span className="font-bold text-gray-800 text-sm">OnlyOne 管理</span>}
@@ -75,7 +74,7 @@ export default function AdminLayout() {
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t">
+      <div className="p-4 border-t flex-shrink-0">
         <Link to="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-3" onClick={onNavigate}>
           <span>🌐</span>{!desktopCollapsed && <span>查看前台</span>}
         </Link>
@@ -88,12 +87,12 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* ===== 桌面端侧边栏（lg 以上显示，保持原有布局） ===== */}
-      <aside className={`hidden lg:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 ${desktopCollapsed ? 'w-16' : 'w-60'}`}>
+      {/* 桌面端侧边栏（固定不动） */}
+      <aside className={`hidden lg:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 sticky top-0 h-screen ${desktopCollapsed ? 'w-16' : 'w-60'}`}>
         <SidebarContent showCollapse={true} />
       </aside>
 
-      {/* ===== 手机端侧边栏抽屉（lg 以下，点击汉堡才弹出） ===== */}
+      {/* 手机端侧边栏抽屉 */}
       {sidebarOpen && (
         <>
           <div
@@ -106,12 +105,10 @@ export default function AdminLayout() {
         </>
       )}
 
-      {/* ===== 主内容区（两端共用） ===== */}
+      {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部栏 */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            {/* 汉堡按钮：仅手机端显示 */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="text-2xl text-gray-600 lg:hidden p-1 -ml-1"
@@ -128,7 +125,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* 页面内容 */}
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
