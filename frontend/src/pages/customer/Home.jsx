@@ -6,8 +6,13 @@ import { Button, Badge } from '../../components/ui'
 import MilkTeaMaker from '../../components/MilkTeaMaker'
 
 const sections = [
-  { id: 'brand', label: '品牌' }, { id: 'tea', label: '茶品' }, { id: 'craft', label: '工艺' },
-  { id: 'about', label: '关于' }, { id: 'menu', label: '菜单' }, { id: 'contact', label: '联系' }
+  { id: 'new', label: '新品' },
+  { id: 'brand', label: '品牌' },
+  { id: 'tea', label: '茶品' },
+  { id: 'craft', label: '工艺' },
+  { id: 'about', label: '关于' },
+  { id: 'menu', label: '菜单' },
+  { id: 'contact', label: '联系' }
 ]
 
 export default function Home() {
@@ -21,6 +26,7 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [business, setBusiness] = useState({ open: true })
   const [contentSections, setContentSections] = useState([])
+  const [newProducts, setNewProducts] = useState([])
 
   useEffect(() => {
     api.getCarousel().then(setCarousel).catch(() => {})
@@ -29,6 +35,7 @@ export default function Home() {
     api.getSettings().then(setSettings).catch(() => {})
     api.getTodayBusiness().then(setBusiness).catch(() => {})
     api.getContentSections().then(data => setContentSections(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getNewProducts().then(data => setNewProducts(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -77,7 +84,7 @@ export default function Home() {
             <span className="text-xs text-gray-400 hidden sm:block">BBQ & Tea</span>
           </Link>
           <div className="hidden md:flex items-center gap-6 text-sm">
-            {sections.map(s => (<button key={s.id} onClick={() => scrollTo(s.id)} className="text-gray-600 hover:text-primary-600">{s.label}</button>))}
+            {sections.map(s => (<button key={s.id} onClick={() => scrollTo(s.id)} className="text-gray-600 hover:text-primary-600 transition-colors">{s.label}</button>))}
           </div>
           <div className="flex items-center gap-3">
             <Link to="/order-status" className="text-sm text-gray-600 hover:text-primary-600 font-medium hidden sm:block">查订单</Link>
@@ -124,6 +131,38 @@ export default function Home() {
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
             {carousel.map((_, i) => (<button key={i} onClick={() => setCurrentSlide(i)} className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentSlide ? 'bg-primary-600 w-8' : 'bg-white/60'}`} />))}
           </div>
+        </div>
+      </section>
+
+      <section id="new" className="py-16 bg-gradient-to-br from-amber-50 to-orange-50">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-10 reveal">
+            <Badge variant="primary" className="mb-4">新品上市</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">限时尝鲜</h2>
+          </div>
+          {newProducts.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newProducts.map((p, i) => (
+                <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all reveal group" style={{ transitionDelay: `${i * 80}ms` }}>
+                  <div className="h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center relative overflow-hidden">
+                    {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <span className="text-6xl">🆕</span>}
+                    <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">NEW</span>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold text-gray-800 mb-1">{p.name}</h3>
+                    {p.name_en && <p className="text-xs text-gray-400 mb-2 tracking-wider">{p.name_en}</p>}
+                    {p.description && <p className="text-sm text-gray-500 leading-relaxed">{p.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 reveal">
+              <div className="text-6xl mb-4">👨‍🍳</div>
+              <h3 className="text-xl font-bold text-gray-700 mb-2">新品研发中</h3>
+              <p className="text-gray-500 max-w-md mx-auto">我们的厨师团队正在精心研制全新美味，每一款都经过反复调试与改良。敬请期待，惊喜即将登场！</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -199,6 +238,27 @@ export default function Home() {
                   <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
                     <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </div>
+                  <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                    <div className="relative w-32 h-40">
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
+                        <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
+                        <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
+                        <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
+                        <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
+                      </div>
+                      <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
+                      <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
+                        <span className="steam-1">💨</span><span className="steam-2">💨</span><span className="steam-3">💨</span>
+                      </div>
+                      <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
+                      <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
+                      <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
+                      <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
+                      <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
+                    </div>
                   </div>
                 </div>
               ) : (
