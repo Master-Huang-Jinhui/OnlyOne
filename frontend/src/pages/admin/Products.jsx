@@ -9,6 +9,7 @@ export default function Products() {
   const [productDialog, setProductDialog] = useState(null)
   const [moveDialog, setMoveDialog] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   const toggleSelect = (id) => {
     setSelectedIds(prev => {
@@ -147,6 +148,21 @@ export default function Products() {
     { header: '状态', render: p => p.available ? <Badge variant="success">在售</Badge> : <Badge variant="default">下架</Badge> }
   ]
 
+  const kw = searchKeyword.trim().toLowerCase()
+  const filteredCategories = kw
+    ? categories.map(c => ({
+        ...c,
+        products: (c.products || []).filter(p =>
+          (p.name || '').toLowerCase().includes(kw) ||
+          (p.name_en || '').toLowerCase().includes(kw) ||
+          (p.description || '').toLowerCase().includes(kw) ||
+          (p.description_en || '').toLowerCase().includes(kw)
+        )
+      })).filter(c => c.products.length > 0)
+    : categories
+
+  const displayCategories = kw ? filteredCategories : categories
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -154,12 +170,27 @@ export default function Products() {
           <h2 className="text-xl font-bold text-gray-800">商品管理</h2>
           <p className="text-sm text-gray-400 mt-1">按分类管理商品，点击分类展开查看商品列表</p>
         </div>
-        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', name_en: '', sort_order: 0, enabled: true } })}>+ 新增分类</Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={e => setSearchKeyword(e.target.value)}
+              placeholder="搜索商品名称/描述..."
+              className="w-64 pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+            {searchKeyword && (
+              <button onClick={() => setSearchKeyword('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">✕</button>
+            )}
+          </div>
+          <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', name_en: '', sort_order: 0, enabled: true } })}>+ 新增分类</Button>
+        </div>
       </div>
 
-      {categories.length === 0 ? (
-        <Card><Empty text="暂无商品分类，点击右上角添加" icon="🍜" /></Card>
-      ) : categories.map(cat => (
+      {displayCategories.length === 0 ? (
+        <Card><Empty text={kw ? `没有找到与"${searchKeyword}"匹配的商品` : '暂无商品分类，点击右上角添加'} icon="🍜" /></Card>
+      ) : displayCategories.map(cat => (
         <Card key={cat.id} className="overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 bg-gray-50 border-b">
             <div className="flex items-center gap-3">
