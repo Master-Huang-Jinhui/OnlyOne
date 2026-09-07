@@ -153,9 +153,9 @@ export function ToastContainer() {
     })
   }, [])
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center">
       {toasts.map(t => (
-        <div key={t.id} className={`px-4 py-3 rounded-lg shadow-lg text-sm text-white animate-fade-in ${t.type === 'success' ? 'bg-green-500' : t.type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`}>
+        <div key={t.id} className={`px-6 py-3 rounded-lg shadow-lg text-sm text-white animate-fade-in min-w-[200px] text-center ${t.type === 'success' ? 'bg-green-500' : t.type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`}>
           {t.message}
         </div>
       ))}
