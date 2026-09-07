@@ -139,10 +139,12 @@ export default function Home() {
       <section id="tea" className="py-20 bg-gradient-to-b from-blue-50/50 to-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">茶品溯源</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2></div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="flex flex-wrap justify-center gap-8">
             {teaSourcing.map((tea, i) => (
-              <div key={i} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
-                <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4">{['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}</div>
+              <div key={i} className="w-full sm:w-[calc(50%-1rem)] md:w-[calc(33.333%-1.34rem)] bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal text-center" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
+                <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto overflow-hidden">
+                  {tea.image ? <img src={tea.image} alt={tea.name} className="w-full h-full object-cover" /> : ['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}
+                </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{tea.name}</h3>
                 <p className="text-sm text-gray-400 mb-3">{tea.name_en}</p>
                 <p className="text-gray-600">{tea.desc}</p>
