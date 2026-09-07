@@ -39,43 +39,20 @@ export default function Home() {
 
   useEffect(() => {
     const sectionObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id)
-        })
-      },
+      (entries) => { entries.forEach(entry => { if (entry.isIntersecting) setActiveSection(entry.target.id) }) },
       { threshold: 0.3 }
     )
     sections.forEach(s => { const el = document.getElementById(s.id); if (el) sectionObserver.observe(el) })
-
     const revealObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible')
-          } else {
-            entry.target.classList.remove('visible')
-          }
-        })
-      },
+      (entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); else entry.target.classList.remove('visible') }) },
       { threshold: 0.15 }
     )
     document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el))
-
-    return () => {
-      sectionObserver.disconnect()
-      revealObserver.disconnect()
-    }
+    return () => { sectionObserver.disconnect(); revealObserver.disconnect() }
   }, [products])
 
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const handleAddToCart = (product) => {
-    addItem(product)
-    navigate('/cart')
-  }
+  const scrollTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
+  const handleAddToCart = (product) => { addItem(product); navigate('/cart') }
 
   const teaSourcing = settings.tea_sourcing || [
     { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
@@ -164,8 +141,8 @@ export default function Home() {
           <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">茶品溯源</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2></div>
           <div className="grid md:grid-cols-3 gap-8">
             {teaSourcing.map((tea, i) => (
-              <div key={i} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal" style={{ transitionDelay: `${i * 100}ms` }}>
-                <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4">{i === 0 ? '🍂' : i === 1 ? '🌿' : '🍃'}</div>
+              <div key={i} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
+                <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4">{['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}</div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{tea.name}</h3>
                 <p className="text-sm text-gray-400 mb-3">{tea.name_en}</p>
                 <p className="text-gray-600">{tea.desc}</p>
@@ -221,34 +198,9 @@ export default function Home() {
                     <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
-                  <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                    <div className="relative w-32 h-40">
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
-                        <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
-                        <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
-                        <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
-                        <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
-                      </div>
-                      <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
-                      <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
-                        <span className="steam-1">💨</span>
-                        <span className="steam-2">💨</span>
-                        <span className="steam-3">💨</span>
-                      </div>
-                      <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
-                      <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
-                      <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
-                      <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
-                      <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
-                    </div>
-                  </div>
                 </div>
               ) : (
-                <div className="w-full md:w-1/2 flex items-center justify-center">
-                  <div className="text-8xl">{section.icon || '📌'}</div>
-                </div>
+                <div className="w-full md:w-1/2 flex items-center justify-center"><div className="text-8xl">{section.icon || '📌'}</div></div>
               )}
               <div className="w-full md:w-1/2 text-center md:text-left reveal">
                 {section.icon && !section.image && <div className="text-4xl mb-4">{section.icon}</div>}
@@ -267,19 +219,13 @@ export default function Home() {
           <div className="text-center mb-12 reveal">
             <Badge variant="primary" className="mb-4">精选菜单</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">美味即刻拥有</h2>
-            <Link to="/menu">
-              <Button variant="outline">查看完整菜单 →</Button>
-            </Link>
+            <Link to="/menu"><Button variant="outline">查看完整菜单 →</Button></Link>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.slice(0, 6).map((product, i) => (
               <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all reveal group" style={{ transitionDelay: `${i * 80}ms` }}>
                 <div className="h-44 bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center relative overflow-hidden">
-                  {product.image ? (
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  ) : (
-                    <span className="text-5xl">🍜</span>
-                  )}
+                  {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <span className="text-5xl">🍜</span>}
                   {product.is_recommend && <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">推荐</span>}
                 </div>
                 <div className="p-5">
