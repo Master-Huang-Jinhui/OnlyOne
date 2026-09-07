@@ -398,7 +398,7 @@ const defaultPlatforms = [
   { name: 'BeyondMenu', account: '', password: '', phone: '6307763590', url: 'https://www.beyondmenu.com', note: '菜单更改需联系客服', sort_order: 8 }
 ];
 const insertPlatform = db.prepare('INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
-const updatePlatformAccount = db.prepare('UPDATE platforms SET account = ?, password = ?, url = COALESCE(NULLIF(url, ""), ?), phone = COALESCE(NULLIF(phone, ""), ?), note = COALESCE(NULLIF(note, ""), ?) WHERE name = ? AND (account IS NULL OR account = "")');
+const updatePlatformAccount = db.prepare("UPDATE platforms SET account = ?, password = ?, url = COALESCE(NULLIF(url, ''), ?), phone = COALESCE(NULLIF(phone, ''), ?), note = COALESCE(NULLIF(note, ''), ?) WHERE name = ? AND (account IS NULL OR account = '')");
 defaultPlatforms.forEach(p => {
   const exists = db.prepare('SELECT id FROM platforms WHERE name = ?').get(p.name);
   if (!exists) {
