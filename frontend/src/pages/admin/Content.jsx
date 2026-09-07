@@ -20,12 +20,19 @@ export default function Content() {
   const [sectionEditing, setSectionEditing] = useState(null)
   const [sectionForm, setSectionForm] = useState({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true })
 
+  const [newProducts, setNewProducts] = useState([])
+  const [newProductDialog, setNewProductDialog] = useState(false)
+  const [newProductEditing, setNewProductEditing] = useState(null)
+  const [newProductForm, setNewProductForm] = useState({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: 0, enabled: true })
+  const newProductFileRef = useRef(null)
+
   useEffect(() => { load() }, [])
 
   const load = () => {
     api.getAllCarousel().then(data => setCarousel(Array.isArray(data) ? data : [])).catch(() => {})
     api.getSettings().then(data => setSettings(data || {})).catch(() => {})
     api.getAllContentSections().then(data => setSections(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getAllNewProducts().then(data => setNewProducts(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
   const handleFileSelect = (e, target) => {
@@ -80,6 +87,18 @@ export default function Content() {
 
   const removeSection = async (id) => { if (!confirm('确定删除该板块？')) return; await api.deleteContentSection(id); toast('已删除'); load() }
 
+  const openNewProductAdd = () => { setNewProductEditing(null); setNewProductForm({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: 0, enabled: true }); setNewProductDialog(true) }
+  const openNewProductEdit = (p) => { setNewProductEditing(p); setNewProductForm({ ...p, enabled: !!p.enabled }); setNewProductDialog(true) }
+  const saveNewProduct = async () => {
+    try {
+      if (!newProductForm.name.trim()) { toast('请填写新品名称', 'error'); return }
+      if (newProductEditing) { await api.updateNewProduct(newProductEditing.id, newProductForm); toast('更新成功') }
+      else { await api.createNewProduct(newProductForm); toast('添加成功') }
+      setNewProductDialog(false); load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+  const removeNewProduct = async (id) => { if (!confirm('确定删除该新品？')) return; await api.deleteNewProduct(id); toast('已删除'); load() }
+
   const [teaSourcing, setTeaSourcing] = useState([])
   useEffect(() => { if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing) }, [settings.tea_sourcing])
   const saveTeaSourcing = () => { saveText('tea_sourcing', teaSourcing) }
@@ -98,6 +117,7 @@ export default function Content() {
       </div>
 
       <Tabs tabs={[
+        { key: 'new', label: '新品上市' },
         { key: 'carousel', label: '轮播图' },
         { key: 'brand', label: '品牌故事' },
         { key: 'tea', label: '茶品溯源' },
@@ -105,6 +125,27 @@ export default function Content() {
         { key: 'about', label: '关于区块' },
         { key: 'sections', label: '自定义板块' }
       ]} active={tab} onChange={setTab} />
+
+      {tab === 'new' && (
+        <Card>
+          <div className="p-4 border-b flex justify-between items-center">
+            <p className="text-sm text-gray-500">前台首页品牌故事上方展示，无新品时显示"新品研发中"</p>
+            <Button onClick={openNewProductAdd}>+ 添加新品</Button>
+          </div>
+          <Table columns={[
+            { header: '图片', render: p => p.image ? <img src={p.image} alt={p.name} className="w-12 h-12 rounded-lg object-cover" /> : <span className="text-2xl">🆕</span> },
+            { header: '名称', render: p => <div><p className="font-medium text-gray-800">{p.name}</p>{p.name_en && <p className="text-xs text-gray-400">{p.name_en}</p>}</div> },
+            { header: '描述', render: p => <p className="text-sm text-gray-500 line-clamp-2 max-w-[250px]">{p.description || '-'}</p> },
+            { header: '排序', key: 'sort_order' },
+            { header: '状态', render: p => <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '显示' : '隐藏'}</Badge> }
+          ]} data={newProducts} actions={p => (
+            <div className="flex gap-2">
+              <button onClick={() => openNewProductEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
+              <button onClick={() => removeNewProduct(p.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
+            </div>
+          )} />
+        </Card>
+      )}
 
       {tab === 'carousel' && (
         <Card>
@@ -265,6 +306,40 @@ export default function Content() {
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => setSectionDialog(false)}>取消</Button>
             <Button className="flex-1" onClick={saveSection}>保存</Button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog open={newProductDialog} onClose={() => setNewProductDialog(false)} title={newProductEditing ? '编辑新品' : '添加新品'} width="max-w-lg">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="名称（中文）*" value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="如：西瓜冰沙柠檬茶" />
+            <Input label="名称（英文）" value={newProductForm.name_en} onChange={e => setNewProductForm({ ...newProductForm, name_en: e.target.value })} placeholder="Watermelon Slush Lemon Tea" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">图片</label>
+            <div className="flex gap-2">
+              <input type="text" value={newProductForm.image} onChange={e => setNewProductForm({ ...newProductForm, image: e.target.value })} placeholder="https://... 或点击上传"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+              <Button type="button" size="sm" variant="outline" onClick={() => newProductFileRef.current?.click()} disabled={uploading}>{uploading ? '上传中...' : '选择图片'}</Button>
+            </div>
+            <input ref={newProductFileRef} type="file" accept="image/*" className="hidden" onChange={e => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              setUploading(true)
+              api.uploadImage(file).then(res => { setNewProductForm(prev => ({ ...prev, image: res.url })); toast('图片上传成功') }).catch(err => toast(err.message, 'error')).finally(() => setUploading(false))
+              e.target.value = ''
+            }} />
+          </div>
+          <Textarea label="描述（中文）" rows={2} value={newProductForm.description} onChange={e => setNewProductForm({ ...newProductForm, description: e.target.value })} placeholder="新品的详细介绍" />
+          <Textarea label="描述（英文）" rows={2} value={newProductForm.description_en} onChange={e => setNewProductForm({ ...newProductForm, description_en: e.target.value })} placeholder="Detailed description" />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="排序" type="number" value={newProductForm.sort_order} onChange={e => setNewProductForm({ ...newProductForm, sort_order: parseInt(e.target.value) || 0 })} />
+            <div className="flex items-end"><label className="flex items-center gap-2 cursor-pointer pb-2"><input type="checkbox" checked={newProductForm.enabled} onChange={e => setNewProductForm({ ...newProductForm, enabled: e.target.checked })} className="w-4 h-4" /><span className="text-sm text-gray-700">前台显示</span></label></div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setNewProductDialog(false)}>取消</Button>
+            <Button className="flex-1" onClick={saveNewProduct}>保存</Button>
           </div>
         </div>
       </Dialog>
