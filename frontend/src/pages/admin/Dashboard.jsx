@@ -15,8 +15,27 @@ export default function Dashboard() {
   const [pendingPageSize] = useState(5)
   const [memoDialog, setMemoDialog] = useState(false)
   const [memoForm, setMemoForm] = useState({ title: '', content: '', type: 'memo', priority: 'normal' })
+  const [detail, setDetail] = useState(null)
   const lastPendingCount = useRef(0)
   const isFirstLoad = useRef(true)
+
+  const statusMap = {
+    pending: { label: '待处理', variant: 'warning', next: 'preparing', nextLabel: '开始制作' },
+    preparing: { label: '制作中', variant: 'primary', next: 'ready', nextLabel: '制作完成' },
+    ready: { label: '待取餐', variant: 'primary', next: 'completed', nextLabel: '确认取餐' },
+    completed: { label: '已完成', variant: 'success', next: null, nextLabel: null },
+    cancelled: { label: '已取消', variant: 'danger', next: null, nextLabel: null }
+  }
+  const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
+
+  const updateOrderStatus = async (id, status) => {
+    try {
+      await api.updateOrderStatus(id, status)
+      toast('状态已更新')
+      loadPendingOrders(1)
+      if (detail?.id === id) setDetail({ ...detail, status })
+    } catch (e) { toast(e.message, 'error') }
+  }
 
   const todayStart = () => {
     const d = new Date()
@@ -102,6 +121,36 @@ export default function Dashboard() {
 
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800">备忘录 / 重点事项</h3>
+          <Button size="sm" onClick={() => setMemoDialog(true)}>+ 添加</Button>
+        </div>
+        <CardContent>
+          {memos.length === 0 ? (
+            <Empty text="暂无备忘" icon="📝" />
+          ) : (
+            <div className="grid md:grid-cols-2 gap-2">
+              {memos.slice(0, 6).map(m => (
+                <div key={m.id} className={`flex items-start gap-3 p-3 rounded-lg ${m.completed ? 'bg-gray-50 opacity-60' : m.priority === 'high' ? 'bg-red-50 border border-red-100' : 'bg-gray-50'}`}>
+                  <input type="checkbox" checked={!!m.completed} onChange={() => toggleMemo(m)} className="mt-1" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-medium text-sm ${m.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{m.title}</p>
+                      <Badge variant={m.priority === 'high' ? 'danger' : m.type === 'important' ? 'warning' : 'default'}>
+                        {m.priority === 'high' ? '高优' : m.type === 'important' ? '重点' : '备忘'}
+                      </Badge>
+                    </div>
+                    {m.content && <p className="text-xs text-gray-400 mt-1">{m.content}</p>}
+                  </div>
+                  <button onClick={() => deleteMemo(m.id)} className="text-gray-300 hover:text-red-500 text-sm">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <div className="px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-gray-800">今日待处理订单</h3>
             {pendingTotal > 0 && <Badge variant="warning">{pendingTotal}</Badge>}
@@ -116,7 +165,7 @@ export default function Dashboard() {
               {pendingOrders.map(o => (
                 <button
                   key={o.id}
-                  onClick={() => navigate(`/admin/orders?orderId=${o.id}`)}
+                  onClick={() => setDetail(o)}
                   className="w-full flex items-center justify-between p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -160,69 +209,37 @@ export default function Dashboard() {
         )}
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <div className="px-5 py-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-gray-800">外卖平台</h3>
-            <Link to="/admin/platforms"><Button variant="ghost" size="sm">管理 →</Button></Link>
-          </div>
-          <CardContent>
-            {platforms.length === 0 ? (
-              <Empty text="暂无平台，去添加吧" icon="🛵" />
-            ) : (
-              <div className="space-y-3">
-                {platforms.slice(0, 5).map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl border">
-                        {p.logo ? <img src={p.logo} alt="" className="w-full h-full object-cover rounded-lg" /> : '🛵'}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm">{p.name}</p>
-                        <p className="text-xs text-gray-400">{p.phone || '无电话'}</p>
-                      </div>
+      <Card>
+        <div className="px-5 py-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800">外卖平台</h3>
+          <Link to="/admin/platforms"><Button variant="ghost" size="sm">管理 →</Button></Link>
+        </div>
+        <CardContent>
+          {platforms.length === 0 ? (
+            <Empty text="暂无平台，去添加吧" icon="🛵" />
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {platforms.slice(0, 6).map(p => (
+                <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl border">
+                      {p.logo ? <img src={p.logo} alt="" className="w-full h-full object-cover rounded-lg" /> : '🛵'}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '启用' : '停用'}</Badge>
-                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline">跳转</a>}
+                    <div>
+                      <p className="font-medium text-gray-800 text-sm">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.phone || '无电话'}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <div className="px-5 py-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-gray-800">备忘录 / 重点事项</h3>
-            <Button size="sm" onClick={() => setMemoDialog(true)}>+ 添加</Button>
-          </div>
-          <CardContent>
-            {memos.length === 0 ? (
-              <Empty text="暂无备忘" icon="📝" />
-            ) : (
-              <div className="space-y-2">
-                {memos.slice(0, 8).map(m => (
-                  <div key={m.id} className={`flex items-start gap-3 p-3 rounded-lg ${m.completed ? 'bg-gray-50 opacity-60' : 'bg-gray-50'}`}>
-                    <input type="checkbox" checked={!!m.completed} onChange={() => toggleMemo(m)} className="mt-1" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`font-medium text-sm ${m.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{m.title}</p>
-                        <Badge variant={m.priority === 'high' ? 'danger' : m.type === 'important' ? 'warning' : 'default'}>
-                          {m.priority === 'high' ? '高优' : m.type === 'important' ? '重点' : '备忘'}
-                        </Badge>
-                      </div>
-                      {m.content && <p className="text-xs text-gray-400 mt-1">{m.content}</p>}
-                    </div>
-                    <button onClick={() => deleteMemo(m.id)} className="text-gray-300 hover:text-red-500 text-sm">×</button>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '启用' : '停用'}</Badge>
+                    {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline">跳转</a>}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog
         open={memoDialog}
@@ -240,6 +257,51 @@ export default function Dashboard() {
               options={[{ value: 'normal', label: '普通' }, { value: 'high', label: '高优先级' }]} />
           </div>
         </div>
+      </Dialog>
+
+      <Dialog open={!!detail} onClose={() => setDetail(null)} title={`订单详情 - ${detail?.order_no || ''}`} width="max-w-lg">
+        {detail && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><p className="text-gray-400">取餐方式</p><p className="font-medium">{diningMap[detail.dining_type]}</p></div>
+              <div><p className="text-gray-400">状态</p><Badge variant={statusMap[detail.status]?.variant}>{statusMap[detail.status]?.label}</Badge></div>
+              <div><p className="text-gray-400">顾客</p><p className="font-medium">{detail.customer_name || '-'}</p></div>
+              <div><p className="text-gray-400">电话</p><p className="font-medium">{detail.customer_phone || '-'}</p></div>
+              {detail.dining_type === 'delivery' && <div className="col-span-2"><p className="text-gray-400">配送地址</p><p className="font-medium">{detail.customer_address}</p></div>}
+              {detail.note && <div className="col-span-2"><p className="text-gray-400">备注</p><p className="font-medium">{detail.note}</p></div>}
+              <div className="col-span-2"><p className="text-gray-400">下单时间</p><p className="font-medium">{detail.created_at}</p></div>
+            </div>
+            <div className="border-t pt-4">
+              <p className="text-sm text-gray-400 mb-2">商品明细</p>
+              <div className="space-y-2">
+                {detail.items?.map((it, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-gray-700">{it.name} × {it.quantity}{it.note && <span className="text-xs text-yellow-600 ml-1">({it.note})</span>}</span>
+                    <span className="text-gray-600">${(it.price * it.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border-t pt-4 space-y-1">
+              <div className="flex justify-between text-sm text-gray-600"><span>小计</span><span>${parseFloat(detail.subtotal).toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm text-gray-600"><span>税费</span><span>${parseFloat(detail.tax).toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm text-gray-600"><span>配送费</span><span>${parseFloat(detail.delivery_fee).toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(detail.total).toFixed(2)}</span></div>
+            </div>
+            <div className="flex gap-2 pt-2 flex-wrap">
+              {statusMap[detail.status]?.next && (
+                <Button size="sm" onClick={() => updateOrderStatus(detail.id, statusMap[detail.status].next)}>
+                  {statusMap[detail.status].nextLabel}
+                </Button>
+              )}
+              {detail.status === 'pending' && (
+                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => { if (confirm('确定取消此订单？')) updateOrderStatus(detail.id, 'cancelled') }}>
+                  取消订单
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </Dialog>
     </div>
   )
