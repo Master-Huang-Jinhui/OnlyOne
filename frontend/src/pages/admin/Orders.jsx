@@ -4,11 +4,11 @@ import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Select, Empty, toast } from '../../components/ui'
 
 const statusMap = {
-  pending: { label: '待处理', variant: 'warning' },
-  preparing: { label: '制作中', variant: 'primary' },
-  ready: { label: '待取餐', variant: 'primary' },
-  completed: { label: '已完成', variant: 'success' },
-  cancelled: { label: '已取消', variant: 'danger' }
+  pending: { label: '待处理', variant: 'warning', next: 'preparing', nextLabel: '开始制作' },
+  preparing: { label: '制作中', variant: 'primary', next: 'ready', nextLabel: '制作完成' },
+  ready: { label: '待取餐', variant: 'primary', next: 'completed', nextLabel: '确认取餐' },
+  completed: { label: '已完成', variant: 'success', next: null, nextLabel: null },
+  cancelled: { label: '已取消', variant: 'danger', next: null, nextLabel: null }
 }
 
 const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
@@ -231,9 +231,16 @@ export default function Orders() {
               <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(detail.total).toFixed(2)}</span></div>
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
-              {Object.entries(statusMap).map(([k, v]) => (
-                <Button key={k} size="sm" variant={detail.status === k ? 'primary' : 'outline'} onClick={() => updateStatus(detail.id, k)}>{v.label}</Button>
-              ))}
+              {statusMap[detail.status]?.next && (
+                <Button size="sm" onClick={() => updateStatus(detail.id, statusMap[detail.status].next)}>
+                  {statusMap[detail.status].nextLabel}
+                </Button>
+              )}
+              {detail.status === 'pending' && (
+                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => { if (confirm('确定取消此订单？')) updateStatus(detail.id, 'cancelled') }}>
+                  取消订单
+                </Button>
+              )}
             </div>
           </div>
         )}
