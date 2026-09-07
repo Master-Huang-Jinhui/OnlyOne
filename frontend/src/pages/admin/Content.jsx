@@ -12,6 +12,8 @@ export default function Content() {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
   const sectionFileInputRef = useRef(null)
+  const teaFileInputRef = useRef(null)
+  const [teaImageIndex, setTeaImageIndex] = useState(null)
 
   const [sections, setSections] = useState([])
   const [sectionDialog, setSectionDialog] = useState(false)
@@ -39,7 +41,8 @@ export default function Content() {
     try {
       const res = await api.uploadImage(file)
       if (target === 'carousel') setForm(prev => ({ ...prev, image: res.url }))
-      else setSectionForm(prev => ({ ...prev, image: res.url }))
+      else if (target === 'section') setSectionForm(prev => ({ ...prev, image: res.url }))
+      else if (target === 'tea' && teaImageIndex !== null) setTeaSourcing(prev => prev.map((t, j) => j === teaImageIndex ? { ...t, image: res.url } : t))
       toast('图片上传成功')
     } catch (err) { toast(err.message, 'error') }
     finally { setUploading(false) }
@@ -63,16 +66,6 @@ export default function Content() {
     catch (e) { toast(e.message, 'error') }
   }
 
-  const [teaSourcing, setTeaSourcing] = useState([])
-  useEffect(() => { if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing) }, [settings.tea_sourcing])
-  const saveTeaSourcing = () => { saveText('tea_sourcing', teaSourcing) }
-  const addTea = () => setTeaSourcing(prev => [...prev, { name: '', name_en: '', desc: '', desc_en: '' }])
-  const removeTea = (i) => setTeaSourcing(prev => prev.filter((_, j) => j !== i))
-
-  const [craftPhilosophy, setCraftPhilosophy] = useState([])
-  useEffect(() => { if (settings.craft_philosophy) setCraftPhilosophy(settings.craft_philosophy) }, [settings.craft_philosophy])
-  const saveCraft = () => { saveText('craft_philosophy', craftPhilosophy) }
-
   const openSectionAdd = () => { setSectionEditing(null); setSectionForm({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true }); setSectionDialog(true) }
   const openSectionEdit = (s) => { setSectionEditing(s); setSectionForm({ ...s, enabled: !!s.enabled }); setSectionDialog(true) }
 
@@ -86,6 +79,16 @@ export default function Content() {
   }
 
   const removeSection = async (id) => { if (!confirm('确定删除该板块？')) return; await api.deleteContentSection(id); toast('已删除'); load() }
+
+  const [teaSourcing, setTeaSourcing] = useState([])
+  useEffect(() => { if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing) }, [settings.tea_sourcing])
+  const saveTeaSourcing = () => { saveText('tea_sourcing', teaSourcing) }
+  const addTea = () => setTeaSourcing(prev => [...prev, { name: '', name_en: '', desc: '', desc_en: '' }])
+  const removeTea = (i) => setTeaSourcing(prev => prev.filter((_, j) => j !== i))
+
+  const [craftPhilosophy, setCraftPhilosophy] = useState([])
+  useEffect(() => { if (settings.craft_philosophy) setCraftPhilosophy(settings.craft_philosophy) }, [settings.craft_philosophy])
+  const saveCraft = () => { saveText('craft_philosophy', craftPhilosophy) }
 
   return (
     <div className="space-y-6">
@@ -138,6 +141,19 @@ export default function Content() {
           {teaSourcing.map((tea, i) => (
             <div key={i} className="p-4 bg-gray-50 rounded-lg space-y-3 relative">
               <button onClick={() => removeTea(i)} className="absolute top-3 right-3 text-red-400 hover:text-red-600 text-sm">删除</button>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-1">图标图片</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={tea.image || ''} onChange={e => setTeaSourcing(prev => prev.map((t, j) => j === i ? { ...t, image: e.target.value } : t))} placeholder="https://... 或点击上传"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+                    <Button type="button" size="sm" variant="outline" onClick={() => { setTeaImageIndex(i); teaFileInputRef.current?.click() }} disabled={uploading}>
+                      {uploading && teaImageIndex === i ? '上传中...' : '上传'}
+                    </Button>
+                  </div>
+                </div>
+                {tea.image && <img src={tea.image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input label="名称" value={tea.name} onChange={e => setTeaSourcing(prev => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))} />
                 <Input label="英文名" value={tea.name_en} onChange={e => setTeaSourcing(prev => prev.map((t, j) => j === i ? { ...t, name_en: e.target.value } : t))} />
@@ -227,6 +243,7 @@ export default function Content() {
               <Button type="button" size="sm" variant="outline" onClick={() => sectionFileInputRef.current?.click()} disabled={uploading}>{uploading ? '上传中...' : '选择图片'}</Button>
             </div>
             <input ref={sectionFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'section')} />
+            <input ref={teaFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'tea')} />
             <p className="text-xs text-gray-400 mt-1">点击"选择图片"从电脑上传，或手动填写网络图片地址</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
