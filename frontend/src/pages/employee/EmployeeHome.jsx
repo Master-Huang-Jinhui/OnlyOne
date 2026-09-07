@@ -129,6 +129,14 @@ export default function EmployeeHome() {
               <span>打包点餐</span>
               <span className="text-xs font-normal text-gray-400">凭取餐号取餐</span>
             </button>
+            <button
+              onClick={() => navigate('/employee/orders')}
+              className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-purple-200 text-purple-600 font-bold text-lg shadow-md hover:border-purple-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
+            >
+              <span className="text-3xl">📋</span>
+              <span>订单查询</span>
+              <span className="text-xs font-normal text-gray-400">查看确认今日订单</span>
+            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4">

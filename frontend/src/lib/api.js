@@ -54,6 +54,8 @@ export const api = {
     return request(`/orders${query ? `?${query}` : ''}`)
   },
   getOrderById: (id) => request(`/orders/${id}`),
+  getEmployeeTodayOrders: (status) => request(`/orders/employee/today${status ? `?status=${status}` : ''}`),
+  updateEmployeeOrderStatus: (id, status) => request(`/orders/employee/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getOrderStats: () => request('/orders/stats'),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   getOrderByNo: (orderNo) => request(`/orders/lookup/${orderNo}`),
