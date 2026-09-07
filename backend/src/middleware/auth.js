@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-const SECRET = 'onlyone-secret-key-2024-change-in-production';
+// JWT 密钥从环境变量读取，没有则用默认值（生产环境务必修改）
+const SECRET = process.env.JWT_SECRET || 'onlyone-secret-key-2024-change-in-production';
 
 function auth(req, res, next) {
   const header = req.headers.authorization;
