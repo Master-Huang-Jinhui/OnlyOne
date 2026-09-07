@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { playOrderSound, vibrate } from '../../lib/notification'
 import { Card, CardContent, StatCard, Badge, Button, Dialog, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Dashboard() {
@@ -11,9 +12,28 @@ export default function Dashboard() {
   const [pendingOrders, setPendingOrders] = useState([])
   const [memoDialog, setMemoDialog] = useState(false)
   const [memoForm, setMemoForm] = useState({ title: '', content: '', type: 'memo', priority: 'normal' })
+  const lastPendingCount = useRef(0)
+  const isFirstLoad = useRef(true)
 
   useEffect(() => {
     loadData()
+    const timer = setInterval(() => {
+      api.getOrders({ status: 'pending', page: 1, page_size: 10, sort_by: 'created_at', sort_order: 'desc' })
+        .then(data => {
+          const orders = data?.orders || []
+          const count = orders.length
+          if (!isFirstLoad.current && count > lastPendingCount.current) {
+            playOrderSound()
+            vibrate()
+            toast(`🔔 有新订单！当前 ${count} 个待处理`, 'success')
+          }
+          lastPendingCount.current = count
+          isFirstLoad.current = false
+          setPendingOrders(orders)
+        }).catch(() => {})
+      api.getOrderStats().then(data => setStats(data || {})).catch(() => {})
+    }, 15000)
+    return () => clearInterval(timer)
   }, [])
 
   const loadData = () => {
@@ -21,7 +41,11 @@ export default function Dashboard() {
     api.getPlatforms().then(data => setPlatforms(Array.isArray(data) ? data : [])).catch(() => {})
     api.getMemos().then(data => setMemos(Array.isArray(data) ? data : [])).catch(() => {})
     api.getOrders({ status: 'pending', page: 1, page_size: 10, sort_by: 'created_at', sort_order: 'desc' })
-      .then(data => setPendingOrders(data?.orders || [])).catch(() => {})
+      .then(data => {
+        setPendingOrders(data?.orders || [])
+        lastPendingCount.current = data?.orders?.length || 0
+        isFirstLoad.current = false
+      }).catch(() => {})
   }
 
   const addMemo = async () => {
