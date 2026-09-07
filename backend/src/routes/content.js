@@ -118,4 +118,44 @@ router.delete('/sections/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+router.get('/new-products', (req, res) => {
+  const items = db.prepare('SELECT * FROM new_products WHERE enabled = 1 ORDER BY sort_order, id').all();
+  res.json(items);
+});
+
+router.get('/new-products/all', auth, managerAccess, (req, res) => {
+  const items = db.prepare('SELECT * FROM new_products ORDER BY sort_order, id').all();
+  res.json(items);
+});
+
+router.post('/new-products', auth, managerAccess, (req, res) => {
+  const { name, name_en = '', description = '', description_en = '', image = '', sort_order = 0, enabled = 1 } = req.body;
+  if (!name) return res.status(400).json({ error: '请填写新品名称' });
+  const result = db.prepare('INSERT INTO new_products (name, name_en, description, description_en, image, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+    name, name_en, description, description_en, image, sort_order, enabled ? 1 : 0
+  );
+  res.json({ id: result.lastInsertRowid });
+});
+
+router.put('/new-products/:id', auth, managerAccess, (req, res) => {
+  const allowed = ['name', 'name_en', 'description', 'description_en', 'image', 'sort_order', 'enabled'];
+  const fields = [];
+  const values = [];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(key === 'enabled' ? (req.body[key] ? 1 : 0) : req.body[key]);
+    }
+  }
+  if (fields.length === 0) return res.status(400).json({ error: '没有要更新的字段' });
+  values.push(req.params.id);
+  db.prepare(`UPDATE new_products SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  res.json({ success: true });
+});
+
+router.delete('/new-products/:id', auth, managerAccess, (req, res) => {
+  db.prepare('DELETE FROM new_products WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 module.exports = router;
