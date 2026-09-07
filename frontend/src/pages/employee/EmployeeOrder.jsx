@@ -24,6 +24,7 @@ export default function EmployeeOrder() {
   const [flavorGrouped, setFlavorGrouped] = useState({})
   const [tagsDialog, setTagsDialog] = useState(null)
   const [selectedTags, setSelectedTags] = useState([])
+  const [customNote, setCustomNote] = useState('')
   const [editCartItemId, setEditCartItemId] = useState(null)
   const [orderInfoDialog, setOrderInfoDialog] = useState(false)
   const [orderInfo, setOrderInfo] = useState({ name: '', phone: '' })
@@ -74,19 +75,22 @@ export default function EmployeeOrder() {
   }
 
   const confirmTags = () => {
+    const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
     if (editCartItemId) {
-      updateNotes(editCartItemId, selectedTags)
+      updateNotes(editCartItemId, finalTags)
       setEditCartItemId(null)
     } else if (tagsDialog) {
-      addToCart(tagsDialog, selectedTags)
+      addToCart(tagsDialog, finalTags)
     }
     setTagsDialog(null)
     setSelectedTags([])
+    setCustomNote('')
   }
 
   const openEditTags = (item) => {
     setTagsDialog({ id: item.id, name: item.name, price: item.price })
     setSelectedTags([...(item.notes || [])])
+    setCustomNote('')
     setEditCartItemId(item.cartItemId)
   }
 
@@ -172,10 +176,18 @@ export default function EmployeeOrder() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const toggleTag = (tagName) => {
-    setSelectedTags(prev =>
-      prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
-    )
+  const singleChoiceCategories = ['辣度', '冰度', '甜度']
+
+  const toggleTag = (tagName, category) => {
+    setSelectedTags(prev => {
+      if (singleChoiceCategories.includes(category)) {
+        const sameCategoryTags = flavorTags.filter(t => t.category === category).map(t => t.name)
+        const filtered = prev.filter(t => !sameCategoryTags.includes(t))
+        if (filtered.includes(tagName)) return filtered
+        return [...filtered, tagName]
+      }
+      return prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
+    })
   }
 
   const modeLabel = orderType === 'dinein' ? `堂吃 · ${tableNo}桌` : '打包取餐'
@@ -357,14 +369,17 @@ export default function EmployeeOrder() {
             <div className="max-h-64 overflow-y-auto space-y-3">
               {Object.entries(flavorGrouped).map(([category, tags]) => (
                 <div key={category}>
-                  <p className="text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">{category}</p>
+                  <p className="text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+                    {category}
+                    {singleChoiceCategories.includes(category) && <span className="ml-2 normal-case font-normal">（单选）</span>}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map(tag => {
                       const selected = selectedTags.includes(tag.name)
                       return (
                         <button
                           key={tag.id}
-                          onClick={() => toggleTag(tag.name)}
+                          onClick={() => toggleTag(tag.name, category)}
                           className={`px-3 py-1.5 rounded-lg text-sm transition border ${
                             selected
                               ? 'bg-primary-600 text-white border-primary-600 shadow'
@@ -379,6 +394,15 @@ export default function EmployeeOrder() {
                       )
                     })}
                   </div>
+                  {category === '其他' && (
+                    <input
+                      type="text"
+                      value={customNote}
+                      onChange={e => setCustomNote(e.target.value)}
+                      placeholder="自定义备注（如：少放盐、打包等）"
+                      className="mt-2 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  )}
                 </div>
               ))}
               {Object.keys(flavorGrouped).length === 0 && (
