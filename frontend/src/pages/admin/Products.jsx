@@ -8,6 +8,28 @@ export default function Products() {
   const [catDialog, setCatDialog] = useState(null)
   const [productDialog, setProductDialog] = useState(null)
   const [moveDialog, setMoveDialog] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = (products) => {
+    const allSelected = products.every(p => selectedIds.has(p.id))
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (allSelected) products.forEach(p => next.delete(p.id))
+      else products.forEach(p => next.add(p.id))
+      return next
+    })
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
 
   useEffect(() => { load() }, [])
 
@@ -87,17 +109,27 @@ export default function Products() {
   }
 
   const confirmMove = async () => {
-    const { product, targetCategoryId } = moveDialog
+    const { products, targetCategoryId } = moveDialog
     try {
-      await api.updateProduct(product.id, { category_id: targetCategoryId || null })
+      await Promise.all(products.map(p => api.updateProduct(p.id, { category_id: targetCategoryId || null })))
       const targetName = categories.find(c => c.id === Number(targetCategoryId))?.name || '未分类'
-      toast(`已移动到「${targetName}」`)
+      toast(`已移动 ${products.length} 个商品到「${targetName}」`)
       setMoveDialog(null)
+      clearSelection()
       load()
     } catch (e) { toast(e.message, 'error') }
   }
 
+  const openBatchMove = () => {
+    const selectedProducts = categories.flatMap(c => c.products || []).filter(p => selectedIds.has(p.id))
+    if (selectedProducts.length === 0) { toast('请先选择商品', 'error'); return }
+    setMoveDialog({ products: selectedProducts, targetCategoryId: '' })
+  }
+
   const productColumns = [
+    { header: '', render: p => (
+      <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="w-4 h-4 cursor-pointer" />
+    )},
     { header: '商品', render: p => (
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
@@ -138,8 +170,19 @@ export default function Products() {
               {cat.name_en && <span className="text-xs text-gray-400">{cat.name_en}</span>}
               {cat.id !== 0 && <Badge variant={cat.enabled ? 'success' : 'default'}>{cat.enabled ? '启用中' : '已禁用'}</Badge>}
               <span className="text-xs text-gray-400">{cat.products?.length || 0} 个商品</span>
+              {expanded[cat.id] && cat.products?.length > 0 && (
+                <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
+                  <input type="checkbox" checked={cat.products.every(p => selectedIds.has(p.id))} onChange={() => toggleSelectAll(cat.products)} className="w-3.5 h-3.5" />
+                  全选
+                </label>
+              )}
             </div>
             <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button size="sm" variant="outline" className="border-indigo-300 text-indigo-600 hover:bg-indigo-50" onClick={openBatchMove}>
+                  批量移动 ({selectedIds.size})
+                </Button>
+              )}
               {cat.id !== 0 && (
                 <>
                   <Button size="sm" variant="outline" onClick={() => toggleCategory(cat)}>{cat.enabled ? '禁用' : '启用'}</Button>
@@ -161,7 +204,7 @@ export default function Products() {
                   data={cat.products}
                   actions={p => (
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setMoveDialog({ product: p, targetCategoryId: p.category_id || '' })} className="text-xs text-indigo-600 hover:text-indigo-700">移动</button>
+                      <button onClick={() => setMoveDialog({ products: [p], targetCategoryId: p.category_id || '' })} className="text-xs text-indigo-600 hover:text-indigo-700">移动</button>
                       <button onClick={() => toggleProduct(p)} className={`text-xs ${p.available ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{p.available ? '下架' : '上架'}</button>
                       <button onClick={() => setProductDialog({ mode: 'edit', data: { ...p } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
                       <button onClick={() => deleteProduct(p)} className="text-xs text-red-400 hover:text-red-600">删除</button>
@@ -228,10 +271,16 @@ export default function Products() {
         )}
       </Dialog>
 
-      <Dialog open={!!moveDialog} onClose={() => setMoveDialog(null)} title="移动商品到分类" width="max-w-sm">
+      <Dialog open={!!moveDialog} onClose={() => setMoveDialog(null)} title={moveDialog?.products.length > 1 ? `批量移动 ${moveDialog.products.length} 个商品` : '移动商品到分类'} width="max-w-sm">
         {moveDialog && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">商品：<span className="font-medium text-gray-800">{moveDialog.product.name}</span></p>
+            {moveDialog.products.length === 1 ? (
+              <p className="text-sm text-gray-600">商品：<span className="font-medium text-gray-800">{moveDialog.products[0].name}</span></p>
+            ) : (
+              <div className="text-sm text-gray-600 max-h-32 overflow-y-auto space-y-1">
+                {moveDialog.products.map(p => <p key={p.id} className="truncate">• {p.name}</p>)}
+              </div>
+            )}
             <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })}
               options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
             <div className="flex gap-2 pt-2">
