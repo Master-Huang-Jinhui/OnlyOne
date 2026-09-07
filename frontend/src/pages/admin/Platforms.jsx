@@ -88,23 +88,23 @@ export default function Platforms() {
         </div>
         <div>
           <p className="font-medium text-gray-800">{p.name}</p>
-          <p className="text-xs text-gray-400">{p.phone || '无电话'}</p>
         </div>
       </div>
     )},
-    { header: '账号', render: p => (
-      <div className="text-sm">
-        <p className="text-gray-700">{p.account || '-'}</p>
-        {isAdmin && p.password && (
-          <p className="text-gray-400 text-xs flex items-center gap-1">
-            {showPassword[p.id] ? p.password : '••••••'}
-            <button onClick={() => setShowPassword(s => ({ ...s, [p.id]: !s[p.id] }))} className="text-primary-500">
+    { header: '账号', render: p => <span className="text-sm text-gray-700">{p.account || '-'}</span> },
+    ...(isAdmin ? [{ header: '密码', render: p => (
+      <div className="text-sm flex items-center gap-1">
+        {p.password ? (
+          <>
+            <span className="text-gray-700">{showPassword[p.id] ? p.password : '••••••'}</span>
+            <button onClick={() => setShowPassword(s => ({ ...s, [p.id]: !s[p.id] }))} className="text-primary-500 text-xs">
               {showPassword[p.id] ? '隐藏' : '显示'}
             </button>
-          </p>
-        )}
+          </>
+        ) : '-'}
       </div>
-    )},
+    )}] : []),
+    { header: '电话', render: p => <span className="text-sm text-gray-700">{p.phone || '-'}</span> },
     { header: '备注', render: p => <span className="text-sm text-gray-500 max-w-[200px] truncate block">{p.note || '-'}</span> },
     { header: '状态', render: p => <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '启用' : '停用'}</Badge> },
     { header: '跳转', render: p => p.url ? (
