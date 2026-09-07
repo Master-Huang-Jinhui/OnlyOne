@@ -32,8 +32,8 @@ export default function Dashboard() {
     try {
       await api.updateOrderStatus(id, status)
       toast('状态已更新')
+      setDetail(null)
       loadPendingOrders(1)
-      if (detail?.id === id) setDetail({ ...detail, status })
     } catch (e) { toast(e.message, 'error') }
   }
 
