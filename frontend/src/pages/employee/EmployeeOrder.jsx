@@ -39,17 +39,17 @@ export default function EmployeeOrder() {
 
   const addToCart = (product) => {
     setCart(prev => {
-      const existing = prev.find(i => i.id === product.id)
+      const existing = prev.find(i => i.id === product.id && i.note === '')
       if (existing) {
-        return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
+        return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i)
       }
-      return [...prev, { ...product, quantity: 1, note: '' }]
+      return [...prev, { ...product, cartItemId: Date.now() + Math.random(), quantity: 1, note: '' }]
     })
   }
 
-  const updateQty = (id, delta) => {
+  const updateQty = (cartItemId, delta) => {
     setCart(prev => prev.map(i => {
-      if (i.id === id) {
+      if (i.cartItemId === cartItemId) {
         const qty = Math.max(0, i.quantity + delta)
         return qty === 0 ? null : { ...i, quantity: qty }
       }
@@ -57,11 +57,23 @@ export default function EmployeeOrder() {
     }).filter(Boolean))
   }
 
-  const updateNote = (id, note) => {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, note } : i))
+  const updateNote = (cartItemId, note) => {
+    setCart(prev => {
+      const item = prev.find(i => i.cartItemId === cartItemId)
+      if (!item) return prev
+      const duplicate = prev.find(i => i.cartItemId !== cartItemId && i.id === item.id && i.note === note)
+      if (duplicate) {
+        return prev.map(i => {
+          if (i.cartItemId === duplicate.cartItemId) return { ...i, quantity: i.quantity + item.quantity }
+          if (i.cartItemId === cartItemId) return null
+          return i
+        }).filter(Boolean)
+      }
+      return prev.map(i => i.cartItemId === cartItemId ? { ...i, note } : i)
+    })
   }
 
-  const removeItem = (id) => setCart(prev => prev.filter(i => i.id !== id))
+  const removeItem = (cartItemId) => setCart(prev => prev.filter(i => i.cartItemId !== cartItemId))
   const clearCart = () => setCart([])
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
@@ -208,26 +220,27 @@ export default function EmployeeOrder() {
             ) : (
               <div className="space-y-2">
                 {cart.map(item => (
-                  <div key={item.id} className="bg-gray-50 rounded-lg p-2.5">
+                  <div key={item.cartItemId} className="bg-gray-50 rounded-lg p-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{item.name}</p>
+                        {item.note && <span className="inline-block mt-1 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full">{item.note}</span>}
                         <p className="text-xs text-primary-600 mt-0.5">${parseFloat(item.price).toFixed(2)}</p>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-500 text-sm flex-shrink-0">✕</button>
+                      <button onClick={() => removeItem(item.cartItemId)} className="text-gray-300 hover:text-red-500 text-sm flex-shrink-0">✕</button>
                     </div>
                     <input
                       type="text"
                       placeholder="备注（可选）"
                       value={item.note}
-                      onChange={e => updateNote(item.id, e.target.value)}
+                      onChange={e => updateNote(item.cartItemId, e.target.value)}
                       className="mt-2 w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary-400 bg-white"
                     />
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm hover:bg-gray-300">-</button>
+                        <button onClick={() => updateQty(item.cartItemId, -1)} className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm hover:bg-gray-300">-</button>
                         <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm hover:bg-primary-700">+</button>
+                        <button onClick={() => updateQty(item.cartItemId, 1)} className="w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm hover:bg-primary-700">+</button>
                       </div>
                       <span className="text-sm font-bold text-gray-800">${(item.price * item.quantity).toFixed(2)}</span>
                     </div>
