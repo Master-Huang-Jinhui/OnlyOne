@@ -8,7 +8,7 @@ export default function EmployeeOrder() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const orderType = searchParams.get('type') || 'takeout' // dinein / takeout
+  const orderType = searchParams.get('type') || 'takeout'
   const tableId = searchParams.get('tableId')
   const tableNo = searchParams.get('tableNo') || ''
 
@@ -20,13 +20,11 @@ export default function EmployeeOrder() {
   const [taxRate, setTaxRate] = useState(0.08875)
   const [pwdDialog, setPwdDialog] = useState(false)
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
-  // 口味相关
   const [flavorTags, setFlavorTags] = useState([])
   const [flavorGrouped, setFlavorGrouped] = useState({})
   const [tagsDialog, setTagsDialog] = useState(null)
   const [selectedTags, setSelectedTags] = useState([])
   const [editCartItemId, setEditCartItemId] = useState(null)
-  // 打包顾客信息
   const [orderInfoDialog, setOrderInfoDialog] = useState(false)
   const [orderInfo, setOrderInfo] = useState({ name: '', phone: '' })
 
@@ -48,13 +46,11 @@ export default function EmployeeOrder() {
     return map
   }, [categories, products])
 
-  // 口味工具函数
   const getTagInfo = (tagName) => flavorTags.find(t => t.name === tagName) || { name: tagName, extra_price: 0, category: '自定义' }
   const calcTagsExtraPrice = (tags = []) => tags.reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
   const defaultTags = flavorTags.filter(t => t.is_default).map(t => t.name)
   const getItemUnitPrice = (item) => parseFloat(item.price) + calcTagsExtraPrice(item.notes || [])
 
-  // 点击商品：直接用默认口味添加
   const handleProductClick = (product) => {
     addToCart(product, [...defaultTags])
   }
@@ -154,7 +150,6 @@ export default function EmployeeOrder() {
     if (orderType === 'dinein') {
       doSubmitOrder()
     } else {
-      // 打包需要顾客姓名和手机号
       setOrderInfoDialog(true)
     }
   }
@@ -198,7 +193,6 @@ export default function EmployeeOrder() {
             <h1 className="text-base font-bold text-gray-800">Only One 员工点餐</h1>
             <p className="text-xs text-gray-400">{user?.name || user?.username}</p>
           </div>
-          {/* 当前点餐模式标签 */}
           <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${modeColor}`}>
             {modeLabel}
           </span>
@@ -243,16 +237,16 @@ export default function EmployeeOrder() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
               {filteredProducts.map(product => {
-                const inCart = cart.find(i => i.id === product.id)
+                const inCartQty = cart.reduce((sum, i) => i.id === product.id ? sum + i.quantity : sum, 0)
                 return (
                   <div
                     key={product.id}
                     onClick={() => handleProductClick(product)}
                     className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-pointer active:scale-95 relative group"
                   >
-                    {inCart && (
-                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow z-10">
-                        {inCart.quantity}
+                    {inCartQty > 0 && (
+                      <div className="absolute -top-2 -right-2 min-w-[24px] h-6 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow z-10 px-1.5">
+                        {inCartQty}
                       </div>
                     )}
                     <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-4xl overflow-hidden">
@@ -298,7 +292,6 @@ export default function EmployeeOrder() {
                       </div>
                       <button onClick={() => removeItem(item.cartItemId)} className="text-gray-300 hover:text-red-500 text-sm flex-shrink-0">✕</button>
                     </div>
-                    {/* 口味标签 */}
                     <div className="flex flex-wrap gap-1 mt-2">
                       {(item.notes || []).length > 0 ? (
                         item.notes.map(tagName => {
@@ -352,7 +345,6 @@ export default function EmployeeOrder() {
         </aside>
       </div>
 
-      {/* 口味选择对话框 */}
       <Dialog open={!!tagsDialog} onClose={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }} title={editCartItemId ? '修改口味' : '选择口味'} width="max-w-md">
         {tagsDialog && (
           <div className="space-y-4">
@@ -407,7 +399,6 @@ export default function EmployeeOrder() {
         )}
       </Dialog>
 
-      {/* 打包顾客信息对话框 */}
       <Dialog open={orderInfoDialog} onClose={() => setOrderInfoDialog(false)} title="打包顾客信息" width="max-w-sm">
         <div className="space-y-4">
           <Input label="顾客姓名" value={orderInfo.name} onChange={e => setOrderInfo({ ...orderInfo, name: e.target.value })} placeholder="请输入姓名" />
@@ -419,11 +410,9 @@ export default function EmployeeOrder() {
         </div>
       </Dialog>
 
-      {/* 下单成功 - 小票弹窗 */}
       <Dialog open={!!success} onClose={() => setSuccess(null)} title="下单成功" width="max-w-sm">
         {success && (
           <div className="py-4">
-            {/* 取餐号 */}
             <div className="text-center mb-4">
               <p className="text-sm text-gray-400 mb-1">{orderType === 'dinein' ? '桌号' : '取餐号'}</p>
               <p className="text-5xl font-mono font-bold text-primary-600 tracking-wider">
@@ -432,7 +421,6 @@ export default function EmployeeOrder() {
               {orderType === 'takeout' && <p className="text-xs text-gray-400 mt-2">请凭此号取餐</p>}
             </div>
 
-            {/* 订单信息 */}
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
               <div className="flex justify-between text-gray-500 mb-1">
                 <span>订单号</span>
@@ -456,7 +444,6 @@ export default function EmployeeOrder() {
         )}
       </Dialog>
 
-      {/* 修改密码对话框 */}
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
         <div className="space-y-4">
           <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
