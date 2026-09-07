@@ -78,6 +78,7 @@ db.exec(`
     guest_id TEXT,
     table_id INTEGER,
     table_session TEXT,
+    pickup_number TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
 
@@ -315,25 +316,30 @@ if (flavorCount === 0) {
   const catIds = {};
   categories.forEach(c => { const r = insertCat.run(c.name, c.sort); catIds[c.name] = r.lastInsertRowid; });
   const flavors = [
+    // 辣度
     ['辣度', '不辣', 0, 0, 1],
     ['辣度', '微辣', 0, 0, 2],
     ['辣度', '少辣', 0, 0, 3],
     ['辣度', '中辣', 0, 0, 4],
     ['辣度', '特辣', 0, 0, 5],
+    // 冰度
     ['冰度', '去冰', 1, 0, 1],
     ['冰度', '少冰', 0, 0, 2],
     ['冰度', '正常冰', 0, 1, 3],
     ['冰度', '多冰', 0, 0, 4],
     ['冰度', '热饮', 0, 0, 5],
+    // 甜度
     ['甜度', '无糖', 0, 0, 1],
     ['甜度', '半糖', 0, 0, 2],
     ['甜度', '少糖', 0, 0, 3],
     ['甜度', '正常糖', 0, 1, 4],
     ['甜度', '全糖', 0, 0, 5],
+    // 配料
     ['配料', '加珍珠', 0.75, 0, 1],
     ['配料', '加椰果', 0.75, 0, 2],
     ['配料', '加布丁', 0.75, 0, 3],
     ['配料', '加芋圆', 1, 0, 4],
+    // 其他
     ['其他', '不要葱', 0, 0, 1],
     ['其他', '不要香菜', 0, 0, 2],
     ['其他', '不要蒜', 0, 0, 3],
@@ -368,7 +374,7 @@ if (!sectionColumns.find(c => c.name === 'layout')) {
   db.prepare('ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT \'left\'').run();
 }
 
-// 给旧版 orders 表添加 guest_id / table_id / table_session 列
+// 给旧版 orders 表添加 guest_id / table_id / table_session / pickup_number 列
 const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
 if (!orderColumns.find(c => c.name === 'guest_id')) {
   db.prepare('ALTER TABLE orders ADD COLUMN guest_id TEXT').run();
@@ -378,6 +384,9 @@ if (!orderColumns.find(c => c.name === 'table_id')) {
 }
 if (!orderColumns.find(c => c.name === 'table_session')) {
   db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run();
+}
+if (!orderColumns.find(c => c.name === 'pickup_number')) {
+  db.prepare('ALTER TABLE orders ADD COLUMN pickup_number TEXT').run();
 }
 
 // 补充默认餐桌（A1-A4, B1-B4）
