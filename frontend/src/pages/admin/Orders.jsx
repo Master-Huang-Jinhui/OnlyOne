@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Select, Empty, toast } from '../../components/ui'
 
@@ -22,6 +23,7 @@ const now = () => {
 }
 
 export default function Orders() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [orders, setOrders] = useState([])
   const [summary, setSummary] = useState({ total: 0, revenue: 0 })
   const [statusFilter, setStatusFilter] = useState('')
@@ -33,7 +35,20 @@ export default function Orders() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    const orderId = searchParams.get('orderId')
+    if (orderId) {
+      setStartDate('')
+      setEndDate('')
+      setStatusFilter('')
+      api.getOrderById(orderId).then(order => { if (order) setDetail(order) }).catch(() => {})
+      load({ startDate: '', endDate: '', statusFilter: '', page: 1 })
+      searchParams.delete('orderId')
+      setSearchParams(searchParams, { replace: true })
+    } else {
+      load()
+    }
+  }, [])
 
   const load = (overrides = {}) => {
     const curStatus = overrides.statusFilter !== undefined ? overrides.statusFilter : statusFilter
@@ -62,9 +77,7 @@ export default function Orders() {
   const handleSort = (field) => {
     let newSortBy = field
     let newSortOrder = 'desc'
-    if (sortBy === field) {
-      newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc'
-    }
+    if (sortBy === field) { newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc' }
     setSortBy(newSortBy)
     setSortOrder(newSortOrder)
     load({ sortBy: newSortBy, sortOrder: newSortOrder })
@@ -91,9 +104,7 @@ export default function Orders() {
     const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
     const start = fmt(monday) + 'T00:00'
     const end = now()
-    setStartDate(start)
-    setEndDate(end)
-    setPage(1)
+    setStartDate(start); setEndDate(end); setPage(1)
     load({ startDate: start, endDate: end, page: 1 })
   }
   const setAll = () => { setStartDate(''); setEndDate(''); setPage(1); load({ startDate: '', endDate: '', page: 1 }) }
@@ -135,27 +146,19 @@ export default function Orders() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">订单总数</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{summary.total}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">总金额</p>
-          <p className="text-2xl font-bold text-primary-600 mt-1">${parseFloat(summary.revenue).toFixed(2)}</p>
-        </Card>
+        <Card className="p-4"><p className="text-sm text-gray-500">订单总数</p><p className="text-2xl font-bold text-gray-800 mt-1">{summary.total}</p></Card>
+        <Card className="p-4"><p className="text-sm text-gray-500">总金额</p><p className="text-2xl font-bold text-primary-600 mt-1">${parseFloat(summary.revenue).toFixed(2)}</p></Card>
       </div>
 
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">开始时间</label>
-            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">结束时间</label>
-            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <Button onClick={handleSearch}>查询</Button>
           <div className="flex gap-2 ml-auto">
@@ -169,9 +172,7 @@ export default function Orders() {
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => { setStatusFilter(''); setPage(1); load({ statusFilter: '', page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>全部</button>
         {Object.entries(statusMap).map(([key, val]) => (
-          <button key={key} onClick={() => { setStatusFilter(key); setPage(1); load({ statusFilter: key, page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
-            {val.label}
-          </button>
+          <button key={key} onClick={() => { setStatusFilter(key); setPage(1); load({ statusFilter: key, page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{val.label}</button>
         ))}
       </div>
 
@@ -181,35 +182,19 @@ export default function Orders() {
         ) : (
           <>
             <Table columns={columns} data={orders} actions={o => (
-              <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)}
-                options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
+              <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
             )} />
             <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span>共 {summary.total} 条</span>
-                <select
-                  value={pageSize}
-                  onChange={e => { const size = parseInt(e.target.value); setPageSize(size); setPage(1); load({ pageSize: size, page: 1 }) }}
-                  className="px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none"
-                >
-                  <option value={10}>10条/页</option>
-                  <option value={20}>20条/页</option>
-                  <option value={50}>50条/页</option>
-                  <option value={100}>100条/页</option>
+                <select value={pageSize} onChange={e => { const size = parseInt(e.target.value); setPageSize(size); setPage(1); load({ pageSize: size, page: 1 }) }} className="px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none">
+                  <option value={10}>10条/页</option><option value={20}>20条/页</option><option value={50}>50条/页</option><option value={100}>100条/页</option>
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { const p = Math.max(1, page - 1); setPage(p); load({ page: p }) }}
-                  disabled={page <= 1}
-                  className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
-                >上一页</button>
+                <button onClick={() => { const p = Math.max(1, page - 1); setPage(p); load({ page: p }) }} disabled={page <= 1} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">上一页</button>
                 <span className="text-sm text-gray-600">第 {page} / {Math.max(1, Math.ceil(summary.total / pageSize))} 页</span>
-                <button
-                  onClick={() => { const p = page + 1; setPage(p); load({ page: p }) }}
-                  disabled={page >= Math.ceil(summary.total / pageSize)}
-                  className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
-                >下一页</button>
+                <button onClick={() => { const p = page + 1; setPage(p); load({ page: p }) }} disabled={page >= Math.ceil(summary.total / pageSize)} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">下一页</button>
               </div>
             </div>
           </>
