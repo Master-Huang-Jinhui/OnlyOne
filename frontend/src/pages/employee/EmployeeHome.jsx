@@ -47,7 +47,6 @@ export default function EmployeeHome() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 打开堂吃选桌对话框
   const openDineIn = async () => {
     try {
       const data = await api.getPublicTables()
@@ -58,13 +57,11 @@ export default function EmployeeHome() {
     }
   }
 
-  // 选择桌子后进入点餐
   const selectTable = (table) => {
     setTableDialog(false)
     navigate(`/employee/order?type=dinein&tableId=${table.id}&tableNo=${encodeURIComponent(table.table_no)}`)
   }
 
-  // 打包直接进入点餐
   const goTakeout = () => {
     navigate('/employee/order?type=takeout')
   }
@@ -74,7 +71,6 @@ export default function EmployeeHome() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50 flex flex-col">
-      {/* 顶部栏 */}
       <header className="relative z-10 flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md">
@@ -92,21 +88,17 @@ export default function EmployeeHome() {
         </div>
       </header>
 
-      {/* 主内容 */}
       <main className="flex-1 flex flex-col items-center justify-center px-8 -mt-16">
-        {/* 时间日期 */}
         <div className="text-center mb-8">
           <p className="text-5xl font-light text-gray-700 tracking-wider tabular-nums">{timeStr}</p>
           <p className="text-base text-gray-400 mt-3">{dateStr}</p>
         </div>
 
-        {/* 欢迎语 */}
         <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2 text-center">
           欢迎回来
         </h1>
         <p className="text-xl text-gray-500 mb-10">{user?.name || user?.username}</p>
 
-        {/* 打卡状态 */}
         <div className="flex items-center gap-8 mb-10 text-sm bg-white/70 px-6 py-3 rounded-xl shadow-sm">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${attendance?.clock_in ? 'bg-green-500' : 'bg-gray-300'}`}></span>
@@ -119,28 +111,8 @@ export default function EmployeeHome() {
           </div>
         </div>
 
-        {/* 功能按钮：打卡 + 点餐方式 */}
         <div className="w-full max-w-3xl">
-          {/* 第一行：打卡 */}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <button
-              onClick={handleClockIn}
-              className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 text-white font-bold text-lg shadow-lg hover:from-green-500 hover:to-green-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
-            >
-              <span className="text-3xl">⏰</span>
-              <span>上班打卡</span>
-            </button>
-            <button
-              onClick={handleClockOut}
-              className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white font-bold text-lg shadow-lg hover:from-orange-500 hover:to-orange-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
-            >
-              <span className="text-3xl">🏃</span>
-              <span>下班打卡</span>
-            </button>
-          </div>
-
-          {/* 第二行：点餐方式 */}
-          <div className="flex flex-col sm:flex-row gap-4">
             <button
               onClick={openDineIn}
               className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-primary-200 text-primary-600 font-bold text-lg shadow-md hover:border-primary-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
@@ -158,15 +130,30 @@ export default function EmployeeHome() {
               <span className="text-xs font-normal text-gray-400">凭取餐号取餐</span>
             </button>
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={handleClockIn}
+              className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 text-white font-bold text-lg shadow-lg hover:from-green-500 hover:to-green-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
+            >
+              <span className="text-3xl">⏰</span>
+              <span>上班打卡</span>
+            </button>
+            <button
+              onClick={handleClockOut}
+              className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white font-bold text-lg shadow-lg hover:from-orange-500 hover:to-orange-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
+            >
+              <span className="text-3xl">🏃</span>
+              <span>下班打卡</span>
+            </button>
+          </div>
         </div>
       </main>
 
-      {/* 底部 */}
       <footer className="text-center py-6 text-xs text-gray-300">
         Only One BBQ & Tea · 员工工作台
       </footer>
 
-      {/* 选择桌子对话框 */}
       <Dialog open={tableDialog} onClose={() => setTableDialog(false)} title="选择餐桌" width="max-w-md">
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-80 overflow-y-auto">
           {tables.length === 0 && <p className="col-span-full text-center text-gray-400 py-8">暂无餐桌，请先在后台添加</p>}
@@ -188,7 +175,6 @@ export default function EmployeeHome() {
         </div>
       </Dialog>
 
-      {/* 修改密码对话框 */}
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
         <div className="space-y-4">
           <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
