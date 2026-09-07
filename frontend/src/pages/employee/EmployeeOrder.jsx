@@ -52,13 +52,7 @@ export default function EmployeeOrder() {
   const getItemUnitPrice = (item) => parseFloat(item.price) + calcTagsExtraPrice(item.notes || [])
 
   const handleProductClick = (product) => {
-    if (flavorTags.length > 0) {
-      setTagsDialog(product)
-      setSelectedTags([...defaultTags])
-      setEditCartItemId(null)
-    } else {
-      addToCart(product, [])
-    }
+    addToCart(product, [...defaultTags])
   }
 
   const addToCart = (product, notes) => {
@@ -83,8 +77,6 @@ export default function EmployeeOrder() {
     if (editCartItemId) {
       updateNotes(editCartItemId, selectedTags)
       setEditCartItemId(null)
-    } else if (tagsDialog) {
-      addToCart(tagsDialog, selectedTags)
     }
     setTagsDialog(null)
     setSelectedTags([])
@@ -340,7 +332,7 @@ export default function EmployeeOrder() {
         </aside>
       </div>
 
-      <Dialog open={!!tagsDialog} onClose={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }} title={editCartItemId ? '修改口味' : '选择口味'} width="max-w-md">
+      <Dialog open={!!tagsDialog} onClose={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }} title="修改口味" width="max-w-md">
         {tagsDialog && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -387,7 +379,7 @@ export default function EmployeeOrder() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }}>取消</Button>
-                <Button onClick={confirmTags}>{editCartItemId ? '确认修改' : '加入购物车'}</Button>
+                <Button onClick={confirmTags}>确认修改</Button>
               </div>
             </div>
           </div>
