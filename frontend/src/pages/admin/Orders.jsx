@@ -230,11 +230,6 @@ export default function Orders() {
               <div className="flex justify-between text-sm text-gray-600"><span>配送费</span><span>${parseFloat(detail.delivery_fee).toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(detail.total).toFixed(2)}</span></div>
             </div>
-            <div className="flex gap-2 pt-2 flex-wrap">
-              {Object.entries(statusMap).map(([k, v]) => (
-                <Button key={k} size="sm" variant={detail.status === k ? 'primary' : 'outline'} onClick={() => updateStatus(detail.id, k)}>{v.label}</Button>
-              ))}
-            </div>
           </div>
         )}
       </Dialog>
