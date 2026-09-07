@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { playOrderSound, vibrate } from '../../lib/notification'
 import { Card, Button, Badge, Dialog, Empty, toast } from '../../components/ui'
 
 const statusMap = {
@@ -20,14 +21,37 @@ export default function EmployeeOrders() {
   const [statusFilter, setStatusFilter] = useState('')
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
+  const lastPendingCount = useRef(0)
+  const isFirstLoad = useRef(true)
 
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => {
+    load()
+    const timer = setInterval(() => {
+      api.getEmployeeTodayOrders(statusFilter).then(data => {
+        const list = data?.orders || []
+        setOrders(list)
+        setSummary({ total: data?.total || 0, revenue: data?.revenue || 0 })
+        const pendingCount = list.filter(o => o.status === 'pending').length
+        if (!isFirstLoad.current && pendingCount > lastPendingCount.current) {
+          playOrderSound()
+          vibrate()
+          toast(`🔔 有新订单！当前 ${pendingCount} 个待处理`, 'success')
+        }
+        lastPendingCount.current = pendingCount
+        isFirstLoad.current = false
+      }).catch(() => {})
+    }, 15000)
+    return () => clearInterval(timer)
+  }, [statusFilter])
 
   const load = () => {
     setLoading(true)
     api.getEmployeeTodayOrders(statusFilter).then(data => {
-      setOrders(data?.orders || [])
+      const list = data?.orders || []
+      setOrders(list)
       setSummary({ total: data?.total || 0, revenue: data?.revenue || 0 })
+      lastPendingCount.current = list.filter(o => o.status === 'pending').length
+      isFirstLoad.current = false
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
