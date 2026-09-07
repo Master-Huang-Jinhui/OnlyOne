@@ -27,7 +27,7 @@ export default function Menu() {
   const filtered = activeCategory === 'all' ? products : products.filter(p => p.category_id == activeCategory)
 
   const getItemCount = (productId) => {
-    return items.filter(i => i.id === productId && (!i.notes || i.notes.length === 0)).reduce((sum, i) => sum + i.quantity, 0)
+    return items.filter(i => i.id === productId).reduce((sum, i) => sum + i.quantity, 0)
   }
 
   const handleAdd = (product) => {
@@ -66,7 +66,7 @@ export default function Menu() {
       groups[tag.category].push(tag)
     })
     return groups
-  }, [])
+  }, [flavorTags])
 
   const renderTags = (tags = [], small = false) => (
     <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>
