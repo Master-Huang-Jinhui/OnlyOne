@@ -7,6 +7,7 @@ export default function Products() {
   const [expanded, setExpanded] = useState({})
   const [catDialog, setCatDialog] = useState(null)
   const [productDialog, setProductDialog] = useState(null)
+  const [moveDialog, setMoveDialog] = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -85,6 +86,17 @@ export default function Products() {
     await api.deleteProduct(p.id); toast('商品已删除'); load()
   }
 
+  const confirmMove = async () => {
+    const { product, targetCategoryId } = moveDialog
+    try {
+      await api.updateProduct(product.id, { category_id: targetCategoryId || null })
+      const targetName = categories.find(c => c.id === Number(targetCategoryId))?.name || '未分类'
+      toast(`已移动到「${targetName}」`)
+      setMoveDialog(null)
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+
   const productColumns = [
     { header: '商品', render: p => (
       <div className="flex items-center gap-3">
@@ -149,6 +161,7 @@ export default function Products() {
                   data={cat.products}
                   actions={p => (
                     <div className="flex items-center gap-3">
+                      <button onClick={() => setMoveDialog({ product: p, targetCategoryId: p.category_id || '' })} className="text-xs text-indigo-600 hover:text-indigo-700">移动</button>
                       <button onClick={() => toggleProduct(p)} className={`text-xs ${p.available ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{p.available ? '下架' : '上架'}</button>
                       <button onClick={() => setProductDialog({ mode: 'edit', data: { ...p } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
                       <button onClick={() => deleteProduct(p)} className="text-xs text-red-400 hover:text-red-600">删除</button>
@@ -210,6 +223,20 @@ export default function Products() {
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setProductDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={saveProduct}>保存</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog open={!!moveDialog} onClose={() => setMoveDialog(null)} title="移动商品到分类" width="max-w-sm">
+        {moveDialog && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">商品：<span className="font-medium text-gray-800">{moveDialog.product.name}</span></p>
+            <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })}
+              options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setMoveDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={confirmMove}>确认移动</Button>
             </div>
           </div>
         )}
