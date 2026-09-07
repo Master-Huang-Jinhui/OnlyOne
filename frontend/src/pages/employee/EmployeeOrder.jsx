@@ -22,11 +22,20 @@ export default function EmployeeOrder() {
   const [taxRate, setTaxRate] = useState(0.08875)
   const [pwdDialog, setPwdDialog] = useState(false)
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
+  const [flavorTags, setFlavorTags] = useState([])
+  const [flavorGrouped, setFlavorGrouped] = useState({})
+  const [tagsDialog, setTagsDialog] = useState(null)
+  const [selectedTags, setSelectedTags] = useState([])
+  const [editCartItemId, setEditCartItemId] = useState(null)
 
   useEffect(() => {
     api.getCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
     api.getProducts().then(data => setProducts(Array.isArray(data) ? data : [])).catch(() => {})
     api.getSettings().then(s => setTaxRate(parseFloat(s?.tax_rate || 0.08875))).catch(() => {})
+    api.getFlavorTags().then(data => {
+      setFlavorTags(data.tags || [])
+      setFlavorGrouped(data.grouped || {})
+    }).catch(() => {})
   }, [])
 
   const filteredProducts = useMemo(() => activeCat === 0 ? products : products.filter(p => p.category_id === activeCat), [activeCat, products])
@@ -37,14 +46,54 @@ export default function EmployeeOrder() {
     return map
   }, [categories, products])
 
-  const addToCart = (product) => {
+  const getTagInfo = (tagName) => flavorTags.find(t => t.name === tagName) || { name: tagName, extra_price: 0, category: '自定义' }
+  const calcTagsExtraPrice = (tags = []) => tags.reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
+  const defaultTags = flavorTags.filter(t => t.is_default).map(t => t.name)
+  const getItemUnitPrice = (item) => parseFloat(item.price) + calcTagsExtraPrice(item.notes || [])
+
+  const handleProductClick = (product) => {
+    if (flavorTags.length > 0) {
+      setTagsDialog(product)
+      setSelectedTags([...defaultTags])
+      setEditCartItemId(null)
+    } else {
+      addToCart(product, [])
+    }
+  }
+
+  const addToCart = (product, notes) => {
+    const itemNotes = notes && notes.length > 0 ? notes : [...defaultTags]
     setCart(prev => {
-      const existing = prev.find(i => i.id === product.id && i.note === '')
+      const existing = prev.find(i => {
+        if (i.id !== product.id) return false
+        return [...(i.notes || [])].sort().join(',') === [...itemNotes].sort().join(',')
+      })
       if (existing) {
         return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i)
       }
-      return [...prev, { ...product, cartItemId: Date.now() + Math.random(), quantity: 1, note: '' }]
+      return [...prev, {
+        cartItemId: Date.now() + Math.random(),
+        id: product.id, name: product.name, price: product.price,
+        image: product.image, quantity: 1, notes: itemNotes
+      }]
     })
+  }
+
+  const confirmTags = () => {
+    if (editCartItemId) {
+      updateNotes(editCartItemId, selectedTags)
+      setEditCartItemId(null)
+    } else if (tagsDialog) {
+      addToCart(tagsDialog, selectedTags)
+    }
+    setTagsDialog(null)
+    setSelectedTags([])
+  }
+
+  const openEditTags = (item) => {
+    setTagsDialog({ id: item.id, name: item.name, price: item.price })
+    setSelectedTags([...(item.notes || [])])
+    setEditCartItemId(item.cartItemId)
   }
 
   const updateQty = (cartItemId, delta) => {
@@ -57,26 +106,26 @@ export default function EmployeeOrder() {
     }).filter(Boolean))
   }
 
-  const updateNote = (cartItemId, note) => {
+  const updateNotes = (cartItemId, notes) => {
     setCart(prev => {
       const item = prev.find(i => i.cartItemId === cartItemId)
       if (!item) return prev
-      const duplicate = prev.find(i => i.cartItemId !== cartItemId && i.id === item.id && i.note === note)
-      if (duplicate) {
-        return prev.map(i => {
-          if (i.cartItemId === duplicate.cartItemId) return { ...i, quantity: i.quantity + item.quantity }
-          if (i.cartItemId === cartItemId) return null
-          return i
-        }).filter(Boolean)
+      const existingSame = prev.find(i => {
+        if (i.id !== item.id || i.cartItemId === cartItemId) return false
+        return [...(i.notes || [])].sort().join(',') === [...notes].sort().join(',')
+      })
+      if (existingSame) {
+        return prev.filter(i => i.cartItemId !== cartItemId)
+          .map(i => i.cartItemId === existingSame.cartItemId ? { ...i, quantity: i.quantity + item.quantity } : i)
       }
-      return prev.map(i => i.cartItemId === cartItemId ? { ...i, note } : i)
+      return prev.map(i => i.cartItemId === cartItemId ? { ...i, notes } : i)
     })
   }
 
   const removeItem = (cartItemId) => setCart(prev => prev.filter(i => i.cartItemId !== cartItemId))
   const clearCart = () => setCart([])
 
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const subtotal = cart.reduce((sum, i) => sum + getItemUnitPrice(i) * i.quantity, 0)
   const tax = Math.round(subtotal * taxRate * 100) / 100
   const deliveryFee = diningType === 'delivery' ? (subtotal >= 30 ? 0 : 3.99) : 0
   const total = Math.round((subtotal + tax + deliveryFee) * 100) / 100
@@ -86,7 +135,10 @@ export default function EmployeeOrder() {
     if (cart.length === 0) { toast('购物车为空', 'error'); return }
     try {
       const res = await api.createOrder({
-        items: cart.map(i => ({ id: i.id, quantity: i.quantity, price: i.price, note: i.note })),
+        items: cart.map(i => ({
+          id: i.id, quantity: i.quantity, price: getItemUnitPrice(i),
+          note: (i.notes || []).join(', ')
+        })),
         dining_type: diningType,
         customer_name: user?.name || user?.username || '员工下单',
         customer_phone: '',
@@ -108,6 +160,12 @@ export default function EmployeeOrder() {
       setPwdDialog(false)
       setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
     } catch (e) { toast(e.message, 'error') }
+  }
+
+  const toggleTag = (tagName) => {
+    setSelectedTags(prev =>
+      prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
+    )
   }
 
   return (
@@ -177,7 +235,7 @@ export default function EmployeeOrder() {
                 return (
                   <div
                     key={product.id}
-                    onClick={() => addToCart(product)}
+                    onClick={() => handleProductClick(product)}
                     className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-pointer active:scale-95 relative group"
                   >
                     {inCart && (
@@ -224,25 +282,39 @@ export default function EmployeeOrder() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{item.name}</p>
-                        {item.note && <span className="inline-block mt-1 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full">{item.note}</span>}
-                        <p className="text-xs text-primary-600 mt-0.5">${parseFloat(item.price).toFixed(2)}</p>
+                        <p className="text-xs text-primary-600 mt-0.5">${getItemUnitPrice(item).toFixed(2)}</p>
                       </div>
                       <button onClick={() => removeItem(item.cartItemId)} className="text-gray-300 hover:text-red-500 text-sm flex-shrink-0">✕</button>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="备注（可选）"
-                      value={item.note}
-                      onChange={e => updateNote(item.cartItemId, e.target.value)}
-                      className="mt-2 w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary-400 bg-white"
-                    />
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {(item.notes || []).length > 0 ? (
+                        item.notes.map(tagName => {
+                          const info = getTagInfo(tagName)
+                          return (
+                            <button
+                              key={tagName}
+                              onClick={() => openEditTags(item)}
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                info.extra_price > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'
+                              } hover:opacity-80 transition`}
+                            >
+                              {tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <button onClick={() => openEditTags(item)} className="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 transition">
+                          + 选口味
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <button onClick={() => updateQty(item.cartItemId, -1)} className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm hover:bg-gray-300">-</button>
                         <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
                         <button onClick={() => updateQty(item.cartItemId, 1)} className="w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm hover:bg-primary-700">+</button>
                       </div>
-                      <span className="text-sm font-bold text-gray-800">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-sm font-bold text-gray-800">${(getItemUnitPrice(item) * item.quantity).toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
@@ -267,6 +339,60 @@ export default function EmployeeOrder() {
           </div>
         </aside>
       </div>
+
+      <Dialog open={!!tagsDialog} onClose={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }} title={editCartItemId ? '修改口味' : '选择口味'} width="max-w-md">
+        {tagsDialog && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-gray-800">{tagsDialog.name}</p>
+                <p className="text-sm text-primary-600">${parseFloat(tagsDialog.price).toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-3">
+              {Object.entries(flavorGrouped).map(([category, tags]) => (
+                <div key={category}>
+                  <p className="text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">{category}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map(tag => {
+                      const selected = selectedTags.includes(tag.name)
+                      return (
+                        <button
+                          key={tag.id}
+                          onClick={() => toggleTag(tag.name)}
+                          className={`px-3 py-1.5 rounded-lg text-sm transition border ${
+                            selected
+                              ? 'bg-primary-600 text-white border-primary-600 shadow'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
+                          }`}
+                        >
+                          {tag.name}
+                          {tag.extra_price > 0 && (
+                            <span className={selected ? 'text-primary-100 ml-1' : 'text-gray-400 ml-1'}>+${tag.extra_price.toFixed(2)}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {Object.keys(flavorGrouped).length === 0 && (
+                <p className="text-center text-gray-400 text-sm py-4">暂无口味选项</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="text-sm">
+                <span className="text-gray-500">已选 {selectedTags.length} 项</span>
+                <span className="text-primary-600 ml-3">+${calcTagsExtraPrice(selectedTags).toFixed(2)}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }}>取消</Button>
+                <Button onClick={confirmTags}>{editCartItemId ? '确认修改' : '加入购物车'}</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <Dialog open={!!success} onClose={() => setSuccess(null)} title="下单成功" width="max-w-sm">
         {success && (
