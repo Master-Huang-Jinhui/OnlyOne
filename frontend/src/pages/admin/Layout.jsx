@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [menus, setMenus] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState({})
 
   useEffect(() => {
     api.getMenus().then(data => {
@@ -28,6 +30,19 @@ export default function AdminLayout() {
       setMenus(menuList)
     }).catch(() => {})
   }, [user])
+
+  useEffect(() => {
+    const activeParent = menus.find(m =>
+      m.children?.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + '/'))
+    )
+    if (activeParent && !expandedMenus[activeParent.id]) {
+      setExpandedMenus(prev => ({ ...prev, [activeParent.id]: true }))
+    }
+  }, [location.pathname, menus])
+
+  const toggleExpand = (id) => {
+    setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   const handleLogout = () => {
     logout()
@@ -58,21 +73,64 @@ export default function AdminLayout() {
         )}
       </div>
       <nav className="flex-1 py-4 overflow-y-auto">
-        {(menus || []).map(menu => (
-          <NavLink
-            key={menu.id}
-            to={menu.path}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
-                isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
-              }`
-            }
-          >
-            <span className="text-lg">{menu.icon || '📄'}</span>
-            {!desktopCollapsed && <span>{menu.name}</span>}
-          </NavLink>
-        ))}
+        {(menus || []).map(menu => {
+          const hasChildren = menu.children && menu.children.length > 0
+          const isExpanded = expandedMenus[menu.id]
+
+          if (hasChildren) {
+            return (
+              <div key={menu.id}>
+                <button
+                  onClick={() => toggleExpand(menu.id)}
+                  className="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors text-gray-600 hover:bg-gray-50 w-full"
+                >
+                  <span className="text-lg">{menu.icon || '📄'}</span>
+                  {!desktopCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{menu.name}</span>
+                      <span className="text-xs text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                    </>
+                  )}
+                </button>
+                {isExpanded && !desktopCollapsed && (
+                  <div className="ml-3">
+                    {menu.children.map(child => (
+                      <NavLink
+                        key={child.id}
+                        to={child.path}
+                        onClick={onNavigate}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors ${
+                            isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-50'
+                          }`
+                        }
+                      >
+                        <span className="text-sm">{child.icon || '•'}</span>
+                        <span>{child.name}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          return (
+            <NavLink
+              key={menu.id}
+              to={menu.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
+                  isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                }`
+              }
+            >
+              <span className="text-lg">{menu.icon || '📄'}</span>
+              {!desktopCollapsed && <span>{menu.name}</span>}
+            </NavLink>
+          )
+        })}
       </nav>
       <div className="p-4 border-t flex-shrink-0">
         <Link to="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-3" onClick={onNavigate}>
@@ -87,12 +145,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* 桌面端侧边栏（固定不动） */}
       <aside className={`hidden lg:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 sticky top-0 h-screen ${desktopCollapsed ? 'w-16' : 'w-60'}`}>
         <SidebarContent showCollapse={true} />
       </aside>
 
-      {/* 手机端侧边栏抽屉 */}
       {sidebarOpen && (
         <>
           <div
@@ -105,7 +161,6 @@ export default function AdminLayout() {
         </>
       )}
 
-      {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
