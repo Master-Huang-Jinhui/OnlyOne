@@ -85,6 +85,10 @@ export default function Forms() {
   const [menuForm, setMenuForm] = useState({ name: '', icon: '📝', parent_id: 0, sort_order: 0 })
   const [menus, setMenus] = useState([])
   const [currentForm, setCurrentForm] = useState(null)
+  const [moveDialog, setMoveDialog] = useState(false)
+  const [moveForm, setMoveForm] = useState(null)
+  const [moveMenuId, setMoveMenuId] = useState(null)
+  const [moveParentId, setMoveParentId] = useState(0)
 
   useEffect(() => { load() }, [])
 
@@ -111,10 +115,33 @@ export default function Forms() {
         enabled: 1
       })
       toast('已添加到菜单，刷新后侧边栏可见')
-      setMenuDialog(false)
-    } catch (e) {
-      toast(e.message, 'error')
-    }
+      setMenuDialog(false); load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  const findFormMenu = (formId) => (menus || []).find(m => m.path === `/admin/form/${formId}`)
+
+  const getMenuName = (menuId) => {
+    const m = (menus || []).find(x => x.id === menuId)
+    return m ? m.name : '一级菜单（无上级）'
+  }
+
+  const openMoveDialog = (f) => {
+    const menu = findFormMenu(f.id)
+    if (!menu) { toast('该表单尚未添加到菜单', 'error'); return }
+    setMoveForm(f)
+    setMoveMenuId(menu.id)
+    setMoveParentId(menu.parent_id || 0)
+    setMoveDialog(true)
+  }
+
+  const doMove = async () => {
+    if (!moveMenuId || !moveForm) return
+    try {
+      await api.updateMenu(moveMenuId, { parent_id: moveParentId })
+      toast(`已移动到「${getMenuName(moveParentId)}」，刷新侧边栏生效`)
+      setMoveDialog(false); load()
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const createFromTemplate = (tpl) => {
@@ -207,14 +234,24 @@ export default function Forms() {
           { header: '字段数', render: f => <Badge variant="primary">{(f.fields || []).length || 0} 个字段</Badge> },
           { header: '状态', render: f => <Badge variant={f.enabled ? 'success' : 'default'}>{f.enabled ? '启用' : '停用'}</Badge> },
           { header: '创建时间', render: f => <span className="text-xs text-gray-400">{f.created_at}</span> }
-        ]} data={forms || []} actions={f => (
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={() => openMenuDialog(f)} className="text-blue-500 hover:text-blue-700 text-sm">加到菜单</button>
+        ]} data={forms || []} actions={f => {
+          const menu = findFormMenu(f.id)
+          return (
+          <div className="flex gap-2 flex-wrap items-center">
+            {menu ? (
+              <>
+                <span className="text-xs text-gray-400">📍 {getMenuName(menu.parent_id)}</span>
+                <button onClick={() => openMoveDialog(f)} className="text-purple-500 hover:text-purple-700 text-sm">移动菜单</button>
+              </>
+            ) : (
+              <button onClick={() => openMenuDialog(f)} className="text-blue-500 hover:text-blue-700 text-sm">加到菜单</button>
+            )}
             <button onClick={() => viewSubmissions(f.id)} className="text-green-500 hover:text-green-700 text-sm">提交记录</button>
             <button onClick={() => openEdit(f)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
             <button onClick={() => remove(f.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
           </div>
-        )} />
+          )
+        }} />
       </Card>
       )}
 
@@ -294,6 +331,21 @@ export default function Forms() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
             <p>菜单路径将自动设置为：<code className="bg-white px-1 rounded">/admin/form/{currentForm?.id}</code></p>
             <p className="mt-1 text-xs">添加后刷新页面，侧边栏将显示该菜单项</p>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog open={moveDialog} onClose={() => setMoveDialog(false)} title={`移动菜单 - ${moveForm?.name || ''}`}
+        footer={<><Button variant="outline" onClick={() => setMoveDialog(false)}>取消</Button><Button onClick={doMove}>确认移动</Button></>}>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">将此表单从当前一级菜单移动到其他一级菜单下</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-sm">
+            <p><span className="text-gray-500">当前位置：</span><span className="font-medium text-gray-800">{moveMenuId !== null && getMenuName((menus || []).find(m => m.id === moveMenuId)?.parent_id || 0)}</span></p>
+          </div>
+          <Select label="移动到" value={moveParentId} onChange={e => setMoveParentId(parseInt(e.target.value))}
+            options={[{ value: 0, label: '一级菜单（无上级）' }, ...(menus || []).filter(m => m.parent_id === 0).map(m => ({ value: m.id, label: m.name }))]} />
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-700">
+            <p>移动后刷新页面，侧边栏菜单将显示在新位置</p>
           </div>
         </div>
       </Dialog>
