@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Table, Badge, Dialog, Input, Select, Switch, toast } from '../../components/ui'
+import { Card, Button, Badge, Dialog, Input, Select, Switch, toast } from '../../components/ui'
 
 const emptyForm = { name: '', icon: '📄', path: '', parent_id: 0, sort_order: 0, enabled: true }
 
 export default function Menus() {
   const [menus, setMenus] = useState([])
+  const [forms, setForms] = useState([])
   const [dialog, setDialog] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [linkType, setLinkType] = useState('path')
+  const [linkedFormId, setLinkedFormId] = useState('')
   const [moveDialog, setMoveDialog] = useState(false)
   const [moveMenu, setMoveMenu] = useState(null)
   const [moveParentId, setMoveParentId] = useState(0)
@@ -16,14 +19,48 @@ export default function Menus() {
 
   useEffect(() => { load() }, [])
 
-  const load = () => api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {})
+  const load = () => {
+    api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getForms().then(data => setForms(Array.isArray(data) ? data : [])).catch(() => {})
+  }
 
-  const openAdd = (parentId = 0) => { setEditing(null); setForm({ ...emptyForm, parent_id: parentId }); setDialog(true) }
-  const openEdit = (m) => { setEditing(m); setForm({ ...m, enabled: !!m.enabled }); setDialog(true) }
+  const openAdd = (parentId = 0) => {
+    setEditing(null)
+    setForm({ ...emptyForm, parent_id: parentId })
+    setLinkType('path')
+    setLinkedFormId('')
+    setDialog(true)
+  }
+
+  const openEdit = (m) => {
+    setEditing(m)
+    setForm({ ...m, enabled: !!m.enabled })
+    if (m.path && m.path.startsWith('/admin/form/')) {
+      setLinkType('form')
+      setLinkedFormId(m.path.replace('/admin/form/', ''))
+    } else {
+      setLinkType('path')
+      setLinkedFormId('')
+    }
+    setDialog(true)
+  }
+
+  const handleLinkTypeChange = (type) => {
+    setLinkType(type)
+    if (type === 'form') {
+      if (linkedFormId) setForm(f => ({ ...f, path: `/admin/form/${linkedFormId}` }))
+      else setForm(f => ({ ...f, path: '' }))
+    }
+  }
+
+  const handleFormSelect = (formId) => {
+    setLinkedFormId(formId)
+    if (formId) setForm(f => ({ ...f, path: `/admin/form/${formId}` }))
+  }
 
   const save = async () => {
     if (!form.name) { toast('菜单名称必填', 'error'); return }
-    if (!form.path) { toast('菜单路径必填', 'error'); return }
+    if (!form.path) { toast(linkType === 'form' ? '请选择绑定的表单' : '菜单路径必填', 'error'); return }
     try {
       if (editing) { await api.updateMenu(editing.id, form); toast('更新成功') }
       else { await api.createMenu(form); toast('创建成功') }
@@ -38,6 +75,7 @@ export default function Menus() {
 
   const hasChildren = (id) => menus.some(m => m.parent_id === id)
   const getMenuName = (id) => { const m = menus.find(x => x.id === id); return m ? m.name : '一级菜单（无上级）' }
+  const getFormName = (id) => { const f = forms.find(x => String(x.id) === String(id)); return f ? f.name : '' }
 
   const openMoveDialog = (m) => {
     setMoveMenu(m)
@@ -62,13 +100,14 @@ export default function Menus() {
   const topMenus = menus.filter(m => m.parent_id === 0)
   const getSubMenus = (parentId) => menus.filter(m => m.parent_id === parentId)
   const parentOptions = [{ value: 0, label: '一级菜单（无上级）' }, ...topMenus.map(m => ({ value: m.id, label: m.name }))]
+  const isTopLevel = form.parent_id === 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">菜单管理</h2>
-          <p className="text-sm text-gray-400 mt-1">管理后台侧边栏菜单结构，支持一级二级菜单移动</p>
+          <p className="text-sm text-gray-400 mt-1">管理侧边栏菜单结构，二级菜单可直接绑定表单</p>
         </div>
         <Button onClick={() => openAdd(0)}>+ 添加菜单</Button>
       </div>
@@ -99,7 +138,11 @@ export default function Menus() {
                       <div className="flex items-center gap-3">
                         <span>{sub.icon}</span>
                         <span className="text-gray-700">{sub.name}</span>
-                        <code className="text-xs text-gray-400">{sub.path}</code>
+                        {sub.path && sub.path.startsWith('/admin/form/') ? (
+                          <Badge variant="primary">表单：{getFormName(sub.path.replace('/admin/form/', ''))}</Badge>
+                        ) : (
+                          <code className="text-xs text-gray-400">{sub.path}</code>
+                        )}
                         <Badge variant={sub.enabled ? 'success' : 'default'}>{sub.enabled ? '显示' : '隐藏'}</Badge>
                       </div>
                       <div className="flex gap-2">
@@ -123,9 +166,21 @@ export default function Menus() {
             <Input label="菜单名称 *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <Input label="图标（emoji）" value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} placeholder="如 📄" />
           </div>
-          <Input label="菜单路径 *" value={form.path} onChange={e => setForm({ ...form, path: e.target.value })} placeholder="如 /admin/products" />
+
+          {!isTopLevel && (
+            <Select label="链接类型" value={linkType} onChange={e => handleLinkTypeChange(e.target.value)}
+              options={[{ value: 'path', label: '普通路径' }, { value: 'form', label: '绑定表单' }]} />
+          )}
+
+          {linkType === 'form' && !isTopLevel ? (
+            <Select label="选择表单 *" value={linkedFormId} onChange={e => handleFormSelect(e.target.value)}
+              options={[{ value: '', label: '请选择表单' }, ...forms.map(f => ({ value: String(f.id), label: f.name }))]} />
+          ) : (
+            <Input label="菜单路径 *" value={form.path} onChange={e => setForm({ ...form, path: e.target.value })} placeholder={isTopLevel ? '一级菜单可留空或填分组路径' : '如 /admin/products'} />
+          )}
+
           <div className="grid grid-cols-2 gap-4">
-            <Select label="上级菜单" value={form.parent_id} onChange={e => setForm({ ...form, parent_id: parseInt(e.target.value) })} options={parentOptions} />
+            <Select label="上级菜单" value={form.parent_id} onChange={e => { setForm({ ...form, parent_id: parseInt(e.target.value) }); if (parseInt(e.target.value) === 0) { setLinkType('path'); setLinkedFormId(''); } }} options={parentOptions} />
             <Input label="排序" type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
           </div>
           <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label="显示菜单" />
