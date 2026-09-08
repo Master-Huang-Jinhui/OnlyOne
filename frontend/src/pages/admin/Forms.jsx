@@ -157,12 +157,13 @@ export default function Forms() {
       ) : (
       <Card>
         <Table columns={[
-          { header: '表单名称', render: f => <div><p className="font-medium text-gray-800">{f.name}</p><p className="text-xs text-gray-400">{f.description || '-'}</p></div> },
+          { header: '表单名称', render: f => <div><p className="font-medium text-gray-800 cursor-pointer hover:text-primary-600" onClick={() => window.open(`/admin/form/${f.id}`, '_blank')}>{f.name}</p><p className="text-xs text-gray-400">{f.description || '-'}</p></div> },
           { header: '字段数', render: f => <Badge variant="primary">{(f.fields || []).length || 0} 个字段</Badge> },
           { header: '状态', render: f => <Badge variant={f.enabled ? 'success' : 'default'}>{f.enabled ? '启用' : '停用'}</Badge> },
           { header: '创建时间', render: f => <span className="text-xs text-gray-400">{f.created_at}</span> }
         ]} data={forms || []} actions={f => (
           <div className="flex gap-2 flex-wrap">
+            <button onClick={() => window.open(`/admin/form/${f.id}`, '_blank')} className="text-blue-500 hover:text-blue-700 text-sm">打开表单</button>
             <button onClick={() => viewSubmissions(f.id)} className="text-green-500 hover:text-green-700 text-sm">提交记录</button>
             <button onClick={() => openEdit(f)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
             <button onClick={() => remove(f.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
