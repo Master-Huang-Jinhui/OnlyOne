@@ -113,8 +113,7 @@ export const api = {
   exportProfitResult: async (results) => {
     const token = getToken()
     const res = await fetch(`${BASE}/stats/profit/export`, {
-      method: 'POST',
-      body: JSON.stringify({ results }),
+      method: 'POST', body: JSON.stringify({ results }),
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
     })
     if (!res.ok) throw new Error('导出失败')
@@ -126,6 +125,14 @@ export const api = {
     a.click()
     window.URL.revokeObjectURL(url)
   },
+  searchProfitHistory: (keyword) => request(`/stats/profit/history/search?keyword=${encodeURIComponent(keyword)}`),
+  getProfitHistoryLatest: (productId, productName) => {
+    const params = new URLSearchParams()
+    if (productId) params.append('product_id', productId)
+    if (productName) params.append('product_name', productName)
+    return request(`/stats/profit/history/latest?${params.toString()}`)
+  },
+  saveProfitRecord: (data) => request('/stats/profit/save', { method: 'POST', body: JSON.stringify(data) }),
   getCarousel: () => request('/content/carousel'),
   getAllCarousel: () => request('/content/carousel/all'),
   createCarousel: (data) => request('/content/carousel', { method: 'POST', body: JSON.stringify(data) }),
