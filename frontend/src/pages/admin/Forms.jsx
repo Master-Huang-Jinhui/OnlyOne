@@ -156,9 +156,6 @@ export default function Forms() {
         </div>
       ) : (
       <Card>
-        <div className="p-4 border-b flex justify-end">
-          <Button onClick={openAdd}>+ 创建表单</Button>
-        </div>
         <Table columns={[
           { header: '表单名称', render: f => <div><p className="font-medium text-gray-800">{f.name}</p><p className="text-xs text-gray-400">{f.description || '-'}</p></div> },
           { header: '字段数', render: f => <Badge variant="primary">{(f.fields || []).length || 0} 个字段</Badge> },
