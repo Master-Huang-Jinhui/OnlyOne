@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [memoDialog, setMemoDialog] = useState(false)
   const [memoForm, setMemoForm] = useState({ title: '', content: '', type: 'memo', priority: 'normal' })
   const [detail, setDetail] = useState(null)
+  const [topProducts, setTopProducts] = useState([])
   const lastPendingCount = useRef(0)
   const isFirstLoad = useRef(true)
 
@@ -76,6 +77,7 @@ export default function Dashboard() {
     api.getOrderStats().then(data => setStats(data || {})).catch(() => {})
     api.getPlatforms().then(data => setPlatforms(Array.isArray(data) ? data : [])).catch(() => {})
     api.getMemos().then(data => setMemos(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getTopProducts().then(data => setTopProducts(Array.isArray(data) ? data : [])).catch(() => {})
     loadPendingOrders(1)
   }
 
@@ -112,6 +114,7 @@ export default function Dashboard() {
         <span className="text-sm text-gray-400">欢迎回来 👋</span>
       </div>
 
+      {/* 统计卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="今日订单" value={stats.today_count || 0} icon="📋" color="blue" />
         <StatCard title="今日营收" value={`$${(stats.today_revenue || 0).toFixed(2)}`} icon="💰" color="green" />
@@ -119,6 +122,36 @@ export default function Dashboard() {
         <StatCard title="本周订单" value={stats.week_count || 0} icon="📊" color="purple" />
       </div>
 
+      {/* 热销 TOP5 */}
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/admin/stats/product')}>
+        <div className="px-5 py-4 border-b flex items-center justify-between bg-gradient-to-r from-red-50 to-orange-50">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🔥</span>
+            <h3 className="font-semibold text-gray-800">菜品热销 TOP5</h3>
+          </div>
+          <span className="text-xs text-gray-400">点击查看完整统计 →</span>
+        </div>
+        <div className="p-4">
+          {topProducts.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">暂无销售数据</p>
+          ) : (
+            <div className="space-y-2">
+              {topProducts.map((p, i) => (
+                <div key={p.product_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-yellow-400 text-white' : i === 1 ? 'bg-gray-300 text-white' : i === 2 ? 'bg-orange-300 text-white' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
+                  <span className="flex-1 font-medium text-gray-800 text-sm">{p.name}</span>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-gray-500">{p.order_count} 单</span>
+                    <span className="text-primary-600 font-bold">{p.total_sold} 份</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* 备忘录 / 重点事项（优先级最高） */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">备忘录 / 重点事项</h3>
@@ -149,6 +182,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* 今日待处理订单 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -209,6 +243,7 @@ export default function Dashboard() {
         )}
       </Card>
 
+      {/* 外卖平台 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">外卖平台</h3>
@@ -241,6 +276,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* 添加备忘对话框 */}
       <Dialog
         open={memoDialog}
         onClose={() => setMemoDialog(false)}
@@ -251,14 +287,13 @@ export default function Dashboard() {
           <Input label="标题 *" value={memoForm.title} onChange={e => setMemoForm({ ...memoForm, title: e.target.value })} placeholder="备忘标题" />
           <Textarea label="内容" value={memoForm.content} onChange={e => setMemoForm({ ...memoForm, content: e.target.value })} placeholder="详细内容（可选）" rows={3} />
           <div className="grid grid-cols-2 gap-4">
-            <Select label="类型" value={memoForm.type} onChange={e => setMemoForm({ ...memoForm, type: e.target.value })}
-              options={[{ value: 'memo', label: '备忘录' }, { value: 'important', label: '重点事项' }]} />
-            <Select label="优先级" value={memoForm.priority} onChange={e => setMemoForm({ ...memoForm, priority: e.target.value })}
-              options={[{ value: 'normal', label: '普通' }, { value: 'high', label: '高优先级' }]} />
+            <Select label="类型" value={memoForm.type} onChange={e => setMemoForm({ ...memoForm, type: e.target.value })} options={[{ value: 'memo', label: '备忘录' }, { value: 'important', label: '重点事项' }]} />
+            <Select label="优先级" value={memoForm.priority} onChange={e => setMemoForm({ ...memoForm, priority: e.target.value })} options={[{ value: 'normal', label: '普通' }, { value: 'high', label: '高优先级' }]} />
           </div>
         </div>
       </Dialog>
 
+      {/* 订单详情弹窗 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`订单详情 - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
