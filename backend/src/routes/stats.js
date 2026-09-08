@@ -6,12 +6,12 @@ const router = express.Router();
 
 // 统计所有菜品销量（从 orders.items JSON 聚合）
 function calcProductStats() {
-  const products = db.prepare('SELECT id, name, name_en, category_id, price, enabled FROM products').all();
+  const products = db.prepare('SELECT id, name, name_en, category_id, price, available FROM products').all();
   const orders = db.prepare("SELECT items FROM orders WHERE status != 'cancelled'").all();
 
   const statsMap = {};
   for (const p of products) {
-    statsMap[p.id] = { product_id: p.id, name: p.name, category_id: p.category_id, price: p.price, enabled: p.enabled, order_count: 0, total_sold: 0 };
+    statsMap[p.id] = { product_id: p.id, name: p.name, category_id: p.category_id, price: p.price, available: p.available, order_count: 0, total_sold: 0 };
   }
 
   for (const o of orders) {
