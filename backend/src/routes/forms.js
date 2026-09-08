@@ -4,7 +4,7 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', auth, (req, res) => {
+router.get('/', auth, managerAccess, (req, res) => {
   const forms = db.prepare('SELECT * FROM forms ORDER BY id DESC').all();
   forms.forEach(f => f.fields = JSON.parse(f.fields || '[]'));
   res.json(forms);
@@ -40,9 +40,11 @@ router.put('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// 删除表单（同时清理关联的菜单项）
 router.delete('/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM forms WHERE id = ?').run(req.params.id);
   db.prepare('DELETE FROM form_submissions WHERE form_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM menus WHERE path = ?').run('/admin/form/' + req.params.id);
   res.json({ success: true });
 });
 
