@@ -4,6 +4,7 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
+// 菜单树（所有登录用户可看）
 router.get('/', auth, (req, res) => {
   const menus = db.prepare('SELECT * FROM menus WHERE enabled = 1 ORDER BY sort_order, id').all();
   const tree = menus.filter(m => m.parent_id === 0).map(parent => ({
@@ -13,20 +14,25 @@ router.get('/', auth, (req, res) => {
   res.json(tree);
 });
 
+// 全部菜单（管理用）
 router.get('/all', auth, managerAccess, (req, res) => {
   const menus = db.prepare('SELECT * FROM menus ORDER BY sort_order, id').all();
   res.json(menus);
 });
 
+// 创建菜单（去重校验）
 router.post('/', auth, managerAccess, (req, res) => {
   const { parent_id = 0, name, icon, path, sort_order = 0, enabled = 1 } = req.body;
   if (!name) return res.status(400).json({ error: '菜单名称必填' });
+  const exist = db.prepare('SELECT id FROM menus WHERE parent_id = ? AND name = ? AND path = ?').get(parent_id, name, path || '');
+  if (exist) return res.status(400).json({ error: '同级已存在相同名称和路径的菜单' });
   const result = db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?)').run(
     parent_id, name, icon, path, sort_order, enabled ? 1 : 0
   );
   res.json({ id: result.lastInsertRowid });
 });
 
+// 更新菜单
 router.put('/:id', auth, managerAccess, (req, res) => {
   const allowed = ['parent_id', 'name', 'icon', 'path', 'sort_order', 'enabled'];
   const fields = [];
@@ -43,6 +49,7 @@ router.put('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// 删除菜单（同时删除子菜单）
 router.delete('/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM menus WHERE id = ?').run(req.params.id);
   db.prepare('DELETE FROM menus WHERE parent_id = ?').run(req.params.id);
