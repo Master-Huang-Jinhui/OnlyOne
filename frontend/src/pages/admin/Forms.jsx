@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Switch, Empty, toast } from '../../components/ui'
+import { Card, Button, Table, Badge, Dialog, Input, Select, Switch, Empty, toast } from '../../components/ui'
 
 const fieldTypes = [
   { value: 'text', label: '单行文本' },
@@ -21,9 +21,7 @@ const emptyForm = { name: '', description: '', fields: [], enabled: true }
 
 const quickTemplates = [
   {
-    icon: '📋',
-    name: '顾客反馈表',
-    description: '收集顾客对菜品和服务的反馈',
+    icon: '📋', name: '顾客反馈表', description: '收集顾客对菜品和服务的反馈',
     fields: [
       { type: 'text', label: '顾客姓名', placeholder: '请输入姓名', required: true, options: '' },
       { type: 'tel', label: '联系电话', placeholder: '请输入电话', required: false, options: '' },
@@ -33,9 +31,7 @@ const quickTemplates = [
     ]
   },
   {
-    icon: '📅',
-    name: '包间预订表',
-    description: '顾客预订包间或大型聚餐',
+    icon: '📅', name: '包间预订表', description: '顾客预订包间或大型聚餐',
     fields: [
       { type: 'text', label: '预订人姓名', placeholder: '请输入姓名', required: true, options: '' },
       { type: 'tel', label: '联系电话', placeholder: '请输入电话', required: true, options: '' },
@@ -47,9 +43,7 @@ const quickTemplates = [
     ]
   },
   {
-    icon: '💼',
-    name: '员工入职表',
-    description: '新员工基本信息登记',
+    icon: '💼', name: '员工入职表', description: '新员工基本信息登记',
     fields: [
       { type: 'text', label: '姓名', placeholder: '请输入姓名', required: true, options: '' },
       { type: 'tel', label: '电话', placeholder: '请输入电话', required: true, options: '' },
@@ -61,9 +55,7 @@ const quickTemplates = [
     ]
   },
   {
-    icon: '📦',
-    name: '采购申请表',
-    description: '店内物资和食材采购申请',
+    icon: '📦', name: '采购申请表', description: '店内物资和食材采购申请',
     fields: [
       { type: 'text', label: '申请人', placeholder: '请输入姓名', required: true, options: '' },
       { type: 'date', label: '申请日期', placeholder: '', required: true, options: '' },
@@ -81,68 +73,13 @@ export default function Forms() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [submissions, setSubmissions] = useState(null)
-  const [menuDialog, setMenuDialog] = useState(false)
-  const [menuForm, setMenuForm] = useState({ name: '', icon: '📝', parent_id: 0, sort_order: 0 })
-  const [menus, setMenus] = useState([])
-  const [currentForm, setCurrentForm] = useState(null)
-  const [moveDialog, setMoveDialog] = useState(false)
-  const [moveForm, setMoveForm] = useState(null)
-  const [moveMenuId, setMoveMenuId] = useState(null)
-  const [moveParentId, setMoveParentId] = useState(0)
 
   useEffect(() => { load() }, [])
 
-  const load = () => {
-    api.getForms().then(data => setForms(Array.isArray(data) ? data : [])).catch(() => {})
-    api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {})
-  }
+  const load = () => api.getForms().then(data => setForms(Array.isArray(data) ? data : [])).catch(() => {})
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
   const openEdit = (f) => { setEditing(f); setForm({ ...f, fields: f.fields || [] }); setDialog(true) }
-
-  const openMenuDialog = (f) => {
-    setCurrentForm(f)
-    setMenuForm({ name: f.name, icon: '📝', parent_id: 0, sort_order: 0 })
-    setMenuDialog(true)
-  }
-
-  const addToMenu = async () => {
-    if (!menuForm.name || !currentForm) return
-    try {
-      await api.createMenu({
-        ...menuForm,
-        path: `/admin/form/${currentForm.id}`,
-        enabled: 1
-      })
-      toast('已添加到菜单，刷新后侧边栏可见')
-      setMenuDialog(false); load()
-    } catch (e) { toast(e.message, 'error') }
-  }
-
-  const findFormMenu = (formId) => (menus || []).find(m => m.path === `/admin/form/${formId}`)
-
-  const getMenuName = (menuId) => {
-    const m = (menus || []).find(x => x.id === menuId)
-    return m ? m.name : '一级菜单（无上级）'
-  }
-
-  const openMoveDialog = (f) => {
-    const menu = findFormMenu(f.id)
-    if (!menu) { toast('该表单尚未添加到菜单', 'error'); return }
-    setMoveForm(f)
-    setMoveMenuId(menu.id)
-    setMoveParentId(menu.parent_id || 0)
-    setMoveDialog(true)
-  }
-
-  const doMove = async () => {
-    if (!moveMenuId || !moveForm) return
-    try {
-      await api.updateMenu(moveMenuId, { parent_id: moveParentId })
-      toast(`已移动到「${getMenuName(moveParentId)}」，刷新侧边栏生效`)
-      setMoveDialog(false); load()
-    } catch (e) { toast(e.message, 'error') }
-  }
 
   const createFromTemplate = (tpl) => {
     setEditing(null)
@@ -165,17 +102,11 @@ export default function Forms() {
   }
 
   const addField = () => {
-    setForm(prev => ({
-      ...prev,
-      fields: [...(prev.fields || []), { type: 'text', label: '', placeholder: '', required: false, options: '' }]
-    }))
+    setForm(prev => ({ ...prev, fields: [...(prev.fields || []), { type: 'text', label: '', placeholder: '', required: false, options: '' }] }))
   }
 
   const updateField = (idx, key, value) => {
-    setForm(prev => ({
-      ...prev,
-      fields: (prev.fields || []).map((f, i) => i === idx ? { ...f, [key]: value } : f)
-    }))
+    setForm(prev => ({ ...prev, fields: (prev.fields || []).map((f, i) => i === idx ? { ...f, [key]: value } : f) }))
   }
 
   const removeField = (idx) => {
@@ -194,7 +125,7 @@ export default function Forms() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">表单管理</h2>
-          <p className="text-sm text-gray-400 mt-1">自定义表单，支持文本、下拉、日期、时间等主流字段</p>
+          <p className="text-sm text-gray-400 mt-1">创建自定义表单，在菜单管理中绑定到二级菜单即可显示</p>
         </div>
         <Button onClick={openAdd}>+ 创建表单</Button>
       </div>
@@ -209,7 +140,6 @@ export default function Forms() {
               <Button size="lg" onClick={openAdd}>+ 创建表单</Button>
             </div>
           </Card>
-
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-3">或从快速模板开始</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -234,24 +164,13 @@ export default function Forms() {
           { header: '字段数', render: f => <Badge variant="primary">{(f.fields || []).length || 0} 个字段</Badge> },
           { header: '状态', render: f => <Badge variant={f.enabled ? 'success' : 'default'}>{f.enabled ? '启用' : '停用'}</Badge> },
           { header: '创建时间', render: f => <span className="text-xs text-gray-400">{f.created_at}</span> }
-        ]} data={forms || []} actions={f => {
-          const menu = findFormMenu(f.id)
-          return (
-          <div className="flex gap-2 flex-wrap items-center">
-            {menu ? (
-              <>
-                <span className="text-xs text-gray-400">📍 {getMenuName(menu.parent_id)}</span>
-                <button onClick={() => openMoveDialog(f)} className="text-purple-500 hover:text-purple-700 text-sm">移动菜单</button>
-              </>
-            ) : (
-              <button onClick={() => openMenuDialog(f)} className="text-blue-500 hover:text-blue-700 text-sm">加到菜单</button>
-            )}
+        ]} data={forms || []} actions={f => (
+          <div className="flex gap-2 flex-wrap">
             <button onClick={() => viewSubmissions(f.id)} className="text-green-500 hover:text-green-700 text-sm">提交记录</button>
             <button onClick={() => openEdit(f)} className="text-primary-500 hover:text-primary-700 text-sm">编辑</button>
             <button onClick={() => remove(f.id)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
           </div>
-          )
-        }} />
+        )} />
       </Card>
       )}
 
@@ -262,7 +181,6 @@ export default function Forms() {
             <Input label="表单名称 *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <Input label="描述" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
-
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-medium text-gray-700">表单字段</label>
@@ -292,7 +210,6 @@ export default function Forms() {
               ))}
             </div>
           </div>
-
           <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label="启用表单" />
         </div>
       </Dialog>
@@ -315,39 +232,6 @@ export default function Forms() {
             ))}
           </div>
         )}
-      </Dialog>
-
-      <Dialog open={menuDialog} onClose={() => setMenuDialog(false)} title={`添加到菜单 - ${currentForm?.name || ''}`}
-        footer={<><Button variant="outline" onClick={() => setMenuDialog(false)}>取消</Button><Button onClick={addToMenu}>确认添加</Button></>}>
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">将此表单添加为后台菜单项，点击侧边栏菜单即可打开表单填写页面</p>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="菜单名称 *" value={menuForm.name} onChange={e => setMenuForm({ ...menuForm, name: e.target.value })} />
-            <Input label="图标（emoji）" value={menuForm.icon} onChange={e => setMenuForm({ ...menuForm, icon: e.target.value })} placeholder="如 📝" />
-          </div>
-          <Select label="上级菜单" value={menuForm.parent_id} onChange={e => setMenuForm({ ...menuForm, parent_id: parseInt(e.target.value) })}
-            options={[{ value: 0, label: '一级菜单（无上级）' }, ...(menus || []).filter(m => m.parent_id === 0).map(m => ({ value: m.id, label: m.name }))]} />
-          <Input label="排序" type="number" value={menuForm.sort_order} onChange={e => setMenuForm({ ...menuForm, sort_order: parseInt(e.target.value) || 0 })} />
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-            <p>菜单路径将自动设置为：<code className="bg-white px-1 rounded">/admin/form/{currentForm?.id}</code></p>
-            <p className="mt-1 text-xs">添加后刷新页面，侧边栏将显示该菜单项</p>
-          </div>
-        </div>
-      </Dialog>
-
-      <Dialog open={moveDialog} onClose={() => setMoveDialog(false)} title={`移动菜单 - ${moveForm?.name || ''}`}
-        footer={<><Button variant="outline" onClick={() => setMoveDialog(false)}>取消</Button><Button onClick={doMove}>确认移动</Button></>}>
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">将此表单从当前一级菜单移动到其他一级菜单下</p>
-          <div className="bg-gray-50 rounded-lg p-3 text-sm">
-            <p><span className="text-gray-500">当前位置：</span><span className="font-medium text-gray-800">{moveMenuId !== null && getMenuName((menus || []).find(m => m.id === moveMenuId)?.parent_id || 0)}</span></p>
-          </div>
-          <Select label="移动到" value={moveParentId} onChange={e => setMoveParentId(parseInt(e.target.value))}
-            options={[{ value: 0, label: '一级菜单（无上级）' }, ...(menus || []).filter(m => m.parent_id === 0).map(m => ({ value: m.id, label: m.name }))]} />
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-700">
-            <p>移动后刷新页面，侧边栏菜单将显示在新位置</p>
-          </div>
-        </div>
       </Dialog>
     </div>
   )
