@@ -213,6 +213,18 @@ db.exec(`
   );
 `);
 
+// 自动清理重复的菜单记录（path 相同的只保留 id 最小的）
+try {
+  db.prepare(`
+    DELETE FROM menus 
+    WHERE id NOT IN (
+      SELECT MIN(id) FROM menus 
+      WHERE path IS NOT NULL AND path != ''
+      GROUP BY path
+    )
+  `).run();
+} catch (e) { /* 忽略去重错误 */ }
+
 // 插入默认 admin 用户
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
