@@ -12,6 +12,11 @@ export default function ProductStats() {
   const [importLoading, setImportLoading] = useState(false)
   const [importInfo, setImportInfo] = useState(null)
   const fileInputRef = useRef(null)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchTimer = useRef(null)
 
   const load = (t = threshold) => {
     setLoading(true)
@@ -47,13 +52,52 @@ export default function ProductStats() {
     return { unitCost, portionCost, portionProfit, profitRate, totalPortions, totalRevenue, totalProfit, soldProfit }
   }, [profitForm, list])
 
-  const selectProduct = (e) => {
-    const pid = e.target.value
-    setProfitForm(f => ({ ...f, productId: pid }))
-    if (pid) {
-      const p = list.find(i => String(i.product_id) === String(pid))
-      if (p) setProfitForm(f => ({ ...f, productId: pid, sellPrice: p.price }))
-    }
+  const handleSearchChange = (e) => {
+    const kw = e.target.value
+    setSearchKeyword(kw)
+    setShowSearchDropdown(true)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    if (!kw.trim()) { setSearchResults([]); return }
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const data = await api.searchProfitHistory(kw)
+        setSearchResults(Array.isArray(data) ? data : [])
+      } catch { setSearchResults([]) }
+      finally { setSearchLoading(false) }
+    }, 300)
+  }
+
+  const handleSelectSearchResult = async (item) => {
+    setSearchKeyword(item.name)
+    setShowSearchDropdown(false)
+    setProfitForm(f => ({ ...f, productId: item.product_id || '' }))
+    try {
+      const history = await api.getProfitHistoryLatest(item.product_id, item.name)
+      if (history) {
+        setProfitForm(f => ({
+          ...f, productId: history.productId || item.product_id || '',
+          purchasePrice: history.purchasePrice, purchaseQty: history.purchaseQty,
+          unit: history.unit || '磅', portionPerUnit: history.portionPerUnit, sellPrice: history.sellPrice
+        }))
+        toast(`已自动填充 ${history.createdAt} 的最新记录`)
+      } else {
+        const p = list.find(i => String(i.product_id) === String(item.product_id))
+        if (p) setProfitForm(f => ({ ...f, sellPrice: p.price }))
+      }
+    } catch { /* 忽略 */ }
+  }
+
+  const handleSaveRecord = async () => {
+    if (!profitCalc) { toast('请先填写完整成本数据', 'error'); return }
+    try {
+      await api.saveProfitRecord({
+        productId: profitForm.productId || null, name: searchKeyword || '手动计算',
+        purchasePrice: parseFloat(profitForm.purchasePrice), purchaseQty: parseFloat(profitForm.purchaseQty),
+        unit: profitForm.unit, portionPerUnit: parseFloat(profitForm.portionPerUnit), sellPrice: parseFloat(profitForm.sellPrice)
+      })
+      toast('记录已保存，下次搜索可自动填充')
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const handleDownloadTemplate = async () => {
@@ -136,9 +180,25 @@ export default function ProductStats() {
             <Card>
               <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">📝 成本输入</h3></div>
               <div className="p-5 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">关联菜品（可选）</label>
-                  <Select value={profitForm.productId} onChange={selectProduct} options={[{ value: '', label: '不关联（手动计算）' }, ...list.map(p => ({ value: String(p.product_id), label: `${p.name} ($${parseFloat(p.price).toFixed(2)})` }))]} />
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">关联菜品（输入名称搜索，有记录自动填充）</label>
+                  <Input type="text" value={searchKeyword} onChange={handleSearchChange} onFocus={() => setShowSearchDropdown(true)} onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)} placeholder="输入菜品名称搜索，如：羊肉、奶茶..." className="w-full" />
+                  {showSearchDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {searchLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-400">搜索中...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-400">{searchKeyword ? '无匹配菜品，可手动输入名称计算' : '输入关键词搜索'}</div>
+                      ) : (
+                        searchResults.map((item, i) => (
+                          <div key={i} onMouseDown={() => handleSelectSearchResult(item)} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between">
+                            <span className="text-sm text-gray-800">{item.name}</span>
+                            {item.last_used && <span className="text-xs text-green-500">🕐 有记录</span>}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">采购总价 ($)</label><Input type="number" step="0.01" value={profitForm.purchasePrice} onChange={e => setProfitForm(f => ({ ...f, purchasePrice: e.target.value }))} placeholder="如 50.00" /></div>
@@ -188,6 +248,9 @@ export default function ProductStats() {
                       {profitCalc.profitRate >= 30 && profitCalc.profitRate < 50 && <p>📊 利润率 30%-50%，属于餐饮行业正常水平</p>}
                       {profitCalc.profitRate >= 50 && <p>🎉 利润率超过 50%，非常健康！</p>}
                       <p>💡 回本需要卖出：{Math.ceil(parseFloat(profitForm.purchasePrice) / profitCalc.portionProfit)} 份</p>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <Button size="sm" variant="outline" className="w-full" onClick={handleSaveRecord}>💾 保存此成本记录（下次搜索自动填充）</Button>
                     </div>
                   </div>
                 )}
