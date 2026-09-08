@@ -49,6 +49,7 @@ app.use('/api/flavor-categories', require('./routes/flavorCategories'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/tables', require('./routes/tables'));
 app.use('/api/attendance', require('./routes/attendance'));
+app.use('/api/stats', require('./routes/stats'));
 
 // 上传文件静态服务
 const uploadsDir = path.join(__dirname, '..', 'uploads');
