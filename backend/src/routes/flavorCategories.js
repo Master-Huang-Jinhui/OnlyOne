@@ -4,11 +4,32 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
+const parseCategoryIds = (str) => {
+  if (!str) return [];
+  try { return JSON.parse(str); } catch (e) { return []; }
+};
+
+const isApplicable = (flavorCat, productCategoryId) => {
+  if (!productCategoryId) return true;
+  const ids = parseCategoryIds(flavorCat.category_ids);
+  return ids.length === 0 || ids.includes(parseInt(productCategoryId));
+};
+
 router.get('/', (req, res) => {
-  const categories = db.prepare('SELECT * FROM flavor_categories WHERE enabled = 1 ORDER BY sort_order, id').all();
-  const tags = db.prepare('SELECT * FROM flavor_tags WHERE enabled = 1 ORDER BY sort_order, id').all();
+  const { product_category_id } = req.query;
+  let categories = db.prepare('SELECT * FROM flavor_categories WHERE enabled = 1 ORDER BY sort_order, id').all();
+  if (product_category_id) {
+    categories = categories.filter(cat => isApplicable(cat, product_category_id));
+  }
+  const catIds = categories.map(c => c.id);
+  let tags = [];
+  if (catIds.length > 0) {
+    const placeholders = catIds.map(() => '?').join(',');
+    tags = db.prepare(`SELECT * FROM flavor_tags WHERE enabled = 1 AND category_id IN (${placeholders}) ORDER BY sort_order, id`).all(...catIds);
+  }
   const result = categories.map(cat => ({
     ...cat,
+    category_ids: parseCategoryIds(cat.category_ids),
     tags: tags.filter(t => t.category_id === cat.id)
   }));
   res.json(result);
@@ -19,28 +40,32 @@ router.get('/all', auth, managerAccess, (req, res) => {
   const tags = db.prepare('SELECT * FROM flavor_tags ORDER BY sort_order, id').all();
   const result = categories.map(cat => ({
     ...cat,
+    category_ids: parseCategoryIds(cat.category_ids),
     tags: tags.filter(t => t.category_id === cat.id)
   }));
   res.json(result);
 });
 
 router.post('/', auth, managerAccess, (req, res) => {
-  const { name, sort_order = 0, enabled = 1 } = req.body;
+  const { name, sort_order = 0, enabled = 1, category_ids = [] } = req.body;
   if (!name) return res.status(400).json({ error: '请填写分类名称' });
   const exists = db.prepare('SELECT id FROM flavor_categories WHERE name = ?').get(name);
   if (exists) return res.status(400).json({ error: '该分类已存在' });
-  const r = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, ?)').run(name, sort_order, enabled);
-  res.json({ id: r.lastInsertRowid, name, sort_order, enabled });
+  const catIdsStr = JSON.stringify(Array.isArray(category_ids) ? category_ids : []);
+  const r = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled, category_ids) VALUES (?, ?, ?, ?)').run(name, sort_order, enabled, catIdsStr);
+  res.json({ id: r.lastInsertRowid, name, sort_order, enabled, category_ids });
 });
 
 router.put('/:id', auth, managerAccess, (req, res) => {
-  const { name, sort_order, enabled } = req.body;
+  const { name, sort_order, enabled, category_ids } = req.body;
   const cat = db.prepare('SELECT * FROM flavor_categories WHERE id = ?').get(req.params.id);
   if (!cat) return res.status(404).json({ error: '分类不存在' });
-  db.prepare('UPDATE flavor_categories SET name = ?, sort_order = ?, enabled = ? WHERE id = ?').run(
+  const catIdsStr = category_ids !== undefined ? JSON.stringify(Array.isArray(category_ids) ? category_ids : []) : cat.category_ids;
+  db.prepare('UPDATE flavor_categories SET name = ?, sort_order = ?, enabled = ?, category_ids = ? WHERE id = ?').run(
     name || cat.name,
     sort_order !== undefined ? sort_order : cat.sort_order,
     enabled !== undefined ? enabled : cat.enabled,
+    catIdsStr,
     req.params.id
   );
   if (name && name !== cat.name) {

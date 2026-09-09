@@ -5,12 +5,20 @@ const { auth, managerAccess } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  const tags = db.prepare(`
-    SELECT ft.* FROM flavor_tags ft
-    JOIN flavor_categories fc ON ft.category_id = fc.id
-    WHERE ft.enabled = 1 AND fc.enabled = 1
-    ORDER BY fc.sort_order, ft.sort_order, ft.id
-  `).all();
+  const { product_category_id } = req.query;
+  let categories = db.prepare('SELECT * FROM flavor_categories WHERE enabled = 1 ORDER BY sort_order, id').all();
+  if (product_category_id) {
+    categories = categories.filter(cat => {
+      if (!cat.category_ids) return true;
+      try { const ids = JSON.parse(cat.category_ids); return ids.length === 0 || ids.includes(parseInt(product_category_id)); } catch (e) { return true; }
+    });
+  }
+  const catIds = categories.map(c => c.id);
+  let tags = [];
+  if (catIds.length > 0) {
+    const placeholders = catIds.map(() => '?').join(',');
+    tags = db.prepare(`SELECT ft.* FROM flavor_tags ft WHERE ft.enabled = 1 AND ft.category_id IN (${placeholders}) ORDER BY ft.sort_order, ft.id`).all(...catIds);
+  }
   const grouped = {};
   tags.forEach(tag => {
     if (!grouped[tag.category]) grouped[tag.category] = [];
@@ -33,9 +41,7 @@ router.post('/', auth, managerAccess, (req, res) => {
     const cat = db.prepare('SELECT * FROM flavor_categories WHERE id = ?').get(category_id);
     if (cat) catName = cat.name;
   }
-  const result = db.prepare(
-    'INSERT INTO flavor_tags (category_id, category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(catId || null, catName, name, parseFloat(extra_price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
+  const result = db.prepare('INSERT INTO flavor_tags (category_id, category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)').run(catId || null, catName, name, parseFloat(extra_price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
   res.json({ id: result.lastInsertRowid });
 });
 
