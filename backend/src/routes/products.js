@@ -1,6 +1,9 @@
 const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
+const XLSX = require('xlsx');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
@@ -88,6 +91,108 @@ router.put('/:id', auth, managerAccess, (req, res) => {
 router.delete('/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+const EXPORT_HEADERS = ['一级大类', '菜品中文名', '菜品英文名', '价格', '是否上架', '图片URL', '描述', '英文描述'];
+
+router.get('/export/template', auth, managerAccess, (req, res) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    EXPORT_HEADERS,
+    ['招牌奶茶', '黑糖珍珠奶茶', 'Brown Sugar Boba Milk Tea', 5.99, '是', '', '香浓黑糖搭配Q弹珍珠', 'Rich brown sugar with chewy boba'],
+    ['烧烤串', '烤羊肉串', 'Lamb Skewer', 3.99, '是', '', '新疆风味，鲜嫩多汁', 'Xinjiang style, tender and juicy']
+  ]);
+  ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 30 }, { wch: 30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '菜品导入模板');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="product_import_template.xlsx"');
+  res.send(buf);
+});
+
+router.get('/export', auth, managerAccess, (req, res) => {
+  const products = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY c.sort_order, p.sort_order, p.id').all();
+  const rows = [EXPORT_HEADERS];
+  products.forEach(p => {
+    rows.push([p.category_name || '', p.name || '', p.name_en || '', p.price || 0, p.available ? '是' : '否', p.image || '', p.description || '', p.description_en || '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 30 }, { wch: 30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '菜品列表');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="products_export.xlsx"');
+  res.send(buf);
+});
+
+router.post('/import', auth, managerAccess, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: '请上传Excel文件' });
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (rows.length < 2) return res.status(400).json({ error: '文件为空或格式错误' });
+
+    const header = rows[0].map(h => String(h || '').trim());
+    const catIdx = header.findIndex(h => h.includes('大类') || h.includes('分类'));
+    const nameIdx = header.findIndex(h => h.includes('中文') || (h.includes('名') && !h.includes('英文')));
+    const nameEnIdx = header.findIndex(h => h.includes('英文'));
+    const priceIdx = header.findIndex(h => h.includes('价格'));
+    const availIdx = header.findIndex(h => h.includes('上架') || h.includes('启用'));
+    const imgIdx = header.findIndex(h => h.includes('图片') || h.toLowerCase().includes('image'));
+    const descIdx = header.findIndex(h => h === '描述' || (h.includes('描述') && !h.includes('英文')));
+    const descEnIdx = header.findIndex(h => h.includes('英文描述') || h.includes('描述英文'));
+
+    if (nameIdx === -1 || priceIdx === -1) {
+      return res.status(400).json({ error: '必须包含"菜品中文名"和"价格"列' });
+    }
+
+    const insertProduct = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, description_en, image, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`);
+    const getCategory = db.prepare('SELECT id FROM categories WHERE name = ? OR name_en = ?');
+    const createCategory = db.prepare('INSERT INTO categories (name, name_en, sort_order) VALUES (?, ?, ?)');
+    const getMaxSort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) as max_sort FROM products');
+
+    let success = 0, failed = 0;
+    const errors = [];
+    let currentSort = getMaxSort.get().max_sort;
+
+    const tx = db.transaction(() => {
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const name = String(row[nameIdx] || '').trim();
+        const price = parseFloat(row[priceIdx]) || 0;
+        if (!name) { failed++; errors.push(`第${i + 1}行：商品名称为空，跳过`); continue; }
+
+        let categoryId = null;
+        if (catIdx !== -1 && row[catIdx]) {
+          const catName = String(row[catIdx]).trim();
+          let cat = getCategory.get(catName, catName);
+          if (!cat) {
+            const r = createCategory.run(catName, '', 0);
+            categoryId = r.lastInsertRowid;
+          } else {
+            categoryId = cat.id;
+          }
+        }
+
+        const nameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim() : '';
+        const available = availIdx !== -1 ? (String(row[availIdx]).includes('否') || String(row[availIdx]).includes('0') ? 0 : 1) : 1;
+        const image = imgIdx !== -1 ? String(row[imgIdx] || '').trim() : '';
+        const description = descIdx !== -1 ? String(row[descIdx] || '').trim() : '';
+        const description_en = descEnIdx !== -1 ? String(row[descEnIdx] || '').trim() : '';
+
+        currentSort++;
+        insertProduct.run(name, nameEn, categoryId, price, description, description_en, image, available, currentSort);
+        success++;
+      }
+    });
+
+    tx();
+    res.json({ success, failed, errors: errors.slice(0, 10) });
+  } catch (e) {
+    res.status(500).json({ error: '导入失败: ' + e.message });
+  }
 });
 
 module.exports = router;
