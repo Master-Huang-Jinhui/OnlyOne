@@ -17,7 +17,7 @@ export default function EmployeeOrders() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [summary, setSummary] = useState({ total: 0, revenue: 0 })
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('active')
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
   const lastPendingCount = useRef(0)
@@ -122,7 +122,7 @@ export default function EmployeeOrders() {
         {/* 订单列表 */}
         {loading ? (
           <div className="text-center py-12 text-gray-400">加载中...</div>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <Empty text="暂无订单" icon="📋" />
         ) : (
           <div className="space-y-3">
