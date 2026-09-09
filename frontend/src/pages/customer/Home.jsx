@@ -18,7 +18,13 @@ export default function Home() {
   const [contentSections, setContentSections] = useState([])
   const [newProducts, setNewProducts] = useState([])
 
-  const showTea = settings.show_tea_sourcing !== false
+  const teaSourcing = settings.tea_sourcing || [
+    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
+    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
+    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
+  ]
+  const enabledTeas = teaSourcing.filter(t => t.enabled !== false)
+  const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
   const sections = [
     { id: 'new', label: '新品' },
     { id: 'brand', label: '品牌' },
@@ -61,12 +67,6 @@ export default function Home() {
 
   const scrollTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
   const handleAddToCart = (product) => { addItem(product); navigate('/cart') }
-
-  const teaSourcing = settings.tea_sourcing || [
-    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
-    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
-    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
-  ]
 
   const craftPhilosophy = settings.craft_philosophy || [
     { name: '原叶现萃', name_en: 'Fresh Brewed' },
@@ -184,7 +184,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2>
           </div>
           <div className="flex flex-wrap justify-center gap-8">
-            {teaSourcing.filter(t => t.enabled !== false).map((tea, i) => (
+            {enabledTeas.map((tea, i) => (
               <div key={i} className="w-full sm:w-[calc(50%-1rem)] md:w-[calc(33.333%-1.34rem)] bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal text-center" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
                 <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto overflow-hidden">
                   {tea.image ? <img src={tea.image} alt={tea.name} className="w-full h-full object-cover" /> : ['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}
