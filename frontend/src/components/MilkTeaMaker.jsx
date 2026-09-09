@@ -1,9 +1,19 @@
 import { useState } from 'react'
 
-const teaOptions = [
-  { key: 'green', label: '绿茶', emoji: '🍵', color: 'linear-gradient(to top, #7CB342, #AED581)' },
-  { key: 'black', label: '红茶', emoji: '☕', color: 'linear-gradient(to top, #8B4513, #D2691E)' },
-  { key: 'oolong', label: '乌龙茶', emoji: '🍃', color: 'linear-gradient(to top, #B8860B, #DAA520)' }
+const teaPresets = {
+  '绿茶': { key: 'green', emoji: '🍵', color: 'linear-gradient(to top, #7CB342, #AED581)' },
+  '红茶': { key: 'black', emoji: '☕', color: 'linear-gradient(to top, #8B4513, #D2691E)' },
+  '乌龙茶': { key: 'oolong', emoji: '🍃', color: 'linear-gradient(to top, #B8860B, #DAA520)' },
+  '茉莉花茶': { key: 'jasmine', emoji: '🌸', color: 'linear-gradient(to top, #F8BBD9, #FCE4EC)' },
+  '铁观音': { key: 'tieguanyin', emoji: '🌿', color: 'linear-gradient(to top, #66BB6A, #A5D6A7)' },
+  '普洱茶': { key: 'puer', emoji: '🫖', color: 'linear-gradient(to top, #5D4037, #8D6E63)' },
+  '大麦茶': { key: 'barley', emoji: '🌾', color: 'linear-gradient(to top, #A1887F, #D7CCC8)' }
+}
+
+const defaultTeas = [
+  { name: '绿茶', name_en: 'Green Tea' },
+  { name: '红茶', name_en: 'Black Tea' },
+  { name: '乌龙茶', name_en: 'Oolong Tea' }
 ]
 
 const toppingOptions = [
@@ -12,7 +22,16 @@ const toppingOptions = [
   { key: 'coconut', label: '椰果', emoji: '🥥', color: 'rgba(255,255,255,0.8)', shape: 'square' }
 ]
 
-export default function MilkTeaMaker() {
+export default function MilkTeaMaker({ teas }) {
+  const teaList = (teas && teas.length > 0 ? teas : defaultTeas)
+  const teaOptions = teaList.map((t, i) => {
+    const preset = teaPresets[t.name] || {
+      key: `tea_${i}`,
+      emoji: '🍵',
+      color: `linear-gradient(to top, hsl(${(i * 47) % 360}, 50%, 45%), hsl(${(i * 47) % 360}, 50%, 65%))`
+    }
+    return { ...preset, label: t.name, image: t.image }
+  })
   const [tea, setTea] = useState(null)
   const [milk, setMilk] = useState(false)
   const [toppings, setToppings] = useState([])
@@ -121,10 +140,10 @@ export default function MilkTeaMaker() {
             {teaOptions.map(t => (
               <button key={t.key} onClick={() => !sealed && setTea(t.key)}
                 disabled={sealed}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                   tea === t.key ? 'bg-primary-600 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
                 } ${sealed ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                {t.emoji} {t.label}
+                {t.image ? <img src={t.image} alt={t.label} className="w-4 h-4 rounded-full object-cover" /> : t.emoji} {t.label}
               </button>
             ))}
           </div>
