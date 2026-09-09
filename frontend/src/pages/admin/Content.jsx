@@ -153,7 +153,7 @@ export default function Content() {
           <Table columns={[
             { header: '预览', render: c => c.image ? <img src={c.image} alt="" className="w-20 h-12 object-cover rounded" /> : <div className="w-20 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-300">无图</div> },
             { header: '标题', key: 'title' },
-            { header: '链接', render: c => c.link ? <a href={c.link} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline truncate block max-w-[200px]">{c.link}</a> : <span className="text-gray-300">-</span> },
+            { header: '链接', render: c => c.link ? <a href={`/go?carousel=${c.id}`} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline truncate block max-w-[200px]">{c.link}</a> : <span className="text-gray-300">-</span> },
             { header: '排序', key: 'sort_order' },
             { header: '状态', render: c => <Badge variant={c.enabled ? 'success' : 'default'}>{c.enabled ? '显示' : '隐藏'}</Badge> }
           ]} data={carousel} actions={c => (
