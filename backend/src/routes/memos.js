@@ -5,7 +5,7 @@ const { auth, managerAccess } = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
-router.get('/', (req, res) => {
+router.post('/list', (req, res) => {
   const { type } = req.query;
   let sql = 'SELECT * FROM memos';
   const params = [];
@@ -22,7 +22,7 @@ router.post('/', managerAccess, (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
-router.put('/:id', managerAccess, (req, res) => {
+router.post('/update/:id', managerAccess, (req, res) => {
   const { title, content, type, priority, completed } = req.body;
   const fields = [];
   const values = [];
@@ -37,7 +37,7 @@ router.put('/:id', managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
-router.delete('/:id', managerAccess, (req, res) => {
+router.post('/delete/:id', managerAccess, (req, res) => {
   db.prepare('DELETE FROM memos WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
