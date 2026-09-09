@@ -8,7 +8,6 @@ import MilkTeaMaker from '../../components/MilkTeaMaker'
 const sections = [
   { id: 'new', label: '新品' },
   { id: 'brand', label: '品牌' },
-  { id: 'tea', label: '茶品' },
   { id: 'craft', label: '工艺' },
   { id: 'about', label: '关于' },
   { id: 'menu', label: '菜单' },
@@ -175,9 +174,13 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 茶品溯源（已隐藏）
       <section id="tea" className="py-20 bg-gradient-to-b from-blue-50/50 to-white">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">茶品溯源</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2></div>
+          <div className="text-center mb-12 reveal">
+            <Badge variant="primary" className="mb-4">茶品溯源</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2>
+          </div>
           <div className="flex flex-wrap justify-center gap-8">
             {teaSourcing.map((tea, i) => (
               <div key={i} className="w-full sm:w-[calc(50%-1rem)] md:w-[calc(33.333%-1.34rem)] bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal text-center" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
@@ -192,6 +195,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      */}
 
       <section id="craft" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
