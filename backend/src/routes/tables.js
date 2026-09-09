@@ -58,9 +58,45 @@ router.delete('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// 清桌：合并该桌子所有订单为一个，状态设为已完成，生成新会话，状态设为空闲（后台/员工）
 router.post('/:id/clear', auth, (req, res) => {
   const table = db.prepare('SELECT * FROM tables WHERE id = ?').get(req.params.id);
   if (!table) return res.status(404).json({ error: '餐桌不存在' });
+
+  // 查询该桌子的所有未取消订单，按时间排序
+  const orders = db.prepare("SELECT * FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at ASC").all(req.params.id);
+
+  if (orders.length > 0) {
+    // 合并所有订单的商品
+    const allItems = []
+    let total = 0
+    orders.forEach(order => {
+      try {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || [])
+        items.forEach(item => {
+          allItems.push(item)
+          total += parseFloat(item.price) * item.quantity
+        })
+      } catch (e) {}
+    })
+
+    // 更新第一个订单，合并所有商品，状态设为已完成
+    const firstOrder = orders[0]
+    db.prepare('UPDATE orders SET items = ?, total = ?, status = ? WHERE id = ?').run(
+      JSON.stringify(allItems),
+      total.toFixed(2),
+      'completed',
+      firstOrder.id
+    )
+
+    // 删除其他订单
+    const otherOrderIds = orders.slice(1).map(o => o.id)
+    if (otherOrderIds.length > 0) {
+      const placeholders = otherOrderIds.map(() => '?').join(',')
+      db.prepare(`DELETE FROM orders WHERE id IN (${placeholders})`).run(...otherOrderIds)
+    }
+  }
+
   const newSession = crypto.randomUUID();
   db.prepare('UPDATE tables SET current_session = ?, status = ? WHERE id = ?').run(newSession, 'idle', req.params.id);
   res.json({ success: true, new_session: newSession });
