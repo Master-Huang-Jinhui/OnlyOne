@@ -209,7 +209,6 @@ export default function EmployeeOrder() {
                       <div className="flex flex-wrap gap-1 mt-2">{(item.notes || []).length > 0 && item.notes.map(tagName => { const info = getTagInfo(tagName); return <span key={tagName} className={`px-2 py-0.5 text-xs rounded-full ${info.extra_price > 0 ? 'bg-orange-50 text-orange-400' : 'bg-gray-200 text-gray-400'}`}>{tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}</span> })}</div>
                       <div className="flex items-center justify-between mt-2"><span className="text-sm text-gray-400">x{item.quantity}</span><span className="text-sm font-medium text-gray-400">${(getItemUnitPrice(item) * item.quantity).toFixed(2)}</span></div>
                     </div>))}
-                    <div className="flex justify-end px-1 mt-1"><span className="text-xs text-gray-400">小计：<span className="font-medium text-gray-500">${groupTotal.toFixed(2)}</span></span></div>
                   </div>)
                 })}</div>)}
               </div>
@@ -244,7 +243,10 @@ export default function EmployeeOrder() {
 
       <Dialog open={checkoutDialog} onClose={() => setCheckoutDialog(false)} title={`结账 · ${tableNo}桌`} width="max-w-md"><div className="space-y-4">
         <div className="bg-gray-50 rounded-lg p-4"><div className="flex justify-between text-sm text-gray-500 mb-2"><span>订单数</span><span className="font-medium">{checkoutData.count} 单</span></div><div className="flex justify-between font-bold text-xl pt-2 border-t"><span>应付总额</span><span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span></div></div>
-        {checkoutData.orders.length > 0 && <div className="max-h-48 overflow-y-auto space-y-2">{checkoutData.orders.map(o => (<div key={o.id} className="flex justify-between items-center text-sm bg-white border border-gray-100 rounded-lg px-3 py-2"><div><span className="font-mono text-primary-600">{o.order_no}</span><span className="text-xs text-gray-400 ml-2">{o.created_at}</span></div><span className="font-medium">${parseFloat(o.total).toFixed(2)}</span></div>))}</div>}
+        {checkoutData.orders.length > 0 && <div className="max-h-64 overflow-y-auto space-y-3">{checkoutData.orders.map(o => (<div key={o.id} className="bg-white border border-gray-100 rounded-lg p-3">
+          <div className="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-gray-100"><div><span className="font-mono text-primary-600 text-sm">{o.order_no}</span><span className="text-xs text-gray-400 ml-2">{o.created_at}</span></div><span className="text-sm font-medium">${parseFloat(o.total).toFixed(2)}</span></div>
+          <div className="space-y-1">{(o.items || []).map((item, idx) => (<div key={idx} className="flex justify-between items-center text-sm"><div className="flex-1 min-w-0"><span className="text-gray-700">{item.name}</span>{item.note && <span className="text-xs text-gray-400 ml-1">({item.note})</span>}</div><div className="flex items-center gap-3 text-gray-500"><span className="text-xs">${parseFloat(item.price).toFixed(2)}</span><span className="text-xs">x{item.quantity}</span><span className="text-xs font-medium text-gray-600 w-14 text-right">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span></div></div>))}</div>
+        </div>))}</div>}
         <div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)}>取消</Button><Button className="flex-1" onClick={confirmCheckout}>确认结账并清桌</Button></div>
       </div></Dialog>
 
