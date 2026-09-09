@@ -115,17 +115,28 @@ export default function Inventory() {
     await api.deletePurchaseOrder(o.id); toast('进货单已删除'); loadOrders()
   }
 
+  const cleanOcrText = (text) => {
+    return text
+      .replace(/false/gi, '')
+      .replace(/true/gi, '')
+      .replace(/[{}@#$%&*;_~`|\\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   const parseReceiptText = (text) => {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    const cleaned = cleanOcrText(text)
+    const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0)
     const items = []
+    const skipWords = /^(total|subtotal|tax|date|order|invoice|phone|address|qty|item|description|amount|price|合计|小计|总计|日期|订单|电话|地址|数量|品名|描述|金额|单价|供应商|供货)$/i
     for (const line of lines) {
       const match = line.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/)
-      if (match) {
+      if (match && !skipWords.test(match[1].trim())) {
         items.push({ goods_name: match[1].trim(), quantity: parseFloat(match[2]), unit: '个', unit_price: parseFloat(match[3]) })
         continue
       }
       const match2 = line.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s+\$?(\d+(?:\.\d+)?)$/)
-      if (match2 && !match2[1].match(/^(total|subtotal|tax|date|order|invoice|phone|address|qty|item|description|amount|price)$/i)) {
+      if (match2 && !skipWords.test(match2[1].trim())) {
         items.push({ goods_name: match2[1].trim(), quantity: parseFloat(match2[2]), unit: '个', unit_price: parseFloat(match2[3]) })
       }
     }
@@ -142,7 +153,7 @@ export default function Inventory() {
     setOcrLoading(true)
     setOcrProgress(0)
     try {
-      const result = await Tesseract.recognize(file, 'eng', {
+      const result = await Tesseract.recognize(file, 'eng+chi_sim', {
         logger: m => { if (m.status === 'recognizing text') setOcrProgress(Math.round(m.progress * 100)) }
       })
       const items = parseReceiptText(result.data.text)
