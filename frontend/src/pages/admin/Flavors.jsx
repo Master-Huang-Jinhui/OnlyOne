@@ -4,28 +4,33 @@ import { Card, Button, Table, Badge, Dialog, Input, Select, Empty, toast } from 
 
 export default function Flavors() {
   const [categories, setCategories] = useState([])
+  const [productCategories, setProductCategories] = useState([])
   const [catDialog, setCatDialog] = useState(null)
   const [tagDialog, setTagDialog] = useState(null)
   const [expanded, setExpanded] = useState({})
 
   useEffect(() => { load() }, [])
 
-  const load = () => api.getAllFlavorCategories().then(data => {
-    const list = Array.isArray(data) ? data : []
-    setCategories(list)
-    if (list.length > 0) setExpanded(prev => ({ ...prev, [list[0].id]: true }))
-  }).catch(() => {})
+  const load = () => {
+    api.getAllFlavorCategories().then(data => {
+      const list = Array.isArray(data) ? data : []
+      setCategories(list)
+      if (list.length > 0) setExpanded(prev => ({ ...prev, [list[0].id]: true }))
+    }).catch(() => {})
+    api.getAllCategories().then(data => setProductCategories(Array.isArray(data) ? data : [])).catch(() => {})
+  }
 
   const saveCategory = async () => {
     const { mode, data } = catDialog
     const name = data.name.trim()
     if (!name) { toast('请填写分类名称', 'error'); return }
+    const categoryIds = Array.isArray(data.category_ids) ? data.category_ids : []
     try {
       if (mode === 'add') {
-        await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 })
+        await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
         toast('分类已添加')
       } else {
-        await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 })
+        await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
         toast('分类已更新')
       }
       setCatDialog(null)
@@ -101,7 +106,7 @@ export default function Flavors() {
           <h2 className="text-xl font-bold text-gray-800">口味管理</h2>
           <p className="text-sm text-gray-400 mt-1">管理口味大类和小类，可单独启用/禁用</p>
         </div>
-        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', sort_order: 0, enabled: true } })}>+ 新增大类</Button>
+        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', sort_order: 0, enabled: true, category_ids: [] } })}>+ 新增大类</Button>
       </div>
 
       {categories.length === 0 ? (
@@ -119,7 +124,7 @@ export default function Flavors() {
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => toggleCategory(cat)}>{cat.enabled ? '禁用' : '启用'}</Button>
-              <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat } })}>编辑</Button>
+              <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat, category_ids: cat.category_ids || [] } })}>编辑</Button>
               <Button size="sm" variant="outline" onClick={() => setTagDialog({ mode: 'add', categoryId: cat.id, data: { name: '', extra_price: 0, is_default: false, sort_order: 0, enabled: true } })}>+ 标签</Button>
               <button onClick={() => deleteCategory(cat)} className="text-red-400 hover:text-red-600 text-sm px-2">删除</button>
             </div>
@@ -156,6 +161,24 @@ export default function Flavors() {
               <input type="checkbox" checked={catDialog.data.enabled} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, enabled: e.target.checked } })} className="w-4 h-4" />
               <span className="text-sm text-gray-700">启用该分类（禁用后前台不显示）</span>
             </label>
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">适用商品分类（不选表示全部分类适用）</p>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                {productCategories.map(pc => {
+                  const checked = (catDialog.data.category_ids || []).includes(pc.id)
+                  return (
+                    <label key={pc.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm cursor-pointer border transition ${checked ? 'bg-primary-50 border-primary-300 text-primary-700' : 'bg-white border-gray-200 text-gray-600 hover:border-primary-200'}`}>
+                      <input type="checkbox" checked={checked} onChange={e => {
+                        const current = catDialog.data.category_ids || []
+                        const next = e.target.checked ? [...current, pc.id] : current.filter(id => id !== pc.id)
+                        setCatDialog({ ...catDialog, data: { ...catDialog.data, category_ids: next } })
+                      }} className="w-3.5 h-3.5" />
+                      {pc.name}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setCatDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={saveCategory}>保存</Button>
@@ -180,7 +203,7 @@ export default function Flavors() {
               <span className="text-sm text-gray-700">启用该标签（禁用后前台不显示）</span>
             </label>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setTagDialog(false)}>取消</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setTagDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={saveTag}>保存</Button>
             </div>
           </div>
