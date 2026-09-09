@@ -7,6 +7,10 @@ export default function ProductStats() {
   const [activeTab, setActiveTab] = useState('hot')
   const [threshold, setThreshold] = useState(15)
   const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   const [profitForm, setProfitForm] = useState({ productId: '', purchasePrice: '', purchaseQty: '', unit: '磅', portionPerUnit: '', sellPrice: '' })
   const [importResults, setImportResults] = useState([])
   const [importLoading, setImportLoading] = useState(false)
@@ -28,6 +32,19 @@ export default function ProductStats() {
   const normalList = useMemo(() => list.filter(i => i.tag === 'normal'), [list])
   const coldList = useMemo(() => list.filter(i => i.tag === 'cold'), [list])
   const currentList = activeTab === 'hot' ? hotList : activeTab === 'normal' ? normalList : coldList
+
+  const filteredList = useMemo(() => {
+    if (!searchQuery.trim()) return currentList
+    const q = searchQuery.toLowerCase()
+    return currentList.filter(item => item.name?.toLowerCase().includes(q))
+  }, [currentList, searchQuery])
+
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredList.slice(start, start + pageSize)
+  }, [filteredList, currentPage, pageSize])
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize))
 
   const profitCalc = useMemo(() => {
     const price = parseFloat(profitForm.purchasePrice) || 0
@@ -75,34 +92,24 @@ export default function ProductStats() {
     try {
       const history = await api.getProfitHistoryLatest(item.product_id, item.name)
       if (history) {
-        setProfitForm(f => ({
-          ...f, productId: history.productId || item.product_id || '',
-          purchasePrice: history.purchasePrice, purchaseQty: history.purchaseQty,
-          unit: history.unit || '磅', portionPerUnit: history.portionPerUnit, sellPrice: history.sellPrice
-        }))
+        setProfitForm(f => ({ ...f, productId: history.productId || item.product_id || '', purchasePrice: history.purchasePrice, purchaseQty: history.purchaseQty, unit: history.unit || '磅', portionPerUnit: history.portionPerUnit, sellPrice: history.sellPrice }))
         toast(`已自动填充 ${history.createdAt} 的最新记录`)
       } else {
         const p = list.find(i => String(i.product_id) === String(item.product_id))
         if (p) setProfitForm(f => ({ ...f, sellPrice: p.price }))
       }
-    } catch { /* 忽略 */ }
+    } catch { }
   }
 
   const handleSaveRecord = async () => {
     if (!profitCalc) { toast('请先填写完整成本数据', 'error'); return }
     try {
-      await api.saveProfitRecord({
-        productId: profitForm.productId || null, name: searchKeyword || '手动计算',
-        purchasePrice: parseFloat(profitForm.purchasePrice), purchaseQty: parseFloat(profitForm.purchaseQty),
-        unit: profitForm.unit, portionPerUnit: parseFloat(profitForm.portionPerUnit), sellPrice: parseFloat(profitForm.sellPrice)
-      })
+      await api.saveProfitRecord({ productId: profitForm.productId || null, name: searchKeyword || '手动计算', purchasePrice: parseFloat(profitForm.purchasePrice), purchaseQty: parseFloat(profitForm.purchaseQty), unit: profitForm.unit, portionPerUnit: parseFloat(profitForm.portionPerUnit), sellPrice: parseFloat(profitForm.sellPrice) })
       toast('记录已保存，下次搜索可自动填充')
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const handleDownloadTemplate = async () => {
-    try { await api.downloadProfitTemplate(); toast('模板已下载') } catch (e) { toast(e.message, 'error') }
-  }
+  const handleDownloadTemplate = async () => { try { await api.downloadProfitTemplate(); toast('模板已下载') } catch (e) { toast(e.message, 'error') } }
   const handleImportClick = () => fileInputRef.current?.click()
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
@@ -158,7 +165,7 @@ export default function ProductStats() {
 
       <div className="flex gap-3 flex-wrap">
         {tabConfig.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? tab.color + ' shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setCurrentPage(1); setSearchQuery('') }} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? tab.color + ' shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
             {tab.label} {tab.count !== null && <span className="ml-1 opacity-80">({tab.count})</span>}
           </button>
         ))}
@@ -171,9 +178,7 @@ export default function ProductStats() {
             <Button variant="outline" onClick={handleImportClick} disabled={importLoading}>{importLoading ? '导入中...' : '📤 导入 Excel 批量计算'}</Button>
             {importResults.length > 0 && <Button variant="success" onClick={handleExportResult}>💾 导出计算结果</Button>}
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
-            {importInfo && (
-              <span className="text-xs text-gray-400">已导入：{importInfo.filename}（{importInfo.total} 条）{importInfo.errors?.length > 0 && <span className="text-red-400 ml-2">，{importInfo.errors.length} 行跳过</span>}</span>
-            )}
+            {importInfo && <span className="text-xs text-gray-400">已导入：{importInfo.filename}（{importInfo.total} 条）{importInfo.errors?.length > 0 && <span className="text-red-400 ml-2">，{importInfo.errors.length} 行跳过</span>}</span>}
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
@@ -185,18 +190,12 @@ export default function ProductStats() {
                   <Input type="text" value={searchKeyword} onChange={handleSearchChange} onFocus={() => setShowSearchDropdown(true)} onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)} placeholder="输入菜品名称搜索，如：羊肉、奶茶..." className="w-full" />
                   {showSearchDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {searchLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-400">搜索中...</div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-400">{searchKeyword ? '无匹配菜品，可手动输入名称计算' : '输入关键词搜索'}</div>
-                      ) : (
-                        searchResults.map((item, i) => (
-                          <div key={i} onMouseDown={() => handleSelectSearchResult(item)} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between">
-                            <span className="text-sm text-gray-800">{item.name}</span>
-                            {item.last_used && <span className="text-xs text-green-500">🕐 有记录</span>}
-                          </div>
-                        ))
-                      )}
+                      {searchLoading ? <div className="px-3 py-2 text-sm text-gray-400">搜索中...</div> : searchResults.length === 0 ? <div className="px-3 py-2 text-sm text-gray-400">{searchKeyword ? '无匹配菜品，可手动输入名称计算' : '输入关键词搜索'}</div> : searchResults.map((item, i) => (
+                        <div key={i} onMouseDown={() => handleSelectSearchResult(item)} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between">
+                          <span className="text-sm text-gray-800">{item.name}</span>
+                          {item.last_used && <span className="text-xs text-green-500">🕐 有记录</span>}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -216,9 +215,7 @@ export default function ProductStats() {
             <Card>
               <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">📊 利润分析</h3></div>
               <div className="p-5">
-                {!profitCalc ? (
-                  <Empty text="请填写左侧所有字段后自动计算" icon="🧮" />
-                ) : (
+                {!profitCalc ? <Empty text="请填写左侧所有字段后自动计算" icon="🧮" /> : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-400">每{profitForm.unit}成本</p><p className="text-xl font-bold text-blue-600 mt-1">${profitCalc.unitCost.toFixed(2)}</p></div>
@@ -249,9 +246,7 @@ export default function ProductStats() {
                       {profitCalc.profitRate >= 50 && <p>🎉 利润率超过 50%，非常健康！</p>}
                       <p>💡 回本需要卖出：{Math.ceil(parseFloat(profitForm.purchasePrice) / profitCalc.portionProfit)} 份</p>
                     </div>
-                    <div className="pt-2 border-t">
-                      <Button size="sm" variant="outline" className="w-full" onClick={handleSaveRecord}>💾 保存此成本记录（下次搜索自动填充）</Button>
-                    </div>
+                    <div className="pt-2 border-t"><Button size="sm" variant="outline" className="w-full" onClick={handleSaveRecord}>💾 保存此成本记录（下次搜索自动填充）</Button></div>
                   </div>
                 )}
               </div>
@@ -260,10 +255,7 @@ export default function ProductStats() {
 
           {importResults.length > 0 && (
             <Card>
-              <div className="px-5 py-4 border-b flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">📊 批量计算结果（{importResults.length} 条）</h3>
-                <Button size="sm" onClick={handleExportResult}>💾 导出 Excel</Button>
-              </div>
+              <div className="px-5 py-4 border-b flex items-center justify-between"><h3 className="font-semibold text-gray-800">📊 批量计算结果（{importResults.length} 条）</h3><Button size="sm" onClick={handleExportResult}>💾 导出 Excel</Button></div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="bg-gray-50 text-gray-500 text-xs">
@@ -297,7 +289,36 @@ export default function ProductStats() {
           )}
         </div>
       ) : (
-        <Card>{currentList.length === 0 ? <Empty text="暂无数据" icon="📊" /> : <Table columns={columns} data={currentList} />}</Card>
+        <Card>
+          <div className="flex items-center justify-between mb-4 px-5 pt-5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">搜索菜品：</span>
+              <Input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }} placeholder="输入菜品名称模糊搜索..." className="w-64" />
+            </div>
+            <span className="text-sm text-gray-400">共 {filteredList.length} 条</span>
+          </div>
+          {filteredList.length === 0 ? (
+            <Empty text={searchQuery ? '未找到匹配的菜品' : '暂无数据'} icon="📊" />
+          ) : (
+            <>
+              <Table columns={columns} data={paginatedList} />
+              <div className="flex items-center justify-between px-5 py-3 border-t">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>每页</span>
+                  <select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setCurrentPage(1) }} className="px-2 py-1 border border-gray-300 rounded text-sm">
+                    <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option>
+                  </select>
+                  <span>条</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>上一页</Button>
+                  <span className="text-sm text-gray-600">第 {currentPage} / {totalPages} 页</span>
+                  <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>下一页</Button>
+                </div>
+              </div>
+            </>
+          )}
+        </Card>
       )}
 
       {activeTab !== 'profit' && (
