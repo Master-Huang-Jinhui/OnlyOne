@@ -40,7 +40,7 @@ export default function EmployeeOrder() {
     if (orderType === 'dinein' && tableId) {
       api.getTableOrders(tableId).then(data => {
         const orders = Array.isArray(data?.orders) ? data.orders : []
-        const activeOrders = orders.filter(o => o.status !== 'cancelled')
+        const activeOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'completed')
         if (activeOrders.length > 0) {
           const allCartItems = []
           activeOrders.forEach(order => {
@@ -200,7 +200,6 @@ export default function EmployeeOrder() {
                   <div className="flex items-center justify-between mt-2"><div className="flex items-center gap-2"><button onClick={() => updateQty(item.cartItemId, -1)} className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm hover:bg-gray-300">-</button><span className="text-sm font-medium w-6 text-center">{item.quantity}</span><button onClick={() => updateQty(item.cartItemId, 1)} className="w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm hover:bg-primary-700">+</button></div><span className="text-sm font-bold text-gray-800">${(getItemUnitPrice(item) * item.quantity).toFixed(2)}</span></div>
                 </div>))}</div>)}
                 {orderedItems.length > 0 && (<div><p className="text-xs font-semibold text-gray-400 mb-1.5 px-1">已下单（{orderedByOrder.length}单）</p>{orderedByOrder.map((group, gIdx) => {
-                  const groupTotal = group.items.reduce((sum, i) => sum + getItemUnitPrice(i) * i.quantity, 0)
                   const timeStr = group.order_time ? group.order_time.substring(11, 16) : ''
                   return (<div key={group.order_id || gIdx} className={`${gIdx > 0 ? 'border-t border-dashed border-gray-200 pt-2 mt-2' : ''}`}>
                     <div className="flex items-center justify-between px-1 mb-1.5"><span className="text-xs font-mono text-gray-500">{group.order_no || '订单'}</span><span className="text-xs text-gray-400">{timeStr}</span></div>
