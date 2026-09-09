@@ -158,7 +158,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 reveal">
+            <div className="text-center py-12">
               <div className="text-6xl mb-4">👨‍🍳</div>
               <h3 className="text-xl font-bold text-gray-700 mb-2">新品研发中</h3>
               <p className="text-gray-500 max-w-md mx-auto">我们的厨师团队正在精心研制全新美味，每一款都经过反复调试与改良。敬请期待，惊喜即将登场！</p>
@@ -222,7 +222,7 @@ export default function Home() {
             <p className="text-gray-500 mb-10">点击按钮，亲手体验奶茶制作的每一步</p>
           </div>
           <div className="reveal bg-white/70 backdrop-blur rounded-3xl p-8 shadow-lg border border-primary-100">
-            <MilkTeaMaker />
+            <MilkTeaMaker teas={enabledTeas} />
           </div>
         </div>
       </section>
