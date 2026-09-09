@@ -325,6 +325,22 @@ if (!orderColumns.find(c => c.name === 'table_id')) { db.prepare('ALTER TABLE or
 if (!orderColumns.find(c => c.name === 'table_session')) { db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run(); }
 if (!orderColumns.find(c => c.name === 'pickup_number')) { db.prepare('ALTER TABLE orders ADD COLUMN pickup_number TEXT').run(); }
 
+// 修正脏数据：把 table_session 为 NULL 的订单绑定到对应桌子的 current_session
+try {
+  const dirtyOrders = db.prepare("SELECT id, table_id FROM orders WHERE table_id IS NOT NULL AND (table_session IS NULL OR table_session = '')").all();
+  let fixedCount = 0;
+  dirtyOrders.forEach(order => {
+    const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(order.table_id);
+    if (table?.current_session) {
+      db.prepare('UPDATE orders SET table_session = ? WHERE id = ?').run(table.current_session, order.id);
+      fixedCount++;
+    }
+  });
+  if (fixedCount > 0) console.log(`[数据迁移] 修正了 ${fixedCount} 条订单的 table_session 脏数据`);
+} catch (e) {
+  console.error('[数据迁移] 修正 table_session 脏数据失败:', e.message);
+}
+
 const tableCount = db.prepare('SELECT COUNT(*) as cnt FROM tables').get().cnt;
 if (tableCount === 0) {
   const crypto = require('crypto');
