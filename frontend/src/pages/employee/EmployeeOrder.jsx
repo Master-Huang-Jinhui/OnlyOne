@@ -118,18 +118,18 @@ export default function EmployeeOrder() {
       if (itemsToSubmit.length === 0) { toast('没有需要提交的商品', 'error'); return }
       const orderItems = itemsToSubmit.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') }))
       let res
-      if (currentOrderId) { const appendRes = await api.appendOrder(currentOrderId, orderItems); res = { order_no: currentOrderNo, total: appendRes.total, pickup_number: '' }; toast(`已追加到订单 ${currentOrderNo}`) }
+      if (currentOrderId) { const appendRes = await api.appendOrder(currentOrderId, orderItems); res = { order_no: currentOrderNo, total: appendRes.total, pickup_number: '' } }
       else {
         res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: customerName || (orderType === 'dinein' ? `堂吃-${tableNo}` : ''), customer_phone: customerPhone, table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
         if (orderType === 'dinein' && res.order_no) { try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {} }
       }
-      toast(`点餐成功，订单号：${res.order_no}`)
       const now = new Date()
       const pad = n => String(n).padStart(2, '0')
       const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
       setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true, order_id: currentOrderId, order_no: currentOrderNo || res.order_no, order_time: orderTime }))
       setOrderInfo({ name: '', phone: '' })
-      setTimeout(() => { navigate('/employee') }, 1500)
+      navigate('/employee')
+      setTimeout(() => { toast(`点餐成功，订单号：${res.order_no}`) }, 200)
     } catch (err) { toast(err.message, 'error') }
   }
 
@@ -147,7 +147,6 @@ export default function EmployeeOrder() {
         res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: orderType === 'dinein' ? `堂吃-${tableNo}` : '', customer_phone: '', table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
         if (orderType === 'dinein' && res.order_no) { try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {} }
       }
-      toast(`点餐成功，订单号：${res.order_no}`)
       const now = new Date()
       const pad = n => String(n).padStart(2, '0')
       const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
