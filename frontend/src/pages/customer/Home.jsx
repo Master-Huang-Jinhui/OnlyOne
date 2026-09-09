@@ -184,7 +184,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2>
           </div>
           <div className="flex flex-wrap justify-center gap-8">
-            {teaSourcing.map((tea, i) => (
+            {teaSourcing.filter(t => t.enabled !== false).map((tea, i) => (
               <div key={i} className="w-full sm:w-[calc(50%-1rem)] md:w-[calc(33.333%-1.34rem)] bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow reveal text-center" style={{ transitionDelay: `${(i % 3) * 100}ms` }}>
                 <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto overflow-hidden">
                   {tea.image ? <img src={tea.image} alt={tea.name} className="w-full h-full object-cover" /> : ['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}
