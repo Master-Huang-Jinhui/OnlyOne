@@ -57,9 +57,14 @@ export default function EmployeeHome() {
     }
   }
 
+  // 选择桌子：占用中跳转到详情页，空闲直接进入点餐
   const selectTable = (table) => {
     setTableDialog(false)
-    navigate(`/employee/order?type=dinein&tableId=${table.id}&tableNo=${encodeURIComponent(table.table_no)}`)
+    if (table.status === 'occupied') {
+      navigate(`/employee/table-detail?tableId=${table.id}&tableNo=${encodeURIComponent(table.table_no)}`)
+    } else {
+      navigate(`/employee/order?type=dinein&tableId=${table.id}&tableNo=${encodeURIComponent(table.table_no)}`)
+    }
   }
 
   const goTakeout = () => {
@@ -176,7 +181,7 @@ export default function EmployeeHome() {
               }`}
             >
               {table.table_no}
-              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">用餐中 · 点击加单</p>}
+              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">用餐中 · 点击查看</p>}
             </button>
           ))}
         </div>
