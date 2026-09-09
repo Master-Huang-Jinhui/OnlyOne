@@ -213,6 +213,14 @@ db.exec(`
   );
 `);
 
+// 兼容旧数据库：添加订单时间流程字段
+try {
+  const cols = db.prepare("PRAGMA table_info(orders)").all();
+  if (!cols.find(c => c.name === 'start_time')) db.prepare("ALTER TABLE orders ADD COLUMN start_time TEXT").run();
+  if (!cols.find(c => c.name === 'ready_time')) db.prepare("ALTER TABLE orders ADD COLUMN ready_time TEXT").run();
+  if (!cols.find(c => c.name === 'complete_time')) db.prepare("ALTER TABLE orders ADD COLUMN complete_time TEXT").run();
+} catch (e) { /* 忽略 */ }
+
 // 自动清理重复的菜单记录（path 相同的只保留 id 最小的）
 try {
   db.prepare(`
