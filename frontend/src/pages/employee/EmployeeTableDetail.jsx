@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { Dialog, Button, toast } from '../../components/ui'
+import { getStatusLabel, getStatusVariant, getDiningLabel } from '../../lib/orderStatus'
 
 export default function EmployeeTableDetail() {
   const { user, logout } = useAuth()
@@ -112,16 +113,8 @@ export default function EmployeeTableDetail() {
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm font-bold text-primary-600">{order.order_no}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      order.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      order.status === 'preparing' ? 'bg-blue-100 text-blue-700' :
-                      order.status === 'ready' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {order.status === 'pending' ? '待处理' :
-                       order.status === 'preparing' ? '制作中' :
-                       order.status === 'ready' ? '待取餐' :
-                       order.status === 'completed' ? '已完成' : '已取消'}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusVariant(order.dining_type, order.status) === 'success' ? 'bg-green-100 text-green-700' : getStatusVariant(order.dining_type, order.status) === 'danger' ? 'bg-red-100 text-red-700' : getStatusVariant(order.dining_type, order.status) === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {getStatusLabel(order.dining_type, order.status)}
                     </span>
                   </div>
                   <span className="text-xs text-gray-400">{order.created_at}</span>
