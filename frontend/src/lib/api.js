@@ -180,5 +180,15 @@ export const api = {
   getTodayAttendance: () => request('/attendance/today'),
   clockIn: () => request('/attendance/clock-in', { method: 'POST' }),
   clockOut: () => request('/attendance/clock-out', { method: 'POST' }),
-  getAttendanceRecords: (params) => request(`/attendance?${new URLSearchParams(params).toString()}`)
+  getAttendanceRecords: (params) => request(`/attendance?${new URLSearchParams(params).toString()}`),
+  getGoods: (params) => request(`/inventory/goods?${new URLSearchParams(params || {}).toString()}`),
+  getGoodsById: (id) => request(`/inventory/goods/${id}`),
+  createGoods: (data) => request('/inventory/goods', { method: 'POST', body: JSON.stringify(data) }),
+  updateGoods: (id, data) => request(`/inventory/goods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteGoods: (id) => request(`/inventory/goods/${id}`, { method: 'DELETE' }),
+  getPurchaseOrders: (params) => request(`/inventory/orders?${new URLSearchParams(params || {}).toString()}`),
+  getPurchaseOrder: (id) => request(`/inventory/orders/${id}`),
+  createPurchaseOrder: (data) => request('/inventory/orders', { method: 'POST', body: JSON.stringify(data) }),
+  updatePurchaseOrder: (id, data) => request(`/inventory/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePurchaseOrder: (id) => request(`/inventory/orders/${id}`, { method: 'DELETE' })
 }
