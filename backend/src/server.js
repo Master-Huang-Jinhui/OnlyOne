@@ -68,6 +68,15 @@ app.get('/table', (req, res) => {
   res.redirect(302, `/menu?table=${encodeURIComponent(tableNo)}`);
 });
 
+// 通用外部链接中转跳转（隐藏真实URL，记录点击日志，安全校验）
+app.get('/go', (req, res) => {
+  const target = req.query.url || req.query.target || '';
+  if (!target) return res.redirect('/');
+  if (!/^https?:\/\//i.test(target)) return res.status(400).send('无效的跳转链接');
+  console.log(`[外部跳转] 目标: ${target}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
+  res.redirect(302, target);
+});
+
 // 前端静态文件
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));

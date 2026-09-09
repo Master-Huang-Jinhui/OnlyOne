@@ -108,7 +108,7 @@ export default function Platforms() {
     { header: '备注', render: p => <span className="text-sm text-gray-500 max-w-[200px] truncate block">{p.note || '-'}</span> },
     { header: '状态', render: p => <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '启用' : '停用'}</Badge> },
     { header: '跳转', render: p => p.url ? (
-      <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+      <a href={`/go?url=${encodeURIComponent(p.url)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
         <span>跳转</span><span>↗</span>
       </a>
     ) : <span className="text-gray-300 text-sm">未设置</span> }
