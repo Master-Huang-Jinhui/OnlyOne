@@ -25,6 +25,7 @@ import FormRenderer from './pages/admin/FormRenderer'
 import ProductStats from './pages/admin/ProductStats'
 import Content from './pages/admin/Content'
 import Permissions from './pages/admin/Permissions'
+import Inventory from './pages/admin/Inventory'
 
 import EmployeeHome from './pages/employee/EmployeeHome'
 import EmployeeOrder from './pages/employee/EmployeeOrder'
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="forms" element={<ProtectedRoute adminOnly><Forms /></ProtectedRoute>} />
           <Route path="form/:id" element={<FormRenderer />} />
           <Route path="content" element={<ProtectedRoute adminOnly><Content /></ProtectedRoute>} />
+          <Route path="inventory" element={<ProtectedRoute adminOnly><Inventory /></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
