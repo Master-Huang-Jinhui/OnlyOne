@@ -41,25 +41,30 @@ export default function EmployeeOrder() {
     if (orderType === 'dinein' && tableId) {
       api.getTableOrders(tableId).then(data => {
         const orders = Array.isArray(data?.orders) ? data.orders : []
-        const activeOrder = orders.find(o => o.status !== 'completed' && o.status !== 'cancelled')
-        if (activeOrder) {
-          try {
-            const items = typeof activeOrder.items === 'string' ? JSON.parse(activeOrder.items) : (activeOrder.items || [])
-            const cartItems = items.map((item, idx) => ({
-              cartItemId: `loaded-${activeOrder.id}-${idx}`,
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              image: item.image,
-              quantity: item.quantity,
-              notes: item.note ? item.note.split(', ').filter(Boolean) : [],
-              ordered: true,
-              category_id: item.category_id
-            }))
-            setCart(cartItems)
-            setCurrentOrderId(activeOrder.id)
-            setCurrentOrderNo(activeOrder.order_no)
-          } catch (e) {}
+        const activeOrders = orders.filter(o => o.status !== 'cancelled')
+        if (activeOrders.length > 0) {
+          const allCartItems = []
+          activeOrders.forEach(order => {
+            try {
+              const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || [])
+              items.forEach((item, idx) => {
+                allCartItems.push({
+                  cartItemId: `loaded-${order.id}-${idx}`,
+                  id: item.id, name: item.name, price: item.price, image: item.image,
+                  quantity: item.quantity,
+                  notes: item.note ? item.note.split(', ').filter(Boolean) : [],
+                  ordered: true, category_id: item.category_id,
+                  order_id: order.id, order_no: order.order_no, order_time: order.created_at
+                })
+              })
+            } catch (e) {}
+          })
+          if (allCartItems.length > 0) setCart(allCartItems)
+          const latestOrder = activeOrders[activeOrders.length - 1]
+          if (latestOrder && latestOrder.status !== 'completed') {
+            setCurrentOrderId(latestOrder.id)
+            setCurrentOrderNo(latestOrder.order_no)
+          }
         }
       }).catch(() => {})
     }
@@ -81,7 +86,6 @@ export default function EmployeeOrder() {
   }
 
   const filteredProducts = useMemo(() => activeCat === 0 ? products : products.filter(p => p.category_id === activeCat), [activeCat, products])
-
   const catCounts = useMemo(() => {
     const map = { 0: products.length }
     categories.forEach(c => { map[c.id] = products.filter(p => p.category_id === c.id).length })
@@ -105,44 +109,27 @@ export default function EmployeeOrder() {
         if (i.id !== product.id || i.ordered) return false
         return [...(i.notes || [])].sort().join(',') === [...itemNotes].sort().join(',')
       })
-      if (existing) {
-        return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i)
-      }
-      return [...prev, {
-        cartItemId: Date.now() + Math.random(),
-        id: product.id, name: product.name, price: product.price,
-        image: product.image, quantity: 1, notes: itemNotes, ordered: false, category_id: product.category_id
-      }]
+      if (existing) return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, { cartItemId: Date.now() + Math.random(), id: product.id, name: product.name, price: product.price, image: product.image, quantity: 1, notes: itemNotes, ordered: false, category_id: product.category_id }]
     })
   }
 
   const confirmTags = () => {
     const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
-    if (editCartItemId) {
-      updateNotes(editCartItemId, finalTags)
-      setEditCartItemId(null)
-    } else if (tagsDialog) {
-      addToCart(tagsDialog, finalTags)
-    }
-    setTagsDialog(null)
-    setSelectedTags([])
-    setCustomNote('')
+    if (editCartItemId) { updateNotes(editCartItemId, finalTags); setEditCartItemId(null) }
+    else if (tagsDialog) addToCart(tagsDialog, finalTags)
+    setTagsDialog(null); setSelectedTags([]); setCustomNote('')
   }
 
   const openEditTags = async (item) => {
     await loadFlavors(item.category_id)
     setTagsDialog({ id: item.id, name: item.name, price: item.price })
-    setSelectedTags([...(item.notes || [])])
-    setCustomNote('')
-    setEditCartItemId(item.cartItemId)
+    setSelectedTags([...(item.notes || [])]); setCustomNote(''); setEditCartItemId(item.cartItemId)
   }
 
   const updateQty = (cartItemId, delta) => {
     setCart(prev => prev.map(i => {
-      if (i.cartItemId === cartItemId) {
-        const qty = Math.max(0, i.quantity + delta)
-        return qty === 0 ? null : { ...i, quantity: qty }
-      }
+      if (i.cartItemId === cartItemId) { const qty = Math.max(0, i.quantity + delta); return qty === 0 ? null : { ...i, quantity: qty } }
       return i
     }).filter(Boolean))
   }
@@ -155,10 +142,7 @@ export default function EmployeeOrder() {
         if (i.id !== item.id || i.cartItemId === cartItemId) return false
         return [...(i.notes || [])].sort().join(',') === [...notes].sort().join(',')
       })
-      if (existingSame) {
-        return prev.filter(i => i.cartItemId !== cartItemId)
-          .map(i => i.cartItemId === existingSame.cartItemId ? { ...i, quantity: i.quantity + item.quantity } : i)
-      }
+      if (existingSame) return prev.filter(i => i.cartItemId !== cartItemId).map(i => i.cartItemId === existingSame.cartItemId ? { ...i, quantity: i.quantity + item.quantity } : i)
       return prev.map(i => i.cartItemId === cartItemId ? { ...i, notes } : i)
     })
   }
@@ -167,6 +151,16 @@ export default function EmployeeOrder() {
   const clearCart = () => setCart(prev => prev.filter(i => i.ordered))
   const pendingItems = cart.filter(i => !i.ordered)
   const orderedItems = cart.filter(i => i.ordered)
+
+  const orderedByOrder = useMemo(() => {
+    const groups = {}
+    orderedItems.forEach(item => {
+      const key = item.order_id || 'unknown'
+      if (!groups[key]) groups[key] = { order_id: item.order_id, order_no: item.order_no, order_time: item.order_time, items: [] }
+      groups[key].items.push(item)
+    })
+    return Object.values(groups).sort((a, b) => (a.order_time || '').localeCompare(b.order_time || ''))
+  }, [orderedItems])
 
   const subtotal = pendingItems.reduce((sum, i) => sum + getItemUnitPrice(i) * i.quantity, 0)
   const tax = Math.round(subtotal * taxRate * 100) / 100
@@ -177,49 +171,30 @@ export default function EmployeeOrder() {
     try {
       const itemsToSubmit = cart.filter(i => !i.ordered)
       if (itemsToSubmit.length === 0) { toast('没有需要提交的商品', 'error'); return }
-      const orderItems = itemsToSubmit.map(i => ({
-        id: i.id, quantity: i.quantity, price: getItemUnitPrice(i),
-        note: (i.notes || []).join(', ')
-      }))
+      const orderItems = itemsToSubmit.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') }))
       let res
       if (currentOrderId) {
         const appendRes = await api.appendOrder(currentOrderId, orderItems)
         res = { order_no: currentOrderNo, total: appendRes.total, pickup_number: '' }
         toast(`已追加到订单 ${currentOrderNo}`)
       } else {
-        res = await api.createOrder({
-          items: orderItems,
-          dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout',
-          customer_name: customerName || (orderType === 'dinein' ? `堂吃-${tableNo}` : ''),
-          customer_phone: customerPhone,
-          table_id: tableId ? parseInt(tableId) : null,
-          note: `员工: ${user?.username || ''}`
-        })
+        res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: customerName || (orderType === 'dinein' ? `堂吃-${tableNo}` : ''), customer_phone: customerPhone, table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
         if (orderType === 'dinein' && res.order_no) {
-          try {
-            const detail = await api.getOrderByNo(res.order_no)
-            if (detail?.id) {
-              setCurrentOrderId(detail.id)
-              setCurrentOrderNo(res.order_no)
-            }
-          } catch (e) {}
+          try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {}
         }
       }
       setSuccess(res)
-      setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true }))
+      const now = new Date(); const pad = n => String(n).padStart(2, '0')
+      const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+      setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true, order_id: currentOrderId, order_no: currentOrderNo || res.order_no, order_time: orderTime }))
       setOrderInfo({ name: '', phone: '' })
-    } catch (err) {
-      toast(err.message, 'error')
-    }
+    } catch (err) { toast(err.message, 'error') }
   }
 
   const submitOrder = () => {
     if (pendingItems.length === 0) { toast('没有需要提交的商品', 'error'); return }
-    if (orderType === 'dinein') {
-      doSubmitOrder()
-    } else {
-      setOrderInfoDialog(true)
-    }
+    if (orderType === 'dinein') doSubmitOrder()
+    else setOrderInfoDialog(true)
   }
 
   const confirmOrderInfo = () => {
@@ -231,11 +206,7 @@ export default function EmployeeOrder() {
 
   const handleCheckout = async () => {
     if (!tableId) { toast('无法获取桌子信息', 'error'); return }
-    try {
-      const data = await api.getTableOrders(tableId)
-      setCheckoutData(data)
-      setCheckoutDialog(true)
-    } catch (e) { toast(e.message, 'error') }
+    try { const data = await api.getTableOrders(tableId); setCheckoutData(data); setCheckoutDialog(true) } catch (e) { toast(e.message, 'error') }
   }
 
   const confirmCheckout = async () => {
@@ -243,10 +214,7 @@ export default function EmployeeOrder() {
     try {
       await api.clearTable(tableId)
       toast('结账成功，桌子已清空')
-      setCheckoutDialog(false)
-      setCurrentOrderId(null)
-      setCurrentOrderNo('')
-      setCart([])
+      setCheckoutDialog(false); setCurrentOrderId(null); setCurrentOrderNo(''); setCart([])
       navigate('/employee')
     } catch (e) { toast(e.message, 'error') }
   }
@@ -254,16 +222,10 @@ export default function EmployeeOrder() {
   const handleChangePassword = async () => {
     if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast('请填写完整', 'error'); return }
     if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast('两次密码不一致', 'error'); return }
-    try {
-      await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword)
-      toast('密码修改成功')
-      setPwdDialog(false)
-      setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
-    } catch (e) { toast(e.message, 'error') }
+    try { await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword); toast('密码修改成功'); setPwdDialog(false); setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' }) } catch (e) { toast(e.message, 'error') }
   }
 
   const singleChoiceCategories = ['辣度', '冰度', '甜度']
-
   const toggleTag = (tagName, category) => {
     setSelectedTags(prev => {
       if (singleChoiceCategories.includes(category)) {
@@ -284,17 +246,14 @@ export default function EmployeeOrder() {
       <header className="flex items-center justify-between px-4 py-2.5 bg-white border-b shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/employee')} className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
-            <span className="text-lg">←</span>
-            <span className="text-2xl">🍵</span>
+            <span className="text-lg">←</span><span className="text-2xl">🍵</span>
           </button>
           <div>
             <h1 className="text-base font-bold text-gray-800">Only One 员工点餐</h1>
             <p className="text-xs text-gray-400">{user?.name || user?.username}</p>
           </div>
           <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${modeColor}`}>{modeLabel}</span>
-          {currentOrderNo && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">加单中 · {currentOrderNo}</span>
-          )}
+          {currentOrderNo && <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">加单中 · {currentOrderNo}</span>}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setPwdDialog(true)} className="text-sm text-gray-500 hover:text-primary-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition">修改密码</button>
@@ -318,19 +277,14 @@ export default function EmployeeOrder() {
 
         <main className="flex-1 overflow-y-auto p-4">
           {filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <span className="text-5xl mb-3">🍽️</span>
-              <p>该分类下暂无商品</p>
-            </div>
+            <div className="flex flex-col items-center justify-center h-full text-gray-400"><span className="text-5xl mb-3">🍽️</span><p>该分类下暂无商品</p></div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
               {filteredProducts.map(product => {
                 const inCartQty = cart.reduce((sum, i) => i.id === product.id && !i.ordered ? sum + i.quantity : sum, 0)
                 return (
                   <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-pointer active:scale-95 relative group">
-                    {inCartQty > 0 && (
-                      <div className="absolute -top-2 -right-2 min-w-[24px] h-6 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow z-10 px-1.5">{inCartQty}</div>
-                    )}
+                    {inCartQty > 0 && <div className="absolute -top-2 -right-2 min-w-[24px] h-6 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow z-10 px-1.5">{inCartQty}</div>}
                     <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-4xl overflow-hidden">
                       {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" /> : '🍽️'}
                     </div>
@@ -358,11 +312,7 @@ export default function EmployeeOrder() {
 
           <div className="flex-1 overflow-y-auto p-3">
             {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-300">
-                <span className="text-4xl mb-2">🛒</span>
-                <p className="text-sm">购物车为空</p>
-                <p className="text-xs mt-1">点击左侧商品添加</p>
-              </div>
+              <div className="flex flex-col items-center justify-center h-full text-gray-300"><span className="text-4xl mb-2">🛒</span><p className="text-sm">购物车为空</p><p className="text-xs mt-1">点击左侧商品添加</p></div>
             ) : (
               <div className="space-y-2">
                 {pendingItems.length > 0 && (
@@ -381,11 +331,7 @@ export default function EmployeeOrder() {
                           {(item.notes || []).length > 0 ? (
                             item.notes.map(tagName => {
                               const info = getTagInfo(tagName)
-                              return (
-                                <button key={tagName} onClick={() => openEditTags(item)} className={`px-2 py-0.5 text-xs rounded-full ${info.extra_price > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'} hover:opacity-80 transition`}>
-                                  {tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}
-                                </button>
-                              )
+                              return <button key={tagName} onClick={() => openEditTags(item)} className={`px-2 py-0.5 text-xs rounded-full ${info.extra_price > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'} hover:opacity-80 transition`}>{tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}</button>
                             })
                           ) : (
                             <button onClick={() => openEditTags(item)} className="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 transition">+ 选口味</button>
@@ -405,32 +351,43 @@ export default function EmployeeOrder() {
                 )}
                 {orderedItems.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 mb-1.5 px-1">已下单</p>
-                    {orderedItems.map(item => (
-                      <div key={item.cartItemId} className="bg-gray-100 rounded-lg p-2.5 mb-2 opacity-70">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-gray-500 truncate">{item.name}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">${getItemUnitPrice(item).toFixed(2)}</p>
+                    <p className="text-xs font-semibold text-gray-400 mb-1.5 px-1">已下单（{orderedByOrder.length}单）</p>
+                    {orderedByOrder.map((group, gIdx) => {
+                      const groupTotal = group.items.reduce((sum, i) => sum + getItemUnitPrice(i) * i.quantity, 0)
+                      const timeStr = group.order_time ? group.order_time.substring(11, 16) : ''
+                      return (
+                        <div key={group.order_id || gIdx} className={`${gIdx > 0 ? 'border-t border-dashed border-gray-200 pt-2 mt-2' : ''}`}>
+                          <div className="flex items-center justify-between px-1 mb-1.5">
+                            <span className="text-xs font-mono text-gray-500">{group.order_no || '订单'}</span>
+                            <span className="text-xs text-gray-400">{timeStr}</span>
                           </div>
-                          <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full flex-shrink-0">已下单</span>
+                          {group.items.map(item => (
+                            <div key={item.cartItemId} className="bg-gray-100 rounded-lg p-2.5 mb-1.5 opacity-70">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-gray-500 truncate">{item.name}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5">${getItemUnitPrice(item).toFixed(2)}</p>
+                                </div>
+                                <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full flex-shrink-0">已下单</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {(item.notes || []).length > 0 && item.notes.map(tagName => {
+                                  const info = getTagInfo(tagName)
+                                  return <span key={tagName} className={`px-2 py-0.5 text-xs rounded-full ${info.extra_price > 0 ? 'bg-orange-50 text-orange-400' : 'bg-gray-200 text-gray-400'}`}>{tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}</span>
+                                })}
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-sm text-gray-400">x{item.quantity}</span>
+                                <span className="text-sm font-medium text-gray-400">${(getItemUnitPrice(item) * item.quantity).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex justify-end px-1 mt-1">
+                            <span className="text-xs text-gray-400">小计：<span className="font-medium text-gray-500">${groupTotal.toFixed(2)}</span></span>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {(item.notes || []).length > 0 && item.notes.map(tagName => {
-                            const info = getTagInfo(tagName)
-                            return (
-                              <span key={tagName} className={`px-2 py-0.5 text-xs rounded-full ${info.extra_price > 0 ? 'bg-orange-50 text-orange-400' : 'bg-gray-200 text-gray-400'}`}>
-                                {tagName}{info.extra_price > 0 && ` +$${info.extra_price.toFixed(2)}`}
-                              </span>
-                            )
-                          })}
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-sm text-gray-400">x{item.quantity}</span>
-                          <span className="text-sm font-medium text-gray-400">${(getItemUnitPrice(item) * item.quantity).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -445,9 +402,7 @@ export default function EmployeeOrder() {
             </div>
             {orderType === 'dinein' ? (
               <div className="flex gap-2">
-                <Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`flex-1 py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {currentOrderId ? '加单' : '下单'}
-                </Button>
+                <Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`flex-1 py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>{currentOrderId ? '加单' : '下单'}</Button>
                 <Button onClick={handleCheckout} variant="outline" className="flex-1 py-3 text-base font-bold border-primary-300 text-primary-600 hover:bg-primary-50">结帐</Button>
               </div>
             ) : (
@@ -461,41 +416,25 @@ export default function EmployeeOrder() {
         {tagsDialog && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-gray-800">{tagsDialog.name}</p>
-                <p className="text-sm text-primary-600">${parseFloat(tagsDialog.price).toFixed(2)}</p>
-              </div>
+              <div><p className="font-bold text-gray-800">{tagsDialog.name}</p><p className="text-sm text-primary-600">${parseFloat(tagsDialog.price).toFixed(2)}</p></div>
             </div>
             <div className="max-h-64 overflow-y-auto space-y-3">
               {Object.entries(flavorGrouped).map(([category, tags]) => (
                 <div key={category}>
-                  <p className="text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
-                    {category}
-                    {singleChoiceCategories.includes(category) && <span className="ml-2 normal-case font-normal">（单选）</span>}
-                  </p>
+                  <p className="text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">{category}{singleChoiceCategories.includes(category) && <span className="ml-2 normal-case font-normal">（单选）</span>}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map(tag => {
                       const selected = selectedTags.includes(tag.name)
-                      return (
-                        <button key={tag.id} onClick={() => toggleTag(tag.name, category)} className={`px-3 py-1.5 rounded-lg text-sm transition border ${selected ? 'bg-primary-600 text-white border-primary-600 shadow' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}>
-                          {tag.name}
-                          {tag.extra_price > 0 && <span className={selected ? 'text-primary-100 ml-1' : 'text-gray-400 ml-1'}>+${tag.extra_price.toFixed(2)}</span>}
-                        </button>
-                      )
+                      return <button key={tag.id} onClick={() => toggleTag(tag.name, category)} className={`px-3 py-1.5 rounded-lg text-sm transition border ${selected ? 'bg-primary-600 text-white border-primary-600 shadow' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'}`}>{tag.name}{tag.extra_price > 0 && <span className={selected ? 'text-primary-100 ml-1' : 'text-gray-400 ml-1'}>+${tag.extra_price.toFixed(2)}</span>}</button>
                     })}
                   </div>
-                  {category === '其他' && (
-                    <input type="text" value={customNote} onChange={e => setCustomNote(e.target.value)} placeholder="自定义备注（如：少放盐、打包等）" className="mt-2 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
-                  )}
+                  {category === '其他' && <input type="text" value={customNote} onChange={e => setCustomNote(e.target.value)} placeholder="自定义备注（如：少放盐、打包等）" className="mt-2 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />}
                 </div>
               ))}
               {Object.keys(flavorGrouped).length === 0 && <p className="text-center text-gray-400 text-sm py-4">暂无口味选项</p>}
             </div>
             <div className="flex items-center justify-between pt-2 border-t">
-              <div className="text-sm">
-                <span className="text-gray-500">已选 {selectedTags.length} 项</span>
-                <span className="text-primary-600 ml-3">+${calcTagsExtraPrice(selectedTags).toFixed(2)}</span>
-              </div>
+              <div className="text-sm"><span className="text-gray-500">已选 {selectedTags.length} 项</span><span className="text-primary-600 ml-3">+${calcTagsExtraPrice(selectedTags).toFixed(2)}</span></div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }}>取消</Button>
                 <Button onClick={confirmTags}>{editCartItemId ? '确认修改' : '加入购物车'}</Button>
@@ -526,10 +465,7 @@ export default function EmployeeOrder() {
             <div className="max-h-48 overflow-y-auto space-y-2">
               {checkoutData.orders.map(o => (
                 <div key={o.id} className="flex justify-between items-center text-sm bg-white border border-gray-100 rounded-lg px-3 py-2">
-                  <div>
-                    <span className="font-mono text-primary-600">{o.order_no}</span>
-                    <span className="text-xs text-gray-400 ml-2">{o.created_at}</span>
-                  </div>
+                  <div><span className="font-mono text-primary-600">{o.order_no}</span><span className="text-xs text-gray-400 ml-2">{o.created_at}</span></div>
                   <span className="font-medium">${parseFloat(o.total).toFixed(2)}</span>
                 </div>
               ))}
