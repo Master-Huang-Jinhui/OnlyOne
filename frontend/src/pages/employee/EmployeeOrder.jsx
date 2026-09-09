@@ -38,6 +38,31 @@ export default function EmployeeOrder() {
     api.getCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
     api.getProducts().then(data => setProducts(Array.isArray(data) ? data : [])).catch(() => {})
     api.getSettings().then(s => setTaxRate(parseFloat(s?.tax_rate || 0.08875))).catch(() => {})
+    if (orderType === 'dinein' && tableId) {
+      api.getTableOrders(tableId).then(data => {
+        const orders = Array.isArray(data?.orders) ? data.orders : []
+        const activeOrder = orders.find(o => o.status !== 'completed' && o.status !== 'cancelled')
+        if (activeOrder) {
+          try {
+            const items = typeof activeOrder.items === 'string' ? JSON.parse(activeOrder.items) : (activeOrder.items || [])
+            const cartItems = items.map((item, idx) => ({
+              cartItemId: `loaded-${activeOrder.id}-${idx}`,
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              quantity: item.quantity,
+              notes: item.note ? item.note.split(', ').filter(Boolean) : [],
+              ordered: true,
+              category_id: item.category_id
+            }))
+            setCart(cartItems)
+            setCurrentOrderId(activeOrder.id)
+            setCurrentOrderNo(activeOrder.order_no)
+          } catch (e) {}
+        }
+      }).catch(() => {})
+    }
   }, [])
 
   const loadFlavors = async (categoryId) => {
