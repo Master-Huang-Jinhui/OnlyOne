@@ -202,6 +202,42 @@ db.exec(`
     clock_out TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
+  CREATE TABLE IF NOT EXISTS goods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    name_en TEXT DEFAULT '',
+    unit TEXT DEFAULT '个',
+    current_stock REAL DEFAULT 0,
+    avg_price REAL DEFAULT 0,
+    supplier TEXT DEFAULT '',
+    category TEXT DEFAULT '',
+    note TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE TABLE IF NOT EXISTS purchase_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no TEXT,
+    supplier TEXT NOT NULL,
+    order_date TEXT NOT NULL,
+    total_amount REAL DEFAULT 0,
+    delivery_fee REAL DEFAULT 0,
+    discount REAL DEFAULT 0,
+    payment_method TEXT DEFAULT 'COD',
+    note TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+  CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_order_id INTEGER NOT NULL,
+    goods_id INTEGER,
+    goods_name TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 0,
+    unit TEXT DEFAULT '个',
+    unit_price REAL NOT NULL DEFAULT 0,
+    subtotal REAL DEFAULT 0,
+    FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE
+  );
 `);
 
 try {
@@ -396,6 +432,9 @@ if (!flavorMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, s
 
 const orderStatusMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/order-statuses'").get();
 if (!orderStatusMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('订单状态管理', '🔄', '/admin/order-statuses'); }
+
+const inventoryMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/inventory'").get();
+if (!inventoryMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('货物管理', '📦', '/admin/inventory'); }
 
 const statsMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/stats/product'").get();
 if (!statsMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('销售统计', '📊', '/admin/stats/product'); }
