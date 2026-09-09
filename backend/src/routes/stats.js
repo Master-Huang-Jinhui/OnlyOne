@@ -13,32 +13,14 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    cb(null, `${ts}_${file.originalname}`);
-  }
+  filename: (req, file, cb) => { const ts = new Date().toISOString().replace(/[:.]/g, '-'); cb(null, `${ts}_${file.originalname}`); }
 });
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS profit_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER,
-    product_name TEXT NOT NULL,
-    purchase_price REAL NOT NULL DEFAULT 0,
-    purchase_qty REAL NOT NULL DEFAULT 0,
-    unit TEXT DEFAULT '磅',
-    portion_per_unit REAL NOT NULL DEFAULT 0,
-    sell_price REAL NOT NULL DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now','localtime'))
-  );
-`);
+db.exec(`CREATE TABLE IF NOT EXISTS profit_records (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, product_name TEXT NOT NULL, purchase_price REAL NOT NULL DEFAULT 0, purchase_qty REAL NOT NULL DEFAULT 0, unit TEXT DEFAULT '磅', portion_per_unit REAL NOT NULL DEFAULT 0, sell_price REAL NOT NULL DEFAULT 0, created_at TEXT DEFAULT (datetime('now','localtime')))`);
 
 function saveProfitRecord(row) {
-  db.prepare(`INSERT INTO profit_records (product_id, product_name, purchase_price, purchase_qty, unit, portion_per_unit, sell_price)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-    row.productId || null, row.name, row.purchasePrice, row.purchaseQty, row.unit || '磅', row.portionPerUnit, row.sellPrice
-  );
+  db.prepare(`INSERT INTO profit_records (product_id, product_name, purchase_price, purchase_qty, unit, portion_per_unit, sell_price) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(row.productId || null, row.name, row.purchasePrice, row.purchaseQty, row.unit || '磅', row.portionPerUnit, row.sellPrice);
 }
 
 function calcProfit(row) {
@@ -62,9 +44,7 @@ function calcProductStats() {
   const products = db.prepare('SELECT id, name, name_en, category_id, price, available FROM products').all();
   const orders = db.prepare("SELECT items FROM orders WHERE status != 'cancelled'").all();
   const statsMap = {};
-  for (const p of products) {
-    statsMap[p.id] = { product_id: p.id, name: p.name, category_id: p.category_id, price: p.price, available: p.available, order_count: 0, total_sold: 0 };
-  }
+  for (const p of products) { statsMap[p.id] = { product_id: p.id, name: p.name, category_id: p.category_id, price: p.price, available: p.available, order_count: 0, total_sold: 0 }; }
   for (const o of orders) {
     let items = [];
     try { items = JSON.parse(o.items || '[]'); } catch { continue; }
@@ -79,7 +59,7 @@ function calcProductStats() {
   return Object.values(statsMap).sort((a, b) => b.order_count - a.order_count || b.total_sold - a.total_sold);
 }
 
-router.get('/products', auth, managerAccess, (req, res) => {
+router.post('/products', auth, managerAccess, (req, res) => {
   const list = calcProductStats();
   const hotThreshold = parseInt(req.query.threshold) || 15;
   const result = list.map(item => {
@@ -91,12 +71,12 @@ router.get('/products', auth, managerAccess, (req, res) => {
   res.json(result);
 });
 
-router.get('/products/top5', auth, managerAccess, (req, res) => {
+router.post('/products/top5', auth, managerAccess, (req, res) => {
   const list = calcProductStats().filter(i => i.order_count > 0).slice(0, 5);
   res.json(list);
 });
 
-router.get('/profit/template', auth, managerAccess, (req, res) => {
+router.post('/profit/template', auth, managerAccess, (req, res) => {
   const headers = ['菜品名称', '采购总价($)', '采购总量', '采购单位', '每单位出几份', '每份售价($)'];
   const example = ['烤羊肉串', 50, 5, '磅', 4, 3.99];
   const example2 = ['黑糖珍珠奶茶', 30, 2, '升', 10, 5.99];
@@ -131,8 +111,9 @@ router.post('/profit/import', auth, managerAccess, upload.single('file'), (req, 
       const row = { name, purchasePrice, purchaseQty, unit, portionPerUnit, sellPrice };
       const calc = calcProfit(row);
       if (!calc) { errors.push(`第 ${i + 1} 行（${name}）：数据不完整或无效`); continue; }
-      results.push({ ...row, ...calc });
-      try { saveProfitRecord(row); } catch (e) { /* 忽略 */ }
+      const result = { ...row, ...calc };
+      results.push(result);
+      try { saveProfitRecord(row); } catch (e) {}
     }
     res.json({ filename: req.file.filename, filepath: `/uploads/profit/${req.file.filename}`, total: results.length, errors, results });
   } catch (e) {
@@ -144,12 +125,7 @@ router.post('/profit/export', auth, managerAccess, (req, res) => {
   const data = req.body.results || [];
   if (data.length === 0) return res.status(400).json({ error: '没有可导出的数据' });
   const headers = ['菜品名称', '采购总价($)', '采购总量', '采购单位', '每单位出几份', '每份售价($)', '每单位成本($)', '每份成本($)', '每份利润($)', '利润率(%)', '总可出份数', '全部卖完营收($)', '全部卖完利润($)', '回本次数'];
-  const rows = data.map(d => [
-    d.name, d.purchasePrice, d.purchaseQty, d.unit, d.portionPerUnit, d.sellPrice,
-    Number(d.unitCost?.toFixed(2)), Number(d.portionCost?.toFixed(3)), Number(d.portionProfit?.toFixed(2)),
-    Number(d.profitRate?.toFixed(1)), Number(d.totalPortions?.toFixed(1)),
-    Number(d.totalRevenue?.toFixed(2)), Number(d.totalProfit?.toFixed(2)), d.breakEven
-  ]);
+  const rows = data.map(d => [d.name, d.purchasePrice, d.purchaseQty, d.unit, d.portionPerUnit, d.sellPrice, Number(d.unitCost?.toFixed(2)), Number(d.portionCost?.toFixed(3)), Number(d.portionProfit?.toFixed(2)), Number(d.profitRate?.toFixed(1)), Number(d.totalPortions?.toFixed(1)), Number(d.totalRevenue?.toFixed(2)), Number(d.totalProfit?.toFixed(2)), d.breakEven]);
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = headers.map(() => ({ wch: 14 }));
   const wb = XLSX.utils.book_new();
@@ -160,51 +136,30 @@ router.post('/profit/export', auth, managerAccess, (req, res) => {
   res.send(buf);
 });
 
-router.get('/profit/history/search', auth, managerAccess, (req, res) => {
+router.post('/profit/history/search', auth, managerAccess, (req, res) => {
   const keyword = (req.query.keyword || '').trim();
   if (!keyword) return res.json([]);
-  const historyProducts = db.prepare(`
-    SELECT DISTINCT product_id, product_name as name, MAX(created_at) as last_used
-    FROM profit_records WHERE product_name LIKE ?
-    GROUP BY product_id, product_name ORDER BY last_used DESC LIMIT 20
-  `).all(`%${keyword}%`);
+  const historyProducts = db.prepare(`SELECT DISTINCT product_id, product_name as name, MAX(created_at) as last_used FROM profit_records WHERE product_name LIKE ? GROUP BY product_id, product_name ORDER BY last_used DESC LIMIT 20`).all(`%${keyword}%`);
   const historyNames = new Set(historyProducts.map(h => h.name));
-  const products = db.prepare(`
-    SELECT id as product_id, name, NULL as last_used FROM products
-    WHERE name LIKE ? AND name NOT IN (${historyNames.size > 0 ? historyNames.map(() => '?').join(',') : "''"})
-    LIMIT 20
-  `).all(`%${keyword}%`, ...historyNames);
+  const products = db.prepare(`SELECT id as product_id, name, NULL as last_used FROM products WHERE name LIKE ? AND name NOT IN (${historyNames.size > 0 ? historyNames.map(() => '?').join(',') : "''"}) LIMIT 20`).all(`%${keyword}%`, ...historyNames);
   res.json([...historyProducts, ...products]);
 });
 
-router.get('/profit/history/latest', auth, managerAccess, (req, res) => {
+router.post('/profit/history/latest', auth, managerAccess, (req, res) => {
   const productId = req.query.product_id;
   const productName = req.query.product_name;
   let record;
-  if (productId) {
-    record = db.prepare(`SELECT * FROM profit_records WHERE product_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(productId);
-  } else if (productName) {
-    record = db.prepare(`SELECT * FROM profit_records WHERE product_name = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(productName);
-  }
+  if (productId) { record = db.prepare(`SELECT * FROM profit_records WHERE product_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(productId); }
+  else if (productName) { record = db.prepare(`SELECT * FROM profit_records WHERE product_name = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(productName); }
   if (!record) return res.json(null);
-  res.json({
-    productId: record.product_id, name: record.product_name, purchasePrice: record.purchase_price,
-    purchaseQty: record.purchase_qty, unit: record.unit, portionPerUnit: record.portion_per_unit,
-    sellPrice: record.sell_price, createdAt: record.created_at
-  });
+  res.json({ productId: record.product_id, name: record.product_name, purchasePrice: record.purchase_price, purchaseQty: record.purchase_qty, unit: record.unit, portionPerUnit: record.portion_per_unit, sellPrice: record.sell_price, createdAt: record.created_at });
 });
 
 router.post('/profit/save', auth, managerAccess, (req, res) => {
   const { productId, name, purchasePrice, purchaseQty, unit, portionPerUnit, sellPrice } = req.body;
-  if (!name || !purchasePrice || !purchaseQty || !portionPerUnit || !sellPrice) {
-    return res.status(400).json({ error: '请填写完整的成本数据' });
-  }
-  try {
-    saveProfitRecord({ productId, name, purchasePrice, purchaseQty, unit, portionPerUnit, sellPrice });
-    res.json({ success: true, message: '记录已保存' });
-  } catch (e) {
-    res.status(500).json({ error: '保存失败：' + e.message });
-  }
+  if (!name || !purchasePrice || !purchaseQty || !portionPerUnit || !sellPrice) return res.status(400).json({ error: '请填写完整的成本数据' });
+  try { saveProfitRecord({ productId, name, purchasePrice, purchaseQty, unit, portionPerUnit, sellPrice }); res.json({ success: true, message: '记录已保存' }); }
+  catch (e) { res.status(500).json({ error: '保存失败：' + e.message }); }
 });
 
 module.exports = router;
