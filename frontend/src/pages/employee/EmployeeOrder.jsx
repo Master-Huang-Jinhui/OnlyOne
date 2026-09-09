@@ -8,7 +8,7 @@ export default function EmployeeOrder() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const orderType = searchParams.get('type') || 'takeout'
+  const orderType = searchParams.get('type') || 'takeout' // dinein / takeout
   const tableId = searchParams.get('tableId')
   const tableNo = searchParams.get('tableNo') || ''
 
@@ -20,14 +20,19 @@ export default function EmployeeOrder() {
   const [taxRate, setTaxRate] = useState(0.08875)
   const [pwdDialog, setPwdDialog] = useState(false)
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
+  // 口味相关
   const [flavorTags, setFlavorTags] = useState([])
   const [flavorGrouped, setFlavorGrouped] = useState({})
   const [tagsDialog, setTagsDialog] = useState(null)
   const [selectedTags, setSelectedTags] = useState([])
   const [customNote, setCustomNote] = useState('')
   const [editCartItemId, setEditCartItemId] = useState(null)
+  // 打包顾客信息
   const [orderInfoDialog, setOrderInfoDialog] = useState(false)
   const [orderInfo, setOrderInfo] = useState({ name: '', phone: '' })
+  // 结账
+  const [checkoutDialog, setCheckoutDialog] = useState(false)
+  const [checkoutData, setCheckoutData] = useState({ orders: [], total: 0, count: 0 })
 
   useEffect(() => {
     api.getCategories().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {})
@@ -47,11 +52,13 @@ export default function EmployeeOrder() {
     return map
   }, [categories, products])
 
+  // 口味工具函数
   const getTagInfo = (tagName) => flavorTags.find(t => t.name === tagName) || { name: tagName, extra_price: 0, category: '自定义' }
   const calcTagsExtraPrice = (tags = []) => tags.reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
   const defaultTags = flavorTags.filter(t => t.is_default).map(t => t.name)
   const getItemUnitPrice = (item) => parseFloat(item.price) + calcTagsExtraPrice(item.notes || [])
 
+  // 点击商品：直接用默认口味添加
   const handleProductClick = (product) => {
     addToCart(product, [...defaultTags])
   }
@@ -154,6 +161,7 @@ export default function EmployeeOrder() {
     if (orderType === 'dinein') {
       doSubmitOrder()
     } else {
+      // 打包需要顾客姓名和手机号
       setOrderInfoDialog(true)
     }
   }
@@ -163,6 +171,25 @@ export default function EmployeeOrder() {
     if (!orderInfo.phone.trim()) { toast('请填写手机号码', 'error'); return }
     setOrderInfoDialog(false)
     doSubmitOrder(orderInfo.name.trim(), orderInfo.phone.trim())
+  }
+
+  const handleCheckout = async () => {
+    if (!tableId) { toast('无法获取桌子信息', 'error'); return }
+    try {
+      const data = await api.getTableOrders(tableId)
+      setCheckoutData(data)
+      setCheckoutDialog(true)
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  const confirmCheckout = async () => {
+    if (!tableId) return
+    try {
+      await api.clearTable(tableId)
+      toast('结账成功，桌子已清空')
+      setCheckoutDialog(false)
+      navigate('/employee')
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const handleChangePassword = async () => {
@@ -205,6 +232,7 @@ export default function EmployeeOrder() {
             <h1 className="text-base font-bold text-gray-800">Only One 员工点餐</h1>
             <p className="text-xs text-gray-400">{user?.name || user?.username}</p>
           </div>
+          {/* 当前点餐模式标签 */}
           <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${modeColor}`}>
             {modeLabel}
           </span>
@@ -304,6 +332,7 @@ export default function EmployeeOrder() {
                       </div>
                       <button onClick={() => removeItem(item.cartItemId)} className="text-gray-300 hover:text-red-500 text-sm flex-shrink-0">✕</button>
                     </div>
+                    {/* 口味标签 */}
                     <div className="flex flex-wrap gap-1 mt-2">
                       {(item.notes || []).length > 0 ? (
                         item.notes.map(tagName => {
@@ -346,17 +375,37 @@ export default function EmployeeOrder() {
               <div className="flex justify-between text-sm text-gray-500"><span>税费</span><span>${tax.toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-base pt-2 border-t"><span>合计</span><span className="text-primary-600">${total.toFixed(2)}</span></div>
             </div>
-            <Button
-              onClick={submitOrder}
-              disabled={cart.length === 0}
-              className={`w-full py-3 text-base font-bold ${cart.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {orderType === 'dinein' ? '确认下单' : '确认下单（打包）'}
-            </Button>
+            {orderType === 'dinein' ? (
+              <div className="flex gap-2">
+                <Button
+                  onClick={submitOrder}
+                  disabled={cart.length === 0}
+                  className={`flex-1 py-3 text-base font-bold ${cart.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  下单
+                </Button>
+                <Button
+                  onClick={handleCheckout}
+                  variant="outline"
+                  className="flex-1 py-3 text-base font-bold border-primary-300 text-primary-600 hover:bg-primary-50"
+                >
+                  结帐
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={submitOrder}
+                disabled={cart.length === 0}
+                className={`w-full py-3 text-base font-bold ${cart.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                确认下单（打包）
+              </Button>
+            )}
           </div>
         </aside>
       </div>
 
+      {/* 口味选择对话框 */}
       <Dialog open={!!tagsDialog} onClose={() => { setTagsDialog(null); setSelectedTags([]); setEditCartItemId(null) }} title={editCartItemId ? '修改口味' : '选择口味'} width="max-w-md">
         {tagsDialog && (
           <div className="space-y-4">
@@ -423,6 +472,7 @@ export default function EmployeeOrder() {
         )}
       </Dialog>
 
+      {/* 打包顾客信息对话框 */}
       <Dialog open={orderInfoDialog} onClose={() => setOrderInfoDialog(false)} title="打包顾客信息" width="max-w-sm">
         <div className="space-y-4">
           <Input label="顾客姓名" value={orderInfo.name} onChange={e => setOrderInfo({ ...orderInfo, name: e.target.value })} placeholder="请输入姓名" />
@@ -434,9 +484,44 @@ export default function EmployeeOrder() {
         </div>
       </Dialog>
 
+      {/* 结账对话框 */}
+      <Dialog open={checkoutDialog} onClose={() => setCheckoutDialog(false)} title={`结账 · ${tableNo}桌`} width="max-w-md">
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex justify-between text-sm text-gray-500 mb-2">
+              <span>订单数</span>
+              <span className="font-medium">{checkoutData.count} 单</span>
+            </div>
+            <div className="flex justify-between font-bold text-xl pt-2 border-t">
+              <span>应付总额</span>
+              <span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span>
+            </div>
+          </div>
+          {checkoutData.orders.length > 0 && (
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {checkoutData.orders.map(o => (
+                <div key={o.id} className="flex justify-between items-center text-sm bg-white border border-gray-100 rounded-lg px-3 py-2">
+                  <div>
+                    <span className="font-mono text-primary-600">{o.order_no}</span>
+                    <span className="text-xs text-gray-400 ml-2">{o.created_at}</span>
+                  </div>
+                  <span className="font-medium">${parseFloat(o.total).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)}>取消</Button>
+            <Button className="flex-1" onClick={confirmCheckout}>确认结账并清桌</Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* 下单成功 - 小票弹窗 */}
       <Dialog open={!!success} onClose={() => setSuccess(null)} title="下单成功" width="max-w-sm">
         {success && (
           <div className="py-4">
+            {/* 取餐号 */}
             <div className="text-center mb-4">
               <p className="text-sm text-gray-400 mb-1">{orderType === 'dinein' ? '桌号' : '取餐号'}</p>
               <p className="text-5xl font-mono font-bold text-primary-600 tracking-wider">
@@ -445,6 +530,7 @@ export default function EmployeeOrder() {
               {orderType === 'takeout' && <p className="text-xs text-gray-400 mt-2">请凭此号取餐</p>}
             </div>
 
+            {/* 订单信息 */}
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
               <div className="flex justify-between text-gray-500 mb-1">
                 <span>订单号</span>
@@ -468,6 +554,7 @@ export default function EmployeeOrder() {
         )}
       </Dialog>
 
+      {/* 修改密码对话框 */}
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
         <div className="space-y-4">
           <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
