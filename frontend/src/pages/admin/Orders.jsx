@@ -13,14 +13,8 @@ const statusMap = {
 
 const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
 
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-const now = () => {
-  const d = new Date()
-  return `${today()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const now = () => { const d = new Date(); return `${today()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -34,20 +28,16 @@ export default function Orders() {
   const [detail, setDetail] = useState(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [keyword, setKeyword] = useState('')
 
   useEffect(() => {
     const orderId = searchParams.get('orderId')
     if (orderId) {
-      setStartDate('')
-      setEndDate('')
-      setStatusFilter('')
+      setStartDate(''); setEndDate(''); setStatusFilter('')
       api.getOrderById(orderId).then(order => { if (order) setDetail(order) }).catch(() => {})
       load({ startDate: '', endDate: '', statusFilter: '', page: 1 })
-      searchParams.delete('orderId')
-      setSearchParams(searchParams, { replace: true })
-    } else {
-      load()
-    }
+      searchParams.delete('orderId'); setSearchParams(searchParams, { replace: true })
+    } else { load() }
   }, [])
 
   const load = (overrides = {}) => {
@@ -58,91 +48,50 @@ export default function Orders() {
     const curSortOrder = overrides.sortOrder || sortOrder
     const curPage = overrides.page !== undefined ? overrides.page : page
     const curPageSize = overrides.pageSize !== undefined ? overrides.pageSize : pageSize
+    const curKeyword = overrides.keyword !== undefined ? overrides.keyword : keyword
     const params = { sort_by: curSortBy, sort_order: curSortOrder, page: curPage, page_size: curPageSize }
     if (curStatus) params.status = curStatus
     if (curStart) params.start_date = curStart
     if (curEnd) params.end_date = curEnd
+    if (curKeyword) params.keyword = curKeyword
     api.getOrders(params).then(data => {
-      if (data && Array.isArray(data.orders)) {
-        setOrders(data.orders)
-        setSummary({ total: data.total || 0, revenue: data.revenue || 0 })
-      } else {
-        setOrders(Array.isArray(data) ? data : [])
-      }
+      if (data && Array.isArray(data.orders)) { setOrders(data.orders); setSummary({ total: data.total || 0, revenue: data.revenue || 0 }) }
+      else { setOrders(Array.isArray(data) ? data : []) }
     }).catch(() => {})
   }
 
   const handleSearch = () => { setPage(1); load({ page: 1 }) }
-
   const handleSort = (field) => {
-    let newSortBy = field
-    let newSortOrder = 'desc'
-    if (sortBy === field) { newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc' }
-    setSortBy(newSortBy)
-    setSortOrder(newSortOrder)
+    let newSortBy = field, newSortOrder = 'desc'
+    if (sortBy === field) newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc'
+    setSortBy(newSortBy); setSortOrder(newSortOrder)
     load({ sortBy: newSortBy, sortOrder: newSortOrder })
   }
-
-  const sortIcon = (field) => {
-    if (sortBy !== field) return <span className="text-gray-300 ml-1">⇅</span>
-    return <span className="text-primary-600 ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-  }
-
-  const updateStatus = async (id, status) => {
-    await api.updateOrderStatus(id, status)
-    toast('状态已更新')
-    load()
-    if (detail?.id === id) setDetail({ ...detail, status })
-  }
-
+  const sortIcon = (field) => { if (sortBy !== field) return <span className="text-gray-300 ml-1">⇅</span>; return <span className="text-primary-600 ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span> }
+  const updateStatus = async (id, status) => { await api.updateOrderStatus(id, status); toast('状态已更新'); load(); if (detail?.id === id) setDetail({ ...detail, status }) }
   const setToday = () => { const s = today() + 'T00:00'; const e = now(); setStartDate(s); setEndDate(e); setPage(1); load({ startDate: s, endDate: e, page: 1 }) }
   const setThisWeek = () => {
-    const d = new Date()
-    const day = d.getDay() || 7
-    const monday = new Date(d)
-    monday.setDate(d.getDate() - day + 1)
+    const d = new Date(); const day = d.getDay() || 7; const monday = new Date(d); monday.setDate(d.getDate() - day + 1)
     const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-    const start = fmt(monday) + 'T00:00'
-    const end = now()
-    setStartDate(start); setEndDate(end); setPage(1)
-    load({ startDate: start, endDate: end, page: 1 })
+    const start = fmt(monday) + 'T00:00'; const end = now()
+    setStartDate(start); setEndDate(end); setPage(1); load({ startDate: start, endDate: end, page: 1 })
   }
   const setAll = () => { setStartDate(''); setEndDate(''); setPage(1); load({ startDate: '', endDate: '', page: 1 }) }
 
   const columns = [
-    {
-      header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">订单号{sortIcon('order_no')}</button>,
-      render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button>
-    },
-    {
-      header: '商品',
-      render: o => (
-        <div className="max-w-[200px]">
-          {o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}
-          {o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} 件</p>}
-        </div>
-      )
-    },
+    { header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">订单号{sortIcon('order_no')}</button>, render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button> },
+    { header: '商品', render: o => (<div className="max-w-[200px]">{o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}{o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} 件</p>}</div>) },
     { header: '顾客', render: o => <div><p className="text-sm text-gray-700">{o.customer_name || '-'}</p><p className="text-xs text-gray-400">{o.customer_phone || '-'}</p></div> },
     { header: '取餐方式', render: o => <Badge variant="default">{diningMap[o.dining_type] || o.dining_type}</Badge> },
-    {
-      header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">金额{sortIcon('total')}</button>,
-      render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span>
-    },
+    { header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">金额{sortIcon('total')}</button>, render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span> },
     { header: '状态', render: o => <Badge variant={statusMap[o.status]?.variant || 'default'}>{statusMap[o.status]?.label || o.status}</Badge> },
-    {
-      header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">时间{sortIcon('created_at')}</button>,
-      render: o => <span className="text-xs text-gray-400">{o.created_at}</span>
-    }
+    { header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">时间{sortIcon('created_at')}</button>, render: o => <span className="text-xs text-gray-400">{o.created_at}</span> }
   ]
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">订单管理</h2>
-          <p className="text-sm text-gray-400 mt-1">按日期查询订单，支持按订单号/金额/时间排序</p>
-        </div>
+        <div><h2 className="text-xl font-bold text-gray-800">订单管理</h2><p className="text-sm text-gray-400 mt-1">按日期查询订单，支持按订单号/金额/时间排序</p></div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -152,15 +101,12 @@ export default function Orders() {
 
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">开始时间</label>
-            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">结束时间</label>
-            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-          </div>
+          <div><label className="block text-xs text-gray-500 mb-1">开始时间</label><input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" /></div>
+          <div><label className="block text-xs text-gray-500 mb-1">结束时间</label><input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" /></div>
           <Button onClick={handleSearch}>查询</Button>
+          <div className="flex items-center gap-2">
+            <input type="text" value={keyword} onChange={e => setKeyword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSearch() }} placeholder="搜索订单号/顾客名/电话" className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:border-primary-400" />
+          </div>
           <div className="flex gap-2 ml-auto">
             <button onClick={setToday} className="px-3 py-2 text-sm text-gray-600 hover:text-primary-600 border border-gray-200 rounded-lg">今日</button>
             <button onClick={setThisWeek} className="px-3 py-2 text-sm text-gray-600 hover:text-primary-600 border border-gray-200 rounded-lg">本周</button>
@@ -181,9 +127,7 @@ export default function Orders() {
           <Empty text="该时间段暂无订单" icon="📋" />
         ) : (
           <>
-            <Table columns={columns} data={orders} actions={o => (
-              <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
-            )} />
+            <Table columns={columns} data={orders} actions={o => (<Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />)} />
             <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span>共 {summary.total} 条</span>
@@ -231,16 +175,8 @@ export default function Orders() {
               <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(detail.total).toFixed(2)}</span></div>
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
-              {statusMap[detail.status]?.next && (
-                <Button size="sm" onClick={() => updateStatus(detail.id, statusMap[detail.status].next)}>
-                  {statusMap[detail.status].nextLabel}
-                </Button>
-              )}
-              {detail.status === 'pending' && (
-                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => { if (confirm('确定取消此订单？')) updateStatus(detail.id, 'cancelled') }}>
-                  取消订单
-                </Button>
-              )}
+              {statusMap[detail.status]?.next && (<Button size="sm" onClick={() => updateStatus(detail.id, statusMap[detail.status].next)}>{statusMap[detail.status].nextLabel}</Button>)}
+              {detail.status === 'pending' && (<Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => { if (confirm('确定取消此订单？')) updateStatus(detail.id, 'cancelled') }}>取消订单</Button>)}
             </div>
           </div>
         )}
