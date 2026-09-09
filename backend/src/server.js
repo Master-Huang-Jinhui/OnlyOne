@@ -18,7 +18,7 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-require('./db'); // 初始化数据库
+const db = require('./db'); // 初始化数据库
 const { accessLog, errorLog, cleanupOldLogs } = require('./logger');
 const { startAutoBackup } = require('./backup');
 
@@ -68,12 +68,19 @@ app.get('/table', (req, res) => {
   res.redirect(302, `/menu?table=${encodeURIComponent(tableNo)}`);
 });
 
-// 通用外部链接中转跳转（隐藏真实URL，记录点击日志，安全校验）
+// 通用外部链接中转跳转（用平台ID跳转，地址栏不暴露真实URL，记录点击日志）
 app.get('/go', (req, res) => {
-  const target = req.query.url || req.query.target || '';
+  let target = '';
+  const platformId = req.query.platform || req.query.id;
+  if (platformId) {
+    const p = db.prepare('SELECT url, name FROM platforms WHERE id = ?').get(Number(platformId));
+    if (p && p.url) target = p.url;
+    if (p) console.log(`[平台跳转] 平台: ${p.name}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
+  }
+  if (!target) target = req.query.url || req.query.target || '';
   if (!target) return res.redirect('/');
   if (!/^https?:\/\//i.test(target)) return res.status(400).send('无效的跳转链接');
-  console.log(`[外部跳转] 目标: ${target}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
+  if (!platformId) console.log(`[外部跳转] 目标: ${target}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
   res.redirect(302, target);
 });
 
