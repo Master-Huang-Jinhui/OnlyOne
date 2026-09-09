@@ -4,38 +4,29 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
-// 获取所有启用的订单状态（前台/员工端用），支持按订单类型过滤
-router.get('/', (req, res) => {
+router.post('/list', (req, res) => {
   const { dining_type } = req.query;
   let sql = 'SELECT * FROM order_statuses WHERE enabled = 1';
   const params = [];
-  if (dining_type) {
-    sql += ' AND dining_type = ?';
-    params.push(dining_type);
-  }
+  if (dining_type) { sql += ' AND dining_type = ?'; params.push(dining_type); }
   sql += ' ORDER BY dining_type, sort_order, id';
   const statuses = db.prepare(sql).all(...params);
   res.json(statuses);
 });
 
-// 获取所有订单状态（后台管理用，含禁用的）
-router.get('/all', auth, managerAccess, (req, res) => {
+router.post('/all', auth, managerAccess, (req, res) => {
   const statuses = db.prepare('SELECT * FROM order_statuses ORDER BY dining_type, sort_order, id').all();
   res.json(statuses);
 });
 
-// 新增订单状态
 router.post('/', auth, managerAccess, (req, res) => {
   const { status_key, dining_type = 'all', label, color = 'default', sort_order = 0, enabled = 1, is_active = 0, next_status = null, next_label = null } = req.body;
   if (!status_key || !label) return res.status(400).json({ error: '状态标识和名称必填' });
-  const result = db.prepare(
-    'INSERT INTO order_statuses (status_key, dining_type, label, color, sort_order, enabled, is_active, next_status, next_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(status_key, dining_type, label, color, sort_order, enabled ? 1 : 0, is_active ? 1 : 0, next_status, next_label);
+  const result = db.prepare('INSERT INTO order_statuses (status_key, dining_type, label, color, sort_order, enabled, is_active, next_status, next_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(status_key, dining_type, label, color, sort_order, enabled ? 1 : 0, is_active ? 1 : 0, next_status, next_label);
   res.json({ id: result.lastInsertRowid });
 });
 
-// 更新订单状态
-router.put('/:id', auth, managerAccess, (req, res) => {
+router.post('/update/:id', auth, managerAccess, (req, res) => {
   const { status_key, dining_type, label, color, sort_order, enabled, is_active, next_status, next_label } = req.body;
   const fields = [];
   const values = [];
@@ -54,8 +45,7 @@ router.put('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
-// 删除订单状态
-router.delete('/:id', auth, managerAccess, (req, res) => {
+router.post('/delete/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM order_statuses WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
