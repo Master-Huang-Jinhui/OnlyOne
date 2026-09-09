@@ -34,7 +34,13 @@ router.post('/', (req, res) => {
   const pad = n => String(n).padStart(2, '0');
   const order_no = `${pad(d.getMonth()+1)}${pad(d.getDate())}-${seq}`;
   const pickup_number = seq;
-  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, guest_id, table_id, table_session, pickup_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, table_session || null, pickup_number);
+  // 如果是堂吃且有关联餐桌，自动获取当前会话绑定订单
+  let resolvedTableSession = table_session || null;
+  if (table_id && !resolvedTableSession) {
+    const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(table_id);
+    if (table) resolvedTableSession = table.current_session;
+  }
+  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, guest_id, table_id, table_session, pickup_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, resolvedTableSession, pickup_number);
   if (table_id && (dining_type === 'dine_in' || dining_type === 'dinein')) db.prepare('UPDATE tables SET status = ? WHERE id = ?').run('occupied', table_id);
   res.json({ order_no, total, subtotal, tax, delivery_fee, pickup_number });
 });
@@ -116,9 +122,16 @@ router.get('/mine', (req, res) => {
   res.json({ orders, count: orders.length });
 });
 
-// 员工端：按桌子查询所有未取消订单（结账用）
+// 员工端：按桌子查询当前会话的所有未取消订单（结账用）
 router.get('/table/:tableId', auth, (req, res) => {
-  const orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
+  const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(req.params.tableId);
+  const session = table?.current_session;
+  let orders;
+  if (session) {
+    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND table_session = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId, session);
+  } else {
+    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
+  }
   orders.forEach(o => { o.items = JSON.parse(o.items || '[]'); });
   const total = orders.reduce((sum, o) => sum + parseFloat(o.total), 0);
   res.json({ orders, total, count: orders.length });
