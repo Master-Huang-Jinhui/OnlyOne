@@ -173,7 +173,6 @@ export default function AdminLayout() {
             <h1 className="text-lg font-semibold text-gray-800">OnlyOne 平台管理</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500 hidden sm:inline">{user?.name || user?.username}</span>
             <span className={`px-2 py-0.5 rounded text-xs ${user?.role === 'admin' ? 'bg-primary-100 text-primary-700' : user?.role === 'manager' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
               {user?.role === 'admin' ? '超级管理员' : user?.role === 'manager' ? '管理员' : '用户'}
             </span>
