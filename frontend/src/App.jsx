@@ -31,6 +31,7 @@ import Permissions from './pages/admin/Permissions'
 import EmployeeHome from './pages/employee/EmployeeHome'
 import EmployeeOrder from './pages/employee/EmployeeOrder'
 import EmployeeOrders from './pages/employee/EmployeeOrders'
+import EmployeeTableDetail from './pages/employee/EmployeeTableDetail'
 
 function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, employeeOnly = false }) {
   const { user, loading } = useAuth()
@@ -60,6 +61,7 @@ export default function App() {
         {/* 员工 */}
         <Route path="/employee" element={<ProtectedRoute employeeOnly><EmployeeHome /></ProtectedRoute>} />
         <Route path="/employee/order" element={<ProtectedRoute employeeOnly><EmployeeOrder /></ProtectedRoute>} />
+        <Route path="/employee/table-detail" element={<ProtectedRoute employeeOnly><EmployeeTableDetail /></ProtectedRoute>} />
         <Route path="/employee/orders" element={<ProtectedRoute employeeOnly><EmployeeOrders /></ProtectedRoute>} />
 
         {/* 后台 */}
