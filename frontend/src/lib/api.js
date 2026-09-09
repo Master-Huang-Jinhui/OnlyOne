@@ -161,6 +161,11 @@ export const api = {
   createFlavorCategory: (data) => request('/flavor-categories', { method: 'POST', body: JSON.stringify(data) }),
   updateFlavorCategory: (id, data) => request(`/flavor-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteFlavorCategory: (id) => request(`/flavor-categories/${id}`, { method: 'DELETE' }),
+  getOrderStatuses: (diningType) => request(`/order-statuses${diningType ? `?dining_type=${diningType}` : ''}`),
+  getAllOrderStatuses: () => request('/order-statuses/all'),
+  createOrderStatus: (data) => request('/order-statuses', { method: 'POST', body: JSON.stringify(data) }),
+  updateOrderStatus: (id, data) => request(`/order-statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteOrderStatus: (id) => request(`/order-statuses/${id}`, { method: 'DELETE' }),
   uploadImage: async (file) => {
     const formData = new FormData()
     formData.append('image', file)
