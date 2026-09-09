@@ -1,40 +1,44 @@
 const BASE = '/api'
 
-function getToken() { return localStorage.getItem('token') }
+function getToken() {
+  return localStorage.getItem('token')
+}
 
 async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', ...options, headers })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || '请求失败')
   return data
 }
 
 export const api = {
-  login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  login: (username, password) => request('/auth/login', { body: JSON.stringify({ username, password }) }),
   getMe: () => request('/auth/me'),
-  changePassword: (oldPassword, newPassword) => request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ oldPassword, newPassword }) }),
-  getUsers: () => request('/users'),
-  createUser: (data) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
-  updateUser: (id, data) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
-  getPlatforms: () => request('/platforms'),
-  createPlatform: (data) => request('/platforms', { method: 'POST', body: JSON.stringify(data) }),
-  updatePlatform: (id, data) => request(`/platforms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deletePlatform: (id) => request(`/platforms/${id}`, { method: 'DELETE' }),
-  getProducts: (categoryId) => request(`/products${categoryId ? `?category_id=${categoryId}` : ''}`),
+  changePassword: (oldPassword, newPassword) => request('/auth/change-password', { body: JSON.stringify({ oldPassword, newPassword }) }),
+  getUsers: () => request('/users/list'),
+  createUser: (data) => request('/users', { body: JSON.stringify(data) }),
+  updateUser: (id, data) => request(`/users/update/${id}`, { body: JSON.stringify(data) }),
+  deleteUser: (id) => request(`/users/delete/${id}`),
+  getPlatforms: () => request('/platforms/list'),
+  getPublicPlatforms: () => request('/platforms/public'),
+  createPlatform: (data) => request('/platforms', { body: JSON.stringify(data) }),
+  updatePlatform: (id, data) => request(`/platforms/update/${id}`, { body: JSON.stringify(data) }),
+  deletePlatform: (id) => request(`/platforms/delete/${id}`),
+  getProducts: (categoryId) => request(`/products/list${categoryId ? `?category_id=${categoryId}` : ''}`),
   getAllProducts: () => request('/products/all'),
-  createProduct: (data) => request('/products', { method: 'POST', body: JSON.stringify(data) }),
-  updateProduct: (id, data) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
-  getCategories: () => request('/products/categories'),
+  getProductById: (id) => request(`/products/detail/${id}`),
+  createProduct: (data) => request('/products', { body: JSON.stringify(data) }),
+  updateProduct: (id, data) => request(`/products/update/${id}`, { body: JSON.stringify(data) }),
+  deleteProduct: (id) => request(`/products/delete/${id}`),
+  getCategories: () => request('/products/categories/list'),
   getAllCategories: () => request('/products/categories/all'),
-  createCategory: (data) => request('/products/categories', { method: 'POST', body: JSON.stringify(data) }),
-  updateCategory: (id, data) => request(`/products/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteCategory: (id) => request(`/products/categories/${id}`, { method: 'DELETE' }),
-  createOrder: (data) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
+  createCategory: (data) => request('/products/categories', { body: JSON.stringify(data) }),
+  updateCategory: (id, data) => request(`/products/categories/update/${id}`, { body: JSON.stringify(data) }),
+  deleteCategory: (id) => request(`/products/categories/delete/${id}`),
+  createOrder: (data) => request('/orders', { body: JSON.stringify(data) }),
   getOrders: (params) => {
     const qs = new URLSearchParams()
     if (params?.status) qs.append('status', params.status)
@@ -45,15 +49,15 @@ export const api = {
     if (params?.page) qs.append('page', params.page)
     if (params?.page_size) qs.append('page_size', params.page_size)
     const query = qs.toString()
-    return request(`/orders${query ? `?${query}` : ''}`)
+    return request(`/orders/list${query ? `?${query}` : ''}`)
   },
-  getOrderById: (id) => request(`/orders/${id}`),
+  getOrderById: (id) => request(`/orders/detail/${id}`),
   getTableOrders: (tableId) => request(`/orders/table/${tableId}`),
   getEmployeeTodayOrders: (status) => request(`/orders/employee/today${status ? `?status=${status}` : ''}`),
-  updateEmployeeOrderStatus: (id, status) => request(`/orders/employee/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-  appendOrder: (id, items) => request(`/orders/employee/${id}/append`, { method: 'PUT', body: JSON.stringify({ items }) }),
+  updateEmployeeOrderStatus: (id, status) => request(`/orders/employee/${id}/status`, { body: JSON.stringify({ status }) }),
+  appendOrder: (id, items) => request(`/orders/employee/${id}/append`, { body: JSON.stringify({ items }) }),
   getOrderStats: () => request('/orders/stats'),
-  updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { body: JSON.stringify({ status }) }),
   getOrderByNo: (orderNo) => request(`/orders/lookup/${orderNo}`),
   searchOrders: (keyword) => request(`/orders/search?keyword=${encodeURIComponent(keyword)}`),
   getMyOrders: (guestId, tableId, tableSession) => {
@@ -66,32 +70,33 @@ export const api = {
   },
   getTableByNo: (tableNo) => request(`/tables/by-no/${encodeURIComponent(tableNo)}`),
   getPublicTables: () => request('/tables/public'),
-  getTables: () => request('/tables'),
-  createTable: (data) => request('/tables', { method: 'POST', body: JSON.stringify(data) }),
-  updateTable: (id, data) => request(`/tables/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteTable: (id) => request(`/tables/${id}`, { method: 'DELETE' }),
-  clearTable: (id) => request(`/tables/${id}/clear`, { method: 'POST' }),
-  occupyTable: (id) => request(`/tables/${id}/occupy`, { method: 'POST' }),
-  getSettings: () => request('/settings'),
-  updateSettings: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  getTables: () => request('/tables/list'),
+  createTable: (data) => request('/tables', { body: JSON.stringify(data) }),
+  updateTable: (id, data) => request(`/tables/update/${id}`, { body: JSON.stringify(data) }),
+  deleteTable: (id) => request(`/tables/delete/${id}`),
+  clearTable: (id) => request(`/tables/${id}/clear`),
+  occupyTable: (id) => request(`/tables/${id}/occupy`),
+  getSettings: () => request('/settings/list'),
+  getSetting: (key) => request(`/settings/detail/${key}`),
+  updateSettings: (data) => request('/settings', { body: JSON.stringify(data) }),
   getTodayBusiness: () => request('/settings/business/today'),
-  getForms: () => request('/forms'),
+  getForms: () => request('/forms/list'),
   getPublicForm: (id) => request(`/forms/public/${id}`),
-  createForm: (data) => request('/forms', { method: 'POST', body: JSON.stringify(data) }),
-  updateForm: (id, data) => request(`/forms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteForm: (id) => request(`/forms/${id}`, { method: 'DELETE' }),
-  submitForm: (id, data) => request(`/forms/${id}/submit`, { method: 'POST', body: JSON.stringify(data) }),
+  createForm: (data) => request('/forms', { body: JSON.stringify(data) }),
+  updateForm: (id, data) => request(`/forms/update/${id}`, { body: JSON.stringify(data) }),
+  deleteForm: (id) => request(`/forms/delete/${id}`),
+  submitForm: (id, data) => request(`/forms/${id}/submit`, { body: JSON.stringify(data) }),
   getFormSubmissions: (id) => request(`/forms/${id}/submissions`),
-  getMenus: () => request('/menus'),
+  getMenus: () => request('/menus/list'),
   getAllMenus: () => request('/menus/all'),
-  createMenu: (data) => request('/menus', { method: 'POST', body: JSON.stringify(data) }),
-  updateMenu: (id, data) => request(`/menus/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteMenu: (id) => request(`/menus/${id}`, { method: 'DELETE' }),
+  createMenu: (data) => request('/menus', { body: JSON.stringify(data) }),
+  updateMenu: (id, data) => request(`/menus/update/${id}`, { body: JSON.stringify(data) }),
+  deleteMenu: (id) => request(`/menus/delete/${id}`),
   getProductStats: (threshold) => request(`/stats/products${threshold ? `?threshold=${threshold}` : ''}`),
   getTopProducts: () => request('/stats/products/top5'),
   downloadProfitTemplate: async () => {
     const token = getToken()
-    const res = await fetch(`${BASE}/stats/profit/template`, { headers: { 'Authorization': `Bearer ${token}` } })
+    const res = await fetch(`${BASE}/stats/profit/template`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
     if (!res.ok) throw new Error('下载失败')
     const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
@@ -112,7 +117,11 @@ export const api = {
   },
   exportProfitResult: async (results) => {
     const token = getToken()
-    const res = await fetch(`${BASE}/stats/profit/export`, { method: 'POST', body: JSON.stringify({ results }), headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } })
+    const res = await fetch(`${BASE}/stats/profit/export`, {
+      method: 'POST',
+      body: JSON.stringify({ results }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    })
     if (!res.ok) throw new Error('导出失败')
     const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
@@ -129,43 +138,44 @@ export const api = {
     if (productName) params.append('product_name', productName)
     return request(`/stats/profit/history/latest?${params.toString()}`)
   },
-  saveProfitRecord: (data) => request('/stats/profit/save', { method: 'POST', body: JSON.stringify(data) }),
-  getCarousel: () => request('/content/carousel'),
+  saveProfitRecord: (data) => request('/stats/profit/save', { body: JSON.stringify(data) }),
+  getCarousel: () => request('/content/carousel/list'),
   getAllCarousel: () => request('/content/carousel/all'),
-  createCarousel: (data) => request('/content/carousel', { method: 'POST', body: JSON.stringify(data) }),
-  updateCarousel: (id, data) => request(`/content/carousel/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteCarousel: (id) => request(`/content/carousel/${id}`, { method: 'DELETE' }),
+  createCarousel: (data) => request('/content/carousel', { body: JSON.stringify(data) }),
+  updateCarousel: (id, data) => request(`/content/carousel/update/${id}`, { body: JSON.stringify(data) }),
+  deleteCarousel: (id) => request(`/content/carousel/delete/${id}`),
   getContentBlocks: () => request('/content/blocks'),
-  updateContentBlock: (key, data) => request(`/content/blocks/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
-  getContentSections: () => request('/content/sections'),
+  getContentBlock: (key) => request(`/content/blocks/detail/${key}`),
+  updateContentBlock: (key, data) => request(`/content/blocks/update/${key}`, { body: JSON.stringify(data) }),
+  getContentSections: () => request('/content/sections/list'),
   getAllContentSections: () => request('/content/sections/all'),
-  createContentSection: (data) => request('/content/sections', { method: 'POST', body: JSON.stringify(data) }),
-  updateContentSection: (id, data) => request(`/content/sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteContentSection: (id) => request(`/content/sections/${id}`, { method: 'DELETE' }),
-  getNewProducts: () => request('/content/new-products'),
+  createContentSection: (data) => request('/content/sections', { body: JSON.stringify(data) }),
+  updateContentSection: (id, data) => request(`/content/sections/update/${id}`, { body: JSON.stringify(data) }),
+  deleteContentSection: (id) => request(`/content/sections/delete/${id}`),
+  getNewProducts: () => request('/content/new-products/list'),
   getAllNewProducts: () => request('/content/new-products/all'),
-  createNewProduct: (data) => request('/content/new-products', { method: 'POST', body: JSON.stringify(data) }),
-  updateNewProduct: (id, data) => request(`/content/new-products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteNewProduct: (id) => request(`/content/new-products/${id}`, { method: 'DELETE' }),
-  getMemos: (type) => request(`/memos${type ? `?type=${type}` : ''}`),
-  createMemo: (data) => request('/memos', { method: 'POST', body: JSON.stringify(data) }),
-  updateMemo: (id, data) => request(`/memos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteMemo: (id) => request(`/memos/${id}`, { method: 'DELETE' }),
-  getFlavorTags: (productCategoryId) => request(`/flavor-tags${productCategoryId ? `?product_category_id=${productCategoryId}` : ''}`),
+  createNewProduct: (data) => request('/content/new-products', { body: JSON.stringify(data) }),
+  updateNewProduct: (id, data) => request(`/content/new-products/update/${id}`, { body: JSON.stringify(data) }),
+  deleteNewProduct: (id) => request(`/content/new-products/delete/${id}`),
+  getMemos: (type) => request(`/memos/list${type ? `?type=${type}` : ''}`),
+  createMemo: (data) => request('/memos', { body: JSON.stringify(data) }),
+  updateMemo: (id, data) => request(`/memos/update/${id}`, { body: JSON.stringify(data) }),
+  deleteMemo: (id) => request(`/memos/delete/${id}`),
+  getFlavorTags: (productCategoryId) => request(`/flavor-tags/list${productCategoryId ? `?product_category_id=${productCategoryId}` : ''}`),
   getAllFlavorTags: () => request('/flavor-tags/all'),
-  createFlavorTag: (data) => request('/flavor-tags', { method: 'POST', body: JSON.stringify(data) }),
-  updateFlavorTag: (id, data) => request(`/flavor-tags/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteFlavorTag: (id) => request(`/flavor-tags/${id}`, { method: 'DELETE' }),
-  getFlavorCategories: () => request('/flavor-categories'),
+  createFlavorTag: (data) => request('/flavor-tags', { body: JSON.stringify(data) }),
+  updateFlavorTag: (id, data) => request(`/flavor-tags/update/${id}`, { body: JSON.stringify(data) }),
+  deleteFlavorTag: (id) => request(`/flavor-tags/delete/${id}`),
+  getFlavorCategories: () => request('/flavor-categories/list'),
   getAllFlavorCategories: () => request('/flavor-categories/all'),
-  createFlavorCategory: (data) => request('/flavor-categories', { method: 'POST', body: JSON.stringify(data) }),
-  updateFlavorCategory: (id, data) => request(`/flavor-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteFlavorCategory: (id) => request(`/flavor-categories/${id}`, { method: 'DELETE' }),
-  getOrderStatuses: (diningType) => request(`/order-statuses${diningType ? `?dining_type=${diningType}` : ''}`),
+  createFlavorCategory: (data) => request('/flavor-categories', { body: JSON.stringify(data) }),
+  updateFlavorCategory: (id, data) => request(`/flavor-categories/update/${id}`, { body: JSON.stringify(data) }),
+  deleteFlavorCategory: (id) => request(`/flavor-categories/delete/${id}`),
+  getOrderStatuses: (diningType) => request(`/order-statuses/list${diningType ? `?dining_type=${diningType}` : ''}`),
   getAllOrderStatuses: () => request('/order-statuses/all'),
-  createOrderStatus: (data) => request('/order-statuses', { method: 'POST', body: JSON.stringify(data) }),
-  updateOrderStatus: (id, data) => request(`/order-statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteOrderStatus: (id) => request(`/order-statuses/${id}`, { method: 'DELETE' }),
+  createOrderStatus: (data) => request('/order-statuses', { body: JSON.stringify(data) }),
+  updateOrderStatus: (id, data) => request(`/order-statuses/update/${id}`, { body: JSON.stringify(data) }),
+  deleteOrderStatus: (id) => request(`/order-statuses/delete/${id}`),
   uploadImage: async (file) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -178,17 +188,17 @@ export const api = {
     return data
   },
   getTodayAttendance: () => request('/attendance/today'),
-  clockIn: () => request('/attendance/clock-in', { method: 'POST' }),
-  clockOut: () => request('/attendance/clock-out', { method: 'POST' }),
-  getAttendanceRecords: (params) => request(`/attendance?${new URLSearchParams(params).toString()}`),
-  getGoods: (params) => request(`/inventory/goods?${new URLSearchParams(params || {}).toString()}`),
-  getGoodsById: (id) => request(`/inventory/goods/${id}`),
-  createGoods: (data) => request('/inventory/goods', { method: 'POST', body: JSON.stringify(data) }),
-  updateGoods: (id, data) => request(`/inventory/goods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteGoods: (id) => request(`/inventory/goods/${id}`, { method: 'DELETE' }),
-  getPurchaseOrders: (params) => request(`/inventory/orders?${new URLSearchParams(params || {}).toString()}`),
-  getPurchaseOrder: (id) => request(`/inventory/orders/${id}`),
-  createPurchaseOrder: (data) => request('/inventory/orders', { method: 'POST', body: JSON.stringify(data) }),
-  updatePurchaseOrder: (id, data) => request(`/inventory/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deletePurchaseOrder: (id) => request(`/inventory/orders/${id}`, { method: 'DELETE' })
+  clockIn: () => request('/attendance/clock-in'),
+  clockOut: () => request('/attendance/clock-out'),
+  getAttendanceRecords: (params) => request(`/attendance/list?${new URLSearchParams(params).toString()}`),
+  getGoods: (params) => request(`/inventory/goods/list?${new URLSearchParams(params || {}).toString()}`),
+  getGoodsById: (id) => request(`/inventory/goods/detail/${id}`),
+  createGoods: (data) => request('/inventory/goods', { body: JSON.stringify(data) }),
+  updateGoods: (id, data) => request(`/inventory/goods/update/${id}`, { body: JSON.stringify(data) }),
+  deleteGoods: (id) => request(`/inventory/goods/delete/${id}`),
+  getPurchaseOrders: (params) => request(`/inventory/orders/list?${new URLSearchParams(params || {}).toString()}`),
+  getPurchaseOrder: (id) => request(`/inventory/orders/detail/${id}`),
+  createPurchaseOrder: (data) => request('/inventory/orders', { body: JSON.stringify(data) }),
+  updatePurchaseOrder: (id, data) => request(`/inventory/orders/update/${id}`, { body: JSON.stringify(data) }),
+  deletePurchaseOrder: (id) => request(`/inventory/orders/delete/${id}`)
 }

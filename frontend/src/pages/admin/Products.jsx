@@ -49,7 +49,7 @@ export default function Products() {
 
   const downloadTemplate = () => {
     const token = localStorage.getItem('token')
-    fetch('/api/products/export/template', { headers: { 'Authorization': `Bearer ${token}` } })
+    fetch('/api/products/export/template', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.blob())
       .then(blob => {
         const url = window.URL.createObjectURL(blob)
@@ -61,7 +61,7 @@ export default function Products() {
 
   const exportProducts = () => {
     const token = localStorage.getItem('token')
-    fetch('/api/products/export', { headers: { 'Authorization': `Bearer ${token}` } })
+    fetch('/api/products/export', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.blob())
       .then(blob => {
         const url = window.URL.createObjectURL(blob)
@@ -345,21 +345,14 @@ export default function Products() {
               <Input label="英文名" value={productDialog.data.name_en} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, name_en: e.target.value } })} />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <Select label="分类" value={productDialog.data.category_id || ''} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, category_id: e.target.value } })}
-                options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+              <Select label="分类" value={productDialog.data.category_id || ''} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, category_id: e.target.value } })} options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
               <Input label="价格 * ($)" type="number" step="0.01" value={productDialog.data.price} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, price: e.target.value } })} />
               <Input label="排序" type="number" value={productDialog.data.sort_order} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">商品图片</label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={productDialog.data.image}
-                  onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })}
-                  placeholder="https://... 或 /uploads/images/xxx.jpg"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
+                <input type="text" value={productDialog.data.image} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })} placeholder="https://... 或 /uploads/images/xxx.jpg" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                 <Button variant="outline" onClick={() => productImageInputRef.current?.click()}>上传图片</Button>
                 <input ref={productImageInputRef} type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
               </div>
@@ -401,8 +394,7 @@ export default function Products() {
                 {moveDialog.products.map(p => <p key={p.id} className="truncate">• {p.name}</p>)}
               </div>
             )}
-            <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })}
-              options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+            <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })} options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setMoveDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={confirmMove}>确认移动</Button>
