@@ -116,8 +116,10 @@ router.get('/mine', (req, res) => {
   res.json({ orders, count: orders.length });
 });
 
+// 员工端：按桌子查询所有未取消订单（结账用）
 router.get('/table/:tableId', auth, (req, res) => {
-  const orders = db.prepare("SELECT id, order_no, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
+  const orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
+  orders.forEach(o => { o.items = JSON.parse(o.items || '[]'); });
   const total = orders.reduce((sum, o) => sum + parseFloat(o.total), 0);
   res.json({ orders, total, count: orders.length });
 });
@@ -129,6 +131,9 @@ router.get('/:id', auth, (req, res) => {
   res.json(order);
 });
 
+// ===== 员工端接口（只需登录，无需管理员权限）=====
+
+// 员工端：今日订单列表
 router.get('/employee/today', auth, (req, res) => {
   const { status } = req.query;
   let sql = "SELECT * FROM orders WHERE date(created_at) = date('now','localtime')";
@@ -141,6 +146,7 @@ router.get('/employee/today', auth, (req, res) => {
   res.json({ orders, total: summary.cnt, revenue: summary.revenue });
 });
 
+// 员工端：更新订单状态
 router.put('/employee/:id/status', auth, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
@@ -153,6 +159,7 @@ router.put('/employee/:id/status', auth, (req, res) => {
   res.json({ success: true });
 });
 
+// 员工端：向已有订单追加商品（加单）
 router.put('/employee/:id/append', auth, (req, res) => {
   const { items } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: '追加商品为空' });
