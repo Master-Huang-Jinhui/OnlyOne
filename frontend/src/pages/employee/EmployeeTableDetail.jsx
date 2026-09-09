@@ -51,15 +51,12 @@ export default function EmployeeTableDetail() {
     navigate(`/employee/order?type=dinein&tableId=${tableId}&tableNo=${encodeURIComponent(tableNo)}`)
   }
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!tableId) { toast('无法获取桌子信息', 'error'); return }
-    try {
-      const data = await api.getTableOrders(tableId)
-      setCheckoutData(data)
-      setCheckoutDialog(true)
-    } catch (e) {
-      toast(e.message, 'error')
-    }
+    if (orders.length === 0) { toast('没有进行中的订单', 'error'); return }
+    const checkoutTotal = orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0)
+    setCheckoutData({ orders, total: checkoutTotal, count: orders.length })
+    setCheckoutDialog(true)
   }
 
   const confirmCheckout = async () => {
