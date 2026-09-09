@@ -1,18 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useCart } from '../../context/CartContext'
 import { Button, Badge } from '../../components/ui'
 import MilkTeaMaker from '../../components/MilkTeaMaker'
-
-const sections = [
-  { id: 'new', label: '新品' },
-  { id: 'brand', label: '品牌' },
-  { id: 'craft', label: '工艺' },
-  { id: 'about', label: '关于' },
-  { id: 'menu', label: '菜单' },
-  { id: 'contact', label: '联系' }
-]
 
 export default function Home() {
   const navigate = useNavigate()
@@ -26,6 +17,17 @@ export default function Home() {
   const [business, setBusiness] = useState({ open: true })
   const [contentSections, setContentSections] = useState([])
   const [newProducts, setNewProducts] = useState([])
+
+  const showTea = settings.show_tea_sourcing !== false
+  const sections = [
+    { id: 'new', label: '新品' },
+    { id: 'brand', label: '品牌' },
+    ...(showTea ? [{ id: 'tea', label: '茶品' }] : []),
+    { id: 'craft', label: '工艺' },
+    { id: 'about', label: '关于' },
+    { id: 'menu', label: '菜单' },
+    { id: 'contact', label: '联系' }
+  ]
 
   useEffect(() => {
     api.getCarousel().then(setCarousel).catch(() => {})
@@ -174,7 +176,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 茶品溯源（已隐藏）
+      {showTea && (
       <section id="tea" className="py-20 bg-gradient-to-b from-blue-50/50 to-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
@@ -195,7 +197,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      */}
+      )}
 
       <section id="craft" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
