@@ -11,6 +11,20 @@ export default function Products() {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [searchKeyword, setSearchKeyword] = useState('')
   const fileInputRef = useRef(null)
+  const productImageInputRef = useRef(null)
+
+  const handleProductImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const data = await api.uploadImage(file)
+      if (data?.url) {
+        setProductDialog(prev => ({ ...prev, data: { ...prev.data, image: data.url } }))
+        toast('图片上传成功')
+      }
+    } catch (err) { toast(err.message, 'error') }
+    e.target.value = ''
+  }
 
   const toggleSelect = (id) => {
     setSelectedIds(prev => {
@@ -57,17 +71,27 @@ export default function Products() {
       })
   }
 
-  const handleImportFile = async (e) => {
+  const handleImportFile = async (e, confirm = false) => {
     const file = e.target.files?.[0]
     if (!file) return
     const token = localStorage.getItem('token')
     const formData = new FormData()
     formData.append('file', file)
+    if (confirm) formData.append('confirm', 'true')
     try {
       const res = await fetch('/api/products/import', { method: 'POST', body: formData, headers: { 'Authorization': `Bearer ${token}` } })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '导入失败')
-      toast(`导入成功：${data.success} 条，失败 ${data.failed} 条${data.errors?.length ? '，' + data.errors[0] : ''}`)
+      if (data.needConfirm) {
+        const dupList = data.duplicates.map(d => `第${d.row}行：${d.name}（${d.category}）`).join('\n')
+        if (window.confirm(`发现 ${data.duplicateCount} 个重复商品：\n\n${dupList}\n\n是否跳过重复项，继续导入其余 ${data.totalRows - data.duplicateCount} 条？`)) {
+          handleImportFile(e, true)
+          return
+        }
+        e.target.value = ''
+        return
+      }
+      toast(`导入成功：${data.success} 条，失败 ${data.failed} 条${data.skipped ? `，跳过重复 ${data.skipped} 条` : ''}${data.errors?.length ? '，' + data.errors[0] : ''}`)
       load()
     } catch (err) { toast(err.message, 'error') }
     e.target.value = ''
@@ -326,7 +350,25 @@ export default function Products() {
               <Input label="价格 * ($)" type="number" step="0.01" value={productDialog.data.price} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, price: e.target.value } })} />
               <Input label="排序" type="number" value={productDialog.data.sort_order} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             </div>
-            <Input label="图片 URL" value={productDialog.data.image} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })} placeholder="https://... 或 /uploads/images/xxx.jpg" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">商品图片</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={productDialog.data.image}
+                  onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })}
+                  placeholder="https://... 或 /uploads/images/xxx.jpg"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <Button variant="outline" onClick={() => productImageInputRef.current?.click()}>上传图片</Button>
+                <input ref={productImageInputRef} type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
+              </div>
+              {productDialog.data.image && (
+                <div className="mt-2">
+                  <img src={productDialog.data.image} alt="预览" className="w-24 h-24 object-cover rounded-lg border" />
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <Textarea label="描述" value={productDialog.data.description} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, description: e.target.value } })} rows={2} />
               <Textarea label="英文描述" value={productDialog.data.description_en} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, description_en: e.target.value } })} rows={2} />
