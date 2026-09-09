@@ -171,13 +171,12 @@ export default function EmployeeHome() {
               onClick={() => selectTable(table)}
               className={`py-4 rounded-xl border-2 font-bold text-lg transition-all ${
                 table.status === 'occupied'
-                  ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-orange-50 border-orange-300 text-orange-600 hover:border-orange-400 hover:bg-orange-100 hover:shadow-md'
                   : 'bg-white border-primary-200 text-primary-600 hover:border-primary-400 hover:bg-primary-50 hover:shadow-md'
               }`}
-              disabled={table.status === 'occupied'}
             >
               {table.table_no}
-              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">占用中</p>}
+              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">用餐中 · 点击加单</p>}
             </button>
           ))}
         </div>
