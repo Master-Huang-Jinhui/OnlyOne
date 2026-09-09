@@ -14,6 +14,14 @@ const statusMap = {
 
 const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
 
+const formatTime = (str) => {
+  if (!str) return ''
+  const m = String(str).match(/(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+  if (!m) return str
+  const [, y, mo, d, h, mi, s = '00'] = m
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')} ${h.padStart(2, '0')}:${mi.padStart(2, '0')}:${s.padStart(2, '0')}`
+}
+
 export default function EmployeeOrders() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
@@ -60,11 +68,7 @@ export default function EmployeeOrders() {
       await api.updateEmployeeOrderStatus(id, status)
       toast('状态已更新')
       load()
-      if (detail?.id === id) {
-        const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-        const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null
-        setDetail({ ...detail, status, ...(timeField ? { [timeField]: detail[timeField] || now } : {}) })
-      }
+      if (detail?.id === id) setDetail({ ...detail, status })
     } catch (e) { toast(e.message, 'error') }
   }
 
@@ -203,7 +207,7 @@ export default function EmployeeOrders() {
                     <div key={i} className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${time ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>{step.icon}</div>
                       <span className={`text-sm w-20 ${time ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{step.label}</span>
-                      <span className={`text-xs ${time ? 'text-gray-500' : 'text-gray-300'}`}>{time || '待处理'}</span>
+                      <span className={`text-xs ${time ? 'text-gray-500' : 'text-gray-300'}`}>{time ? formatTime(time) : '待处理'}</span>
                       {i < timelineSteps.length - 1 && <div className={`flex-1 h-px ${time ? 'bg-primary-200' : 'bg-gray-200'}`} />}
                     </div>
                   )
@@ -228,12 +232,6 @@ export default function EmployeeOrders() {
               <div className="flex justify-between text-sm text-gray-600"><span>税费</span><span>${parseFloat(detail.tax).toFixed(2)}</span></div>
               <div className="flex justify-between text-sm text-gray-600"><span>配送费</span><span>${parseFloat(detail.delivery_fee).toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(detail.total).toFixed(2)}</span></div>
-            </div>
-
-            <div className="flex gap-2 pt-2 flex-wrap">
-              {Object.entries(statusMap).map(([k, v]) => (
-                <Button key={k} size="sm" variant={detail.status === k ? 'primary' : 'outline'} onClick={() => updateStatus(detail.id, k)}>{v.label}</Button>
-              ))}
             </div>
           </div>
         )}
