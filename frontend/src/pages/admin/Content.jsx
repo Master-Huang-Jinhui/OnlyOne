@@ -176,7 +176,10 @@ export default function Content() {
       {tab === 'tea' && (
         <Card className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-400">前台自动三栏排列，可添加任意数量茶品</p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-gray-400">前台自动三栏排列，可添加任意数量茶品</p>
+              <Switch checked={settings.show_tea_sourcing !== false} onChange={v => { setSettings(prev => ({ ...prev, show_tea_sourcing: v })); saveText('show_tea_sourcing', v) }} label="前台显示" />
+            </div>
             <Button size="sm" onClick={addTea}>+ 添加茶品</Button>
           </div>
           {teaSourcing.map((tea, i) => (
