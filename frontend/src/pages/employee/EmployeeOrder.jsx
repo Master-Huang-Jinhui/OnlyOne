@@ -122,12 +122,26 @@ export default function EmployeeOrder() {
         res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: customerName || (orderType === 'dinein' ? `堂吃-${tableNo}` : ''), customer_phone: customerPhone, table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
         if (orderType === 'dinein' && res.order_no) { try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {} }
       }
-      setSuccess(res)
-      const now = new Date(); const pad = n => String(n).padStart(2, '0')
+      // 下单/加单成功后，提示点餐成功，然后返回到员工主页
+      toast(`点餐成功，订单号：${res.order_no}`)
+      // 下单/加单成功后，把待下单商品标记为已下单，并记录所属订单信息
+      const now = new Date()
+      const pad = n => String(n).padStart(2, '0')
       const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-      setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true, order_id: currentOrderId, order_no: currentOrderNo || res.order_no, order_time: orderTime }))
+      setCart(prev => prev.map(i => i.ordered ? i : {
+        ...i, ordered: true,
+        order_id: currentOrderId,
+        order_no: currentOrderNo || res.order_no,
+        order_time: orderTime
+      }))
       setOrderInfo({ name: '', phone: '' })
-    } catch (err) { toast(err.message, 'error') }
+      // 延迟1.5秒后返回到员工主页
+      setTimeout(() => {
+        navigate('/employee')
+      }, 1500)
+    } catch (err) {
+      toast(err.message, 'error')
+    }
   }
 
   const submitOrder = () => { if (pendingItems.length === 0) { toast('没有需要提交的商品', 'error'); return } if (orderType === 'dinein') doSubmitOrder(); else setOrderInfoDialog(true) }
