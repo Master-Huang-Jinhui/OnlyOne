@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
@@ -10,6 +10,7 @@ export default function Products() {
   const [moveDialog, setMoveDialog] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [searchKeyword, setSearchKeyword] = useState('')
+  const fileInputRef = useRef(null)
 
   const toggleSelect = (id) => {
     setSelectedIds(prev => {
@@ -31,6 +32,46 @@ export default function Products() {
   }
 
   const clearSelection = () => setSelectedIds(new Set())
+
+  const downloadTemplate = () => {
+    const token = localStorage.getItem('token')
+    fetch('/api/products/export/template', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'product_import_template.xlsx'; a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  }
+
+  const exportProducts = () => {
+    const token = localStorage.getItem('token')
+    fetch('/api/products/export', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'products_export.xlsx'; a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  }
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const token = localStorage.getItem('token')
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch('/api/products/import', { method: 'POST', body: formData, headers: { 'Authorization': `Bearer ${token}` } })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '导入失败')
+      toast(`导入成功：${data.success} 条，失败 ${data.failed} 条${data.errors?.length ? '，' + data.errors[0] : ''}`)
+      load()
+    } catch (err) { toast(err.message, 'error') }
+    e.target.value = ''
+  }
 
   useEffect(() => { load() }, [])
 
@@ -185,6 +226,12 @@ export default function Products() {
             )}
           </div>
           <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', name_en: '', sort_order: 0, enabled: true } })}>+ 新增分类</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>下载模板</Button>
+            <Button variant="outline" onClick={exportProducts}>导出</Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>导入</Button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
+          </div>
         </div>
       </div>
 
