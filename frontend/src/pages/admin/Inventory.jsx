@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Input, Select, Empty, toast } from '../../components/ui'
+import Tesseract from 'tesseract.js'
 
 export default function Inventory() {
   const [tab, setTab] = useState('goods')
@@ -10,6 +11,9 @@ export default function Inventory() {
   const [orderDialog, setOrderDialog] = useState(null)
   const [orderDetail, setOrderDetail] = useState(null)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const ocrFileRef = useRef(null)
 
   useEffect(() => { loadGoods(); loadOrders() }, [])
 
@@ -109,6 +113,55 @@ export default function Inventory() {
   const deleteOrder = async (o) => {
     if (!confirm(`确定删除进货单"${o.order_no || o.id}"吗？`)) return
     await api.deletePurchaseOrder(o.id); toast('进货单已删除'); loadOrders()
+  }
+
+  const parseReceiptText = (text) => {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    const items = []
+    for (const line of lines) {
+      const match = line.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/)
+      if (match) {
+        items.push({ goods_name: match[1].trim(), quantity: parseFloat(match[2]), unit: '个', unit_price: parseFloat(match[3]) })
+        continue
+      }
+      const match2 = line.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s+\$?(\d+(?:\.\d+)?)$/)
+      if (match2 && !match2[1].match(/^(total|subtotal|tax|date|order|invoice|phone|address|qty|item|description|amount|price)$/i)) {
+        items.push({ goods_name: match2[1].trim(), quantity: parseFloat(match2[2]), unit: '个', unit_price: parseFloat(match2[3]) })
+      }
+    }
+    return items
+  }
+
+  const handleOcrUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!orderDialog) {
+      openNewOrder()
+      await new Promise(r => setTimeout(r, 100))
+    }
+    setOcrLoading(true)
+    setOcrProgress(0)
+    try {
+      const result = await Tesseract.recognize(file, 'eng', {
+        logger: m => { if (m.status === 'recognizing text') setOcrProgress(Math.round(m.progress * 100)) }
+      })
+      const items = parseReceiptText(result.data.text)
+      if (items.length === 0) {
+        toast('未识别到货物明细，请手动填写', 'warning')
+      } else {
+        setOrderDialog(prev => ({
+          ...prev,
+          data: { ...prev.data, items: items.map(it => ({ ...it, goods_id: '' })) }
+        }))
+        toast(`识别成功，已填充 ${items.length} 项货物，请核对`)
+      }
+    } catch (err) {
+      toast('识别失败：' + err.message, 'error')
+    } finally {
+      setOcrLoading(false)
+      setOcrProgress(0)
+      if (ocrFileRef.current) ocrFileRef.current.value = ''
+    }
   }
 
   const goodsColumns = [
@@ -232,8 +285,22 @@ export default function Inventory() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700">货物明细</label>
-                <Button size="sm" variant="outline" onClick={addOrderItem}>+ 添加一项</Button>
+                <div className="flex items-center gap-2">
+                  <input ref={ocrFileRef} type="file" accept="image/*" capture="environment" onChange={handleOcrUpload} className="hidden" />
+                  <Button size="sm" variant="outline" onClick={() => ocrFileRef.current?.click()} disabled={ocrLoading}>
+                    {ocrLoading ? `识别中 ${ocrProgress}%` : '📷 拍照识别'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={addOrderItem}>+ 添加一项</Button>
+                </div>
               </div>
+              {ocrLoading && (
+                <div className="mb-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-primary-600 h-2 rounded-full transition-all" style={{ width: `${ocrProgress}%` }}></div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">正在识别图片文字，请稍候...</p>
+                </div>
+              )}
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {orderDialog.data.items.map((item, idx) => (
                   <div key={idx} className="flex gap-2 items-center">
