@@ -47,6 +47,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/tables', require('./routes/tables'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/inventory', require('./routes/inventory'));
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
