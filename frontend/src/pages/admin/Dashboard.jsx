@@ -114,7 +114,6 @@ export default function Dashboard() {
         <span className="text-sm text-gray-400">欢迎回来 👋</span>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="今日订单" value={stats.today_count || 0} icon="📋" color="blue" />
         <StatCard title="今日营收" value={`$${(stats.today_revenue || 0).toFixed(2)}`} icon="💰" color="green" />
@@ -122,7 +121,6 @@ export default function Dashboard() {
         <StatCard title="本周订单" value={stats.week_count || 0} icon="📊" color="purple" />
       </div>
 
-      {/* 热销 TOP5 */}
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/admin/stats/product')}>
         <div className="px-5 py-4 border-b flex items-center justify-between bg-gradient-to-r from-red-50 to-orange-50">
           <div className="flex items-center gap-2">
@@ -151,7 +149,6 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* 备忘录 / 重点事项（优先级最高） */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">备忘录 / 重点事项</h3>
@@ -182,7 +179,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* 今日待处理订单 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -243,7 +239,6 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {/* 外卖平台 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">外卖平台</h3>
@@ -267,7 +262,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? '启用' : '停用'}</Badge>
-                    {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline">跳转</a>}
+                    {p.url && <a href={`/go?platform=${p.id}`} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline">跳转</a>}
                   </div>
                 </div>
               ))}
@@ -276,7 +271,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* 添加备忘对话框 */}
       <Dialog
         open={memoDialog}
         onClose={() => setMemoDialog(false)}
@@ -293,7 +287,6 @@ export default function Dashboard() {
         </div>
       </Dialog>
 
-      {/* 订单详情弹窗 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`订单详情 - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
