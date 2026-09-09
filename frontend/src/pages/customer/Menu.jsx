@@ -7,7 +7,7 @@ import { Button, Badge, Empty, toast } from '../../components/ui'
 
 export default function Menu() {
   const navigate = useNavigate()
-  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, flavorTags, getTagInfo, calcTagsExtraPrice } = useCart()
+  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, flavorTags, getTagInfo, calcTagsExtraPrice, loadFlavors } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
@@ -31,12 +31,15 @@ export default function Menu() {
     return items.filter(i => i.id === productId).reduce((sum, i) => sum + i.quantity, 0)
   }
 
-  const handleAdd = (product) => {
+  const handleAdd = async (product) => {
     if (!business.open) return
-    addItem(product)
+    const data = await loadFlavors(product.category_id)
+    const defaults = (data.tags || []).filter(t => t.is_default).map(t => t.name)
+    addItem(product, defaults.length > 0 ? defaults : [])
   }
 
-  const openTagsDialog = (item) => {
+  const openTagsDialog = async (item) => {
+    await loadFlavors(item.category_id)
     setTagsDialog(item)
     setSelectedTags([...(item.notes || [])])
     setCustomNote('')
@@ -78,7 +81,7 @@ export default function Menu() {
       groups[tag.category].push(tag)
     })
     return groups
-  }, [flavorTags])
+  }, [])
 
   const renderTags = (tags = [], small = false) => (
     <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>

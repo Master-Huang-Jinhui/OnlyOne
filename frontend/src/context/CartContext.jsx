@@ -7,6 +7,7 @@ export function CartProvider({ children }) {
   const genId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
   const [flavorTags, setFlavorTags] = useState([])
+  const [flavorCache, setFlavorCache] = useState({})
 
   useEffect(() => {
     api.getFlavorTags()
@@ -18,6 +19,19 @@ export function CartProvider({ children }) {
         ])
       })
   }, [])
+
+  const loadFlavors = async (categoryId) => {
+    if (flavorCache[categoryId]) {
+      setFlavorTags(flavorCache[categoryId].tags || [])
+      return flavorCache[categoryId]
+    }
+    try {
+      const data = await api.getFlavorTags(categoryId)
+      setFlavorTags(data.tags || [])
+      setFlavorCache(prev => ({ ...prev, [categoryId]: data }))
+      return data
+    } catch (e) { return { tags: [], grouped: {} } }
+  }
 
   const getTagInfo = (tagName) => flavorTags.find(t => t.name === tagName) || { name: tagName, extra_price: 0, category: '自定义' }
   const calcTagsExtraPrice = (tags = []) => tags.reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
@@ -55,7 +69,7 @@ export function CartProvider({ children }) {
       }
       return [...prev, {
         cartId: genId(), id: product.id, name: product.name, name_en: product.name_en,
-        price: product.price, image: product.image, quantity: 1, notes: itemNotes
+        price: product.price, image: product.image, quantity: 1, notes: itemNotes, category_id: product.category_id
       }]
     })
   }
@@ -104,7 +118,7 @@ export function CartProvider({ children }) {
     <CartContext.Provider value={{
       items, addItem, updateQuantity, updateNotes, clearNotes, removeItem, clear,
       subtotal, totalCount, history, addToHistory, reorderFromHistory, clearHistory,
-      getItemUnitPrice, flavorTags, defaultTags, getTagInfo, calcTagsExtraPrice
+      getItemUnitPrice, flavorTags, defaultTags, getTagInfo, calcTagsExtraPrice, loadFlavors
     }}>
       {children}
     </CartContext.Provider>

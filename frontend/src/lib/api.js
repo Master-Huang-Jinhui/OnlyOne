@@ -44,7 +44,6 @@ export const api = {
     if (params?.sort_order) qs.append('sort_order', params.sort_order)
     if (params?.page) qs.append('page', params.page)
     if (params?.page_size) qs.append('page_size', params.page_size)
-    if (params?.keyword) qs.append('keyword', params.keyword)
     const query = qs.toString()
     return request(`/orders${query ? `?${query}` : ''}`)
   },
@@ -152,7 +151,7 @@ export const api = {
   createMemo: (data) => request('/memos', { method: 'POST', body: JSON.stringify(data) }),
   updateMemo: (id, data) => request(`/memos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMemo: (id) => request(`/memos/${id}`, { method: 'DELETE' }),
-  getFlavorTags: () => request('/flavor-tags'),
+  getFlavorTags: (productCategoryId) => request(`/flavor-tags${productCategoryId ? `?product_category_id=${productCategoryId}` : ''}`),
   getAllFlavorTags: () => request('/flavor-tags/all'),
   createFlavorTag: (data) => request('/flavor-tags', { method: 'POST', body: JSON.stringify(data) }),
   updateFlavorTag: (id, data) => request(`/flavor-tags/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
