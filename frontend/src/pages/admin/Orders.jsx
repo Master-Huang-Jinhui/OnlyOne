@@ -4,9 +4,9 @@ import { api } from '../../lib/api'
 import { Card, Button, Table, Badge, Dialog, Select, Empty, toast } from '../../components/ui'
 
 const statusMap = {
-  pending: { label: '待处理', variant: 'warning', next: 'preparing', nextLabel: '开始制作' },
+  pending: { label: '进行中', variant: 'warning', next: 'preparing', nextLabel: '开始制作' },
   preparing: { label: '制作中', variant: 'primary', next: 'ready', nextLabel: '制作完成' },
-  ready: { label: '待取餐', variant: 'primary', next: 'completed', nextLabel: '确认取餐' },
+  ready: { label: '待取餐/配送中', variant: 'primary', next: 'completed', nextLabel: '确认完成' },
   completed: { label: '已完成', variant: 'success', next: null, nextLabel: null },
   cancelled: { label: '已取消', variant: 'danger', next: null, nextLabel: null }
 }
