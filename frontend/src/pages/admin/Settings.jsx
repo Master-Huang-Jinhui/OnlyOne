@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Input, Switch, Tabs, toast } from '../../components/ui'
+import { Card, Button, Input, Select, Switch, Tabs, toast } from '../../components/ui'
 
 const days = [
-  { key: 'monday', label: '周一' }, { key: 'tuesday', label: '周二' }, { key: 'wednesday', label: '周三' },
-  { key: 'thursday', label: '周四' }, { key: 'friday', label: '周五' }, { key: 'saturday', label: '周六' }, { key: 'sunday', label: '周日' }
+  { key: 'monday', label: '周一' },
+  { key: 'tuesday', label: '周二' },
+  { key: 'wednesday', label: '周三' },
+  { key: 'thursday', label: '周四' },
+  { key: 'friday', label: '周五' },
+  { key: 'saturday', label: '周六' },
+  { key: 'sunday', label: '周日' }
 ]
 
 export default function Settings() {
@@ -14,7 +19,12 @@ export default function Settings() {
   const [qrAddress, setQrAddress] = useState('')
 
   useEffect(() => {
-    api.getSettings().then(s => { setSettings(s); if (!s.business_hours) s.business_hours = {} }).catch(() => {})
+    api.getSettings().then(s => {
+      setSettings(s)
+      try {
+        if (!s.business_hours) s.business_hours = {}
+      } catch {}
+    }).catch(() => {})
   }, [])
 
   const update = (key, value) => setSettings(prev => ({ ...prev, [key]: value }))
@@ -22,30 +32,40 @@ export default function Settings() {
   const updateHours = (day, field, value) => {
     const hours = { ...(settings.business_hours || {}) }
     if (!hours[day]) hours[day] = { open: false, open_time: '10:00', close_time: '21:00' }
-    hours[day][field] = value
+    hours[day][field] = field === 'open' ? value : value
     update('business_hours', hours)
   }
 
   const save = async () => {
     setSaving(true)
-    try { await api.updateSettings(settings); toast('保存成功') } catch (e) { toast(e.message, 'error') } finally { setSaving(false) }
+    try {
+      await api.updateSettings(settings)
+      toast('保存成功')
+    } catch (e) { toast(e.message, 'error') }
+    finally { setSaving(false) }
   }
 
   const generateQR = () => {
-    const address = qrAddress || 'http://' + window.location.hostname + ':3000'
-    window.open('https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(address), '_blank')
+    const address = qrAddress || `http://${window.location.hostname}:3000`
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(address)}`
+    window.open(qrUrl, '_blank')
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">系统设置</h2><p className="text-sm text-gray-400 mt-1">店铺信息、营业时间、税率、配送等</p></div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">系统设置</h2>
+          <p className="text-sm text-gray-400 mt-1">店铺信息、营业时间、税率、配送等</p>
+        </div>
         <Button onClick={save} disabled={saving}>{saving ? '保存中...' : '保存设置'}</Button>
       </div>
 
       <Tabs tabs={[
-        { key: 'basic', label: '店铺信息' }, { key: 'hours', label: '营业时间' },
-        { key: 'tax', label: '税率与配送' }, { key: 'qr', label: '堂吃二维码' }
+        { key: 'basic', label: '店铺信息' },
+        { key: 'hours', label: '营业时间' },
+        { key: 'tax', label: '税率与配送' },
+        { key: 'qr', label: '堂吃二维码' }
       ]} active={tab} onChange={setTab} />
 
       {tab === 'basic' && (
@@ -66,16 +86,18 @@ export default function Settings() {
           <p className="text-sm text-gray-400 mb-4">每天可独立开关营业并设置起止时间，周二默认休息</p>
           <div className="space-y-3">
             {days.map(day => {
-              const h = settings.business_hours && settings.business_hours[day.key] ? settings.business_hours[day.key] : { open: false, open_time: '10:00', close_time: '21:00' }
+              const h = settings.business_hours?.[day.key] || { open: false, open_time: '10:00', close_time: '21:00' }
               return (
                 <div key={day.key} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                   <span className="w-12 font-medium text-gray-700">{day.label}</span>
                   <Switch checked={!!h.open} onChange={v => updateHours(day.key, 'open', v)} label={h.open ? '营业中' : '休息'} />
                   {h.open && (
                     <div className="flex items-center gap-2 ml-4">
-                      <input type="time" value={h.open_time} onChange={e => updateHours(day.key, 'open_time', e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                      <input type="time" value={h.open_time} onChange={e => updateHours(day.key, 'open_time', e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                       <span className="text-gray-400">至</span>
-                      <input type="time" value={h.close_time} onChange={e => updateHours(day.key, 'close_time', e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                      <input type="time" value={h.close_time} onChange={e => updateHours(day.key, 'close_time', e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                     </div>
                   )}
                 </div>
@@ -109,12 +131,20 @@ export default function Settings() {
         <Card className="p-6">
           <h4 className="font-medium text-gray-800 mb-3">堂吃二维码</h4>
           <p className="text-sm text-gray-400 mb-4">生成门店访问二维码，打印贴餐桌，顾客扫码直接访问菜单首页。需在同一 WiFi 局域网下访问。</p>
-          <div className="flex gap-3 mb-4 items-end">
+          <div className="flex gap-3 mb-2">
             <Input label="局域网地址（留空自动获取当前地址）" value={qrAddress} onChange={e => setQrAddress(e.target.value)} placeholder="http://192.168.1.100:3000" className="flex-1" />
-            <Button onClick={generateQR}>生成二维码</Button>
+            <div className="flex items-end"><Button onClick={generateQR}>生成二维码</Button></div>
+          </div>
+          <div className="flex items-center gap-2 mb-4 text-sm">
+            <span className="text-gray-500">当前地址：</span>
+            <code className="bg-gray-100 px-2 py-1 rounded text-gray-700 flex-1 truncate">{qrAddress || window.location.origin}</code>
+            <Button size="sm" variant="outline" onClick={() => {
+              navigator.clipboard.writeText(qrAddress || window.location.origin)
+              toast('地址已复制')
+            }}>复制</Button>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
-            <p>注意：</p>
+            <p>⚠️ 注意：</p>
             <ul className="list-disc list-inside mt-1 space-y-1">
               <li>电脑主机必须保持开机，服务必须在运行</li>
               <li>Windows 需要允许防火墙专用/公用网络访问</li>
