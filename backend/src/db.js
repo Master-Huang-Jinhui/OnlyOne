@@ -181,6 +181,18 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+  CREATE TABLE IF NOT EXISTS order_statuses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    status_key TEXT NOT NULL,
+    dining_type TEXT NOT NULL DEFAULT 'all',
+    label TEXT NOT NULL,
+    color TEXT DEFAULT 'default',
+    sort_order INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1,
+    is_active INTEGER DEFAULT 0,
+    next_status TEXT,
+    next_label TEXT
+  );
   CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -301,6 +313,29 @@ if (flavorCount === 0) {
   flavors.forEach(f => insertFlavor.run(catIds[f[0]], f[0], f[1], f[2], f[3], f[4]));
 }
 
+const orderStatusCount = db.prepare('SELECT COUNT(*) as cnt FROM order_statuses').get().cnt;
+if (orderStatusCount === 0) {
+  const insertStatus = db.prepare('INSERT INTO order_statuses (status_key, dining_type, label, color, sort_order, enabled, is_active, next_status, next_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const defaultStatuses = [
+    ['pending', 'dinein', '进行中', 'primary', 1, 1, 1, 'completed', '完成结账'],
+    ['preparing', 'dinein', '进行中', 'primary', 2, 1, 1, 'completed', '完成结账'],
+    ['ready', 'dinein', '进行中', 'primary', 3, 1, 1, 'completed', '完成结账'],
+    ['completed', 'dinein', '已完成', 'success', 4, 1, 0, null, null],
+    ['cancelled', 'dinein', '已取消', 'danger', 5, 1, 0, null, null],
+    ['pending', 'takeout', '进行中', 'warning', 1, 1, 1, 'ready', '制作完成'],
+    ['preparing', 'takeout', '进行中', 'warning', 2, 1, 1, 'ready', '制作完成'],
+    ['ready', 'takeout', '待取餐', 'primary', 3, 1, 1, 'completed', '确认取餐'],
+    ['completed', 'takeout', '已完成', 'success', 4, 1, 0, null, null],
+    ['cancelled', 'takeout', '已取消', 'danger', 5, 1, 0, null, null],
+    ['pending', 'delivery', '进行中', 'warning', 1, 1, 1, 'ready', '开始配送'],
+    ['preparing', 'delivery', '进行中', 'warning', 2, 1, 1, 'ready', '开始配送'],
+    ['ready', 'delivery', '配送中', 'primary', 3, 1, 1, 'completed', '配送完成'],
+    ['completed', 'delivery', '已完成', 'success', 4, 1, 0, null, null],
+    ['cancelled', 'delivery', '已取消', 'danger', 5, 1, 0, null, null]
+  ];
+  defaultStatuses.forEach(s => insertStatus.run(...s));
+}
+
 const carouselCount = db.prepare('SELECT COUNT(*) as cnt FROM carousel').get().cnt;
 if (carouselCount === 0) {
   const insertCarousel = db.prepare('INSERT INTO carousel (image, title, sort_order, enabled) VALUES (?, ?, ?, 1)');
@@ -325,7 +360,6 @@ if (!orderColumns.find(c => c.name === 'table_id')) { db.prepare('ALTER TABLE or
 if (!orderColumns.find(c => c.name === 'table_session')) { db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run(); }
 if (!orderColumns.find(c => c.name === 'pickup_number')) { db.prepare('ALTER TABLE orders ADD COLUMN pickup_number TEXT').run(); }
 
-// 修正脏数据：把 table_session 为 NULL 的订单绑定到对应桌子的 current_session
 try {
   const dirtyOrders = db.prepare("SELECT id, table_id FROM orders WHERE table_id IS NOT NULL AND (table_session IS NULL OR table_session = '')").all();
   let fixedCount = 0;
@@ -359,6 +393,9 @@ if (!thankProduct) {
 
 const flavorMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/flavors'").get();
 if (!flavorMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors'); }
+
+const orderStatusMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/order-statuses'").get();
+if (!orderStatusMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('订单状态管理', '🔄', '/admin/order-statuses'); }
 
 const statsMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/stats/product'").get();
 if (!statsMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('销售统计', '📊', '/admin/stats/product'); }
