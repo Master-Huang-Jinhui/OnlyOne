@@ -111,8 +111,21 @@ export default function EmployeeOrder() {
   const submitOrder = () => { if (cart.length === 0) { toast('购物车为空', 'error'); return } if (orderType === 'dinein') doSubmitOrder(); else setOrderInfoDialog(true) }
   const confirmOrderInfo = () => { if (!orderInfo.name.trim()) { toast('请填写顾客姓名', 'error'); return } if (!orderInfo.phone.trim()) { toast('请填写手机号码', 'error'); return } setOrderInfoDialog(false); doSubmitOrder(orderInfo.name.trim(), orderInfo.phone.trim()) }
 
-  const handleCheckout = async () => { if (!tableId) { toast('无法获取桌子信息', 'error'); return } try { const data = await api.getTableOrders(tableId); setCheckoutData(data); setCheckoutDialog(true) } catch (e) { toast(e.message, 'error') } }
-  const confirmCheckout = async () => { if (!tableId) return try { await api.clearTable(tableId); toast('结账成功，桌子已清空'); setCheckoutDialog(false); setCurrentOrderId(null); setCurrentOrderNo(''); navigate('/employee') } catch (e) { toast(e.message, 'error') } }
+  const handleCheckout = async () => {
+    if (!tableId) { toast('无法获取桌子信息', 'error'); return }
+    try { const data = await api.getTableOrders(tableId); setCheckoutData(data); setCheckoutDialog(true) } catch (e) { toast(e.message, 'error') }
+  }
+  const confirmCheckout = async () => {
+    if (!tableId) { return }
+    try {
+      await api.clearTable(tableId)
+      toast('结账成功，桌子已清空')
+      setCheckoutDialog(false)
+      setCurrentOrderId(null)
+      setCurrentOrderNo('')
+      navigate('/employee')
+    } catch (e) { toast(e.message, 'error') }
+  }
 
   const handleChangePassword = async () => { if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast('请填写完整', 'error'); return } if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast('两次密码不一致', 'error'); return } try { await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword); toast('密码修改成功'); setPwdDialog(false); setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' }) } catch (e) { toast(e.message, 'error') } }
 
