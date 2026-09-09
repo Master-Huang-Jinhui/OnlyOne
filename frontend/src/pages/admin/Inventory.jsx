@@ -1,282 +1,304 @@
 import { useState, useEffect } from 'react'
-import { api, showToast } from '../../lib/api'
+import { api } from '../../lib/api'
+import { Card, Button, Table, Badge, Dialog, Input, Select, Empty, toast } from '../../components/ui'
 
 export default function Inventory() {
-  const [activeTab, setActiveTab] = useState('goods')
+  const [tab, setTab] = useState('goods')
   const [goods, setGoods] = useState([])
-  const [purchaseOrders, setPurchaseOrders] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [showGoodsModal, setShowGoodsModal] = useState(false)
-  const [editingGoods, setEditingGoods] = useState(null)
-  const [goodsForm, setGoodsForm] = useState({ name: '', name_en: '', unit: '个', current_stock: 0, avg_price: 0, supplier: '', category: '', note: '' })
-  const [showOrderModal, setShowOrderModal] = useState(false)
-  const [orderForm, setOrderForm] = useState({ supplier: '', order_date: new Date().toISOString().split('T')[0], delivery_fee: 0, discount: 0, payment_method: 'COD', note: '', items: [{ goods_id: '', goods_name: '', quantity: 1, unit: '个', unit_price: 0 }] })
-  const [viewingOrder, setViewingOrder] = useState(null)
+  const [orders, setOrders] = useState([])
+  const [goodsDialog, setGoodsDialog] = useState(null)
+  const [orderDialog, setOrderDialog] = useState(null)
+  const [orderDetail, setOrderDetail] = useState(null)
+  const [searchKeyword, setSearchKeyword] = useState('')
 
-  useEffect(() => { loadGoods(); loadPurchaseOrders() }, [])
+  useEffect(() => { loadGoods(); loadOrders() }, [])
 
-  const loadGoods = async () => {
-    try { setLoading(true); const data = await api.getGoods({ search }); setGoods(data || []) }
-    catch (e) { showToast(e.message, 'error') }
-    finally { setLoading(false) }
+  const loadGoods = () => {
+    api.getGoods({ keyword: searchKeyword }).then(data => {
+      setGoods(Array.isArray(data) ? data : [])
+    }).catch(() => {})
   }
 
-  const loadPurchaseOrders = async () => {
-    try { const data = await api.getPurchaseOrders(); setPurchaseOrders(data || []) }
-    catch (e) { showToast(e.message, 'error') }
+  const loadOrders = () => {
+    api.getPurchaseOrders({}).then(data => {
+      setOrders(Array.isArray(data) ? data : [])
+    }).catch(() => {})
   }
 
-  const handleSaveGoods = async () => {
-    if (!goodsForm.name) { showToast('请输入货物名称', 'error'); return }
+  const saveGoods = async () => {
+    const { mode, data } = goodsDialog
+    if (!data.name.trim()) { toast('货物名称必填', 'error'); return }
     try {
-      if (editingGoods) { await api.updateGoods(editingGoods.id, goodsForm); showToast('更新成功') }
-      else { await api.createGoods(goodsForm); showToast('添加成功') }
-      setShowGoodsModal(false); setEditingGoods(null); setGoodsForm({ name: '', name_en: '', unit: '个', current_stock: 0, avg_price: 0, supplier: '', category: '', note: '' }); loadGoods()
-    } catch (e) { showToast(e.message, 'error') }
+      if (mode === 'add') { await api.createGoods(data); toast('货物已添加') }
+      else { await api.updateGoods(data.id, data); toast('货物已更新') }
+      setGoodsDialog(null); loadGoods()
+    } catch (e) { toast(e.message, 'error') }
   }
 
-  const handleDeleteGoods = async (id) => {
-    if (!confirm('确定删除该货物？')) return
-    try { await api.deleteGoods(id); showToast('删除成功'); loadGoods() }
-    catch (e) { showToast(e.message, 'error') }
+  const deleteGoods = async (g) => {
+    if (!confirm(`确定删除货物"${g.name}"吗？`)) return
+    await api.deleteGoods(g.id); toast('货物已删除'); loadGoods()
+  }
+
+  const openNewOrder = () => {
+    const today = new Date().toISOString().split('T')[0]
+    setOrderDialog({
+      mode: 'add',
+      data: {
+        order_no: '', supplier: '', order_date: today,
+        delivery_fee: 0, discount: 0, payment_method: 'COD', note: '',
+        items: [{ goods_name: '', quantity: 1, unit: '个', unit_price: 0 }]
+      }
+    })
   }
 
   const addOrderItem = () => {
-    setOrderForm({ ...orderForm, items: [...orderForm.items, { goods_id: '', goods_name: '', quantity: 1, unit: '个', unit_price: 0 }] })
+    setOrderDialog(prev => ({
+      ...prev,
+      data: { ...prev.data, items: [...prev.data.items, { goods_name: '', quantity: 1, unit: '个', unit_price: 0 }] }
+    }))
   }
 
   const removeOrderItem = (idx) => {
-    setOrderForm({ ...orderForm, items: orderForm.items.filter((_, i) => i !== idx) })
+    setOrderDialog(prev => ({
+      ...prev,
+      data: { ...prev.data, items: prev.data.items.filter((_, i) => i !== idx) }
+    }))
   }
 
   const updateOrderItem = (idx, field, value) => {
-    const items = [...orderForm.items]
-    items[idx] = { ...items[idx], [field]: value }
-    if (field === 'goods_id' && value) {
-      const g = goods.find(x => x.id === Number(value))
-      if (g) { items[idx].goods_name = g.name; items[idx].unit = g.unit; items[idx].unit_price = g.avg_price }
-    }
-    items[idx].subtotal = (items[idx].quantity || 0) * (items[idx].unit_price || 0)
-    setOrderForm({ ...orderForm, items })
+    setOrderDialog(prev => {
+      const items = [...prev.data.items]
+      items[idx] = { ...items[idx], [field]: value }
+      if (field === 'goods_id' && value) {
+        const g = goods.find(x => x.id === Number(value))
+        if (g) {
+          items[idx].goods_name = g.name
+          items[idx].unit = g.unit
+          items[idx].unit_price = g.avg_price || 0
+        }
+      }
+      return { ...prev, data: { ...prev.data, items } }
+    })
   }
 
-  const orderTotal = orderForm.items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unit_price || 0), 0) + (orderForm.delivery_fee || 0) - (orderForm.discount || 0)
+  const calcOrderTotal = () => {
+    if (!orderDialog) return 0
+    const itemsTotal = orderDialog.data.items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), 0)
+    return itemsTotal + (parseFloat(orderDialog.data.delivery_fee) || 0) - (parseFloat(orderDialog.data.discount) || 0)
+  }
 
-  const handleCreateOrder = async () => {
-    if (!orderForm.supplier) { showToast('请输入供应商', 'error'); return }
-    if (orderForm.items.length === 0 || !orderForm.items[0].goods_name) { showToast('请添加至少一项货物', 'error'); return }
+  const saveOrder = async () => {
+    const { mode, data } = orderDialog
+    if (!data.supplier.trim()) { toast('供应商必填', 'error'); return }
+    if (data.items.length === 0 || !data.items[0].goods_name.trim()) { toast('至少添加一项货物', 'error'); return }
     try {
-      await api.createPurchaseOrder({ ...orderForm, total_amount: orderTotal, items: orderForm.items.filter(i => i.goods_name) })
-      showToast('进货单创建成功，库存已更新')
-      setShowOrderModal(false)
-      setOrderForm({ supplier: '', order_date: new Date().toISOString().split('T')[0], delivery_fee: 0, discount: 0, payment_method: 'COD', note: '', items: [{ goods_id: '', goods_name: '', quantity: 1, unit: '个', unit_price: 0 }] })
-      loadPurchaseOrders(); loadGoods()
-    } catch (e) { showToast(e.message, 'error') }
-  }
-
-  const handleDeleteOrder = async (id) => {
-    if (!confirm('确定删除该进货单？删除后库存不会回退。')) return
-    try { await api.deletePurchaseOrder(id); showToast('删除成功'); loadPurchaseOrders() }
-    catch (e) { showToast(e.message, 'error') }
+      if (mode === 'add') { await api.createPurchaseOrder(data); toast('进货单已创建') }
+      else { await api.updatePurchaseOrder(data.id, data); toast('进货单已更新') }
+      setOrderDialog(null); loadOrders(); loadGoods()
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const viewOrder = async (id) => {
-    try { const data = await api.getPurchaseOrder(id); setViewingOrder(data) }
-    catch (e) { showToast(e.message, 'error') }
+    try {
+      const data = await api.getPurchaseOrder(id)
+      setOrderDetail(data)
+    } catch (e) { toast(e.message, 'error') }
   }
 
+  const deleteOrder = async (o) => {
+    if (!confirm(`确定删除进货单"${o.order_no || o.id}"吗？`)) return
+    await api.deletePurchaseOrder(o.id); toast('进货单已删除'); loadOrders()
+  }
+
+  const goodsColumns = [
+    { header: '货物名称', render: g => <div><p className="font-medium text-gray-800">{g.name}</p>{g.name_en && <p className="text-xs text-gray-400">{g.name_en}</p>}</div> },
+    { header: '单位', render: g => <span className="text-sm text-gray-600">{g.unit}</span> },
+    { header: '当前库存', render: g => <span className={`font-medium ${g.current_stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{g.current_stock} {g.unit}</span> },
+    { header: '平均进价', render: g => <span className="text-primary-600 font-medium">${parseFloat(g.avg_price || 0).toFixed(2)}</span> },
+    { header: '供应商', render: g => <span className="text-sm text-gray-600">{g.supplier || '-'}</span> },
+    { header: '分类', render: g => g.category ? <Badge variant="default">{g.category}</Badge> : <span className="text-gray-300">-</span> }
+  ]
+
+  const orderColumns = [
+    { header: '订单号', render: o => <button onClick={() => viewOrder(o.id)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no || `#${o.id}`}</button> },
+    { header: '供应商', render: o => <span className="font-medium text-gray-800">{o.supplier}</span> },
+    { header: '日期', render: o => <span className="text-sm text-gray-600">{o.order_date}</span> },
+    { header: '付款方式', render: o => <Badge variant="default">{o.payment_method}</Badge> },
+    { header: '总金额', render: o => <span className="font-bold text-primary-600">${parseFloat(o.total_amount || 0).toFixed(2)}</span> }
+  ]
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">货物管理</h1>
-      <div className="flex gap-2 mb-6 border-b">
-        <button onClick={() => setActiveTab('goods')} className={`px-4 py-2 font-medium ${activeTab === 'goods' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>货物列表</button>
-        <button onClick={() => setActiveTab('orders')} className={`px-4 py-2 font-medium ${activeTab === 'orders' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>进货单</button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">货物管理</h2>
+          <p className="text-sm text-gray-400 mt-1">管理货物库存和进货单</p>
+        </div>
       </div>
 
-      {activeTab === 'goods' && (
-        <div>
-          <div className="flex gap-3 mb-4">
-            <input type="text" placeholder="搜索货物名称..." value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadGoods()} className="flex-1 max-w-xs px-3 py-2 border rounded-lg" />
-            <button onClick={loadGoods} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">搜索</button>
-            <button onClick={() => { setEditingGoods(null); setGoodsForm({ name: '', name_en: '', unit: '个', current_stock: 0, avg_price: 0, supplier: '', category: '', note: '' }); setShowGoodsModal(true) }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">+ 添加货物</button>
+      <div className="flex gap-2 border-b">
+        <button onClick={() => setTab('goods')} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'goods' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>货物列表</button>
+        <button onClick={() => setTab('orders')} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'orders' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>进货单</button>
+      </div>
+
+      {tab === 'goods' && (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input type="text" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') loadGoods() }} placeholder="搜索货物名称/供应商..." className="w-64 pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+            </div>
+            <Button onClick={() => setGoodsDialog({ mode: 'add', data: { name: '', name_en: '', unit: '个', current_stock: 0, avg_price: 0, supplier: '', category: '', note: '' } })}>+ 新增货物</Button>
           </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">名称</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">单位</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">当前库存</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">平均进价</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">供应商</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">分类</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {goods.map(g => (
-                  <tr key={g.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3">{g.name}{g.name_en && <span className="text-gray-400 text-sm ml-2">{g.name_en}</span>}</td>
-                    <td className="px-4 py-3">{g.unit}</td>
-                    <td className="px-4 py-3">{g.current_stock}</td>
-                    <td className="px-4 py-3">${Number(g.avg_price).toFixed(2)}</td>
-                    <td className="px-4 py-3">{g.supplier || '-'}</td>
-                    <td className="px-4 py-3">{g.category || '-'}</td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => { setEditingGoods(g); setGoodsForm({ ...g }); setShowGoodsModal(true) }} className="text-blue-500 hover:underline mr-3">编辑</button>
-                      <button onClick={() => handleDeleteGoods(g.id)} className="text-red-500 hover:underline">删除</button>
-                    </td>
-                  </tr>
-                ))}
-                {goods.length === 0 && <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">暂无货物</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+          <Card>
+            {goods.length === 0 ? (
+              <Empty text="暂无货物，点击右上角添加" icon="📦" />
+            ) : (
+              <Table columns={goodsColumns} data={goods} actions={g => (
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setGoodsDialog({ mode: 'edit', data: { ...g } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
+                  <button onClick={() => deleteGoods(g)} className="text-xs text-red-400 hover:text-red-600">删除</button>
+                </div>
+              )} />
+            )}
+          </Card>
+        </>
       )}
 
-      {activeTab === 'orders' && (
-        <div>
-          <div className="flex justify-between mb-4">
-            <h2 className="text-lg font-medium">进货单记录</h2>
-            <button onClick={() => setShowOrderModal(true)} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">+ 新建进货单</button>
+      {tab === 'orders' && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">共 {orders.length} 张进货单</p>
+            <Button onClick={openNewOrder}>+ 新建进货单</Button>
           </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">单号</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">供应商</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">日期</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">总金额</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchaseOrders.map(o => (
-                  <tr key={o.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3">{o.order_no || `#${o.id}`}</td>
-                    <td className="px-4 py-3">{o.supplier}</td>
-                    <td className="px-4 py-3">{o.order_date}</td>
-                    <td className="px-4 py-3 font-medium">${Number(o.total_amount).toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => viewOrder(o.id)} className="text-blue-500 hover:underline mr-3">查看</button>
-                      <button onClick={() => handleDeleteOrder(o.id)} className="text-red-500 hover:underline">删除</button>
-                    </td>
-                  </tr>
-                ))}
-                {purchaseOrders.length === 0 && <tr><td colSpan="5" className="px-4 py-8 text-center text-gray-400">暂无进货单</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+          <Card>
+            {orders.length === 0 ? (
+              <Empty text="暂无进货单，点击右上角新建" icon="📋" />
+            ) : (
+              <Table columns={orderColumns} data={orders} actions={o => (
+                <div className="flex items-center gap-3">
+                  <button onClick={() => viewOrder(o.id)} className="text-xs text-primary-600 hover:text-primary-700">查看</button>
+                  <button onClick={() => deleteOrder(o)} className="text-xs text-red-400 hover:text-red-600">删除</button>
+                </div>
+              )} />
+            )}
+          </Card>
+        </>
       )}
 
-      {showGoodsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">{editingGoods ? '编辑货物' : '添加货物'}</h3>
-            <div className="space-y-3">
-              <div><label className="block text-sm font-medium mb-1">名称 *</label><input type="text" value={goodsForm.name} onChange={e => setGoodsForm({ ...goodsForm, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium mb-1">英文名</label><input type="text" value={goodsForm.name_en} onChange={e => setGoodsForm({ ...goodsForm, name_en: e.target.value })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium mb-1">单位</label><input type="text" value={goodsForm.unit} onChange={e => setGoodsForm({ ...goodsForm, unit: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="个/箱/包" /></div>
-                <div><label className="block text-sm font-medium mb-1">当前库存</label><input type="number" step="0.01" value={goodsForm.current_stock} onChange={e => setGoodsForm({ ...goodsForm, current_stock: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium mb-1">平均进价</label><input type="number" step="0.01" value={goodsForm.avg_price} onChange={e => setGoodsForm({ ...goodsForm, avg_price: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-                <div><label className="block text-sm font-medium mb-1">分类</label><input type="text" value={goodsForm.category} onChange={e => setGoodsForm({ ...goodsForm, category: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="蔬菜/肉类/调料" /></div>
-              </div>
-              <div><label className="block text-sm font-medium mb-1">供应商</label><input type="text" value={goodsForm.supplier} onChange={e => setGoodsForm({ ...goodsForm, supplier: e.target.value })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium mb-1">备注</label><textarea value={goodsForm.note} onChange={e => setGoodsForm({ ...goodsForm, note: e.target.value })} className="w-full px-3 py-2 border rounded-lg" rows="2" /></div>
+      <Dialog open={!!goodsDialog} onClose={() => setGoodsDialog(null)} title={goodsDialog?.mode === 'add' ? '新增货物' : '编辑货物'} width="max-w-lg">
+        {goodsDialog && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="货物名称 *" value={goodsDialog.data.name} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, name: e.target.value } })} />
+              <Input label="英文名" value={goodsDialog.data.name_en} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, name_en: e.target.value } })} />
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => { setShowGoodsModal(false); setEditingGoods(null) }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-              <button onClick={handleSaveGoods} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">保存</button>
+            <div className="grid grid-cols-3 gap-4">
+              <Input label="单位" value={goodsDialog.data.unit} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, unit: e.target.value } })} placeholder="个/箱/包/磅" />
+              <Input label="当前库存" type="number" value={goodsDialog.data.current_stock} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, current_stock: parseFloat(e.target.value) || 0 } })} />
+              <Input label="平均进价 ($)" type="number" step="0.01" value={goodsDialog.data.avg_price} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, avg_price: parseFloat(e.target.value) || 0 } })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="供应商" value={goodsDialog.data.supplier} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, supplier: e.target.value } })} />
+              <Input label="分类" value={goodsDialog.data.category} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, category: e.target.value } })} />
+            </div>
+            <Input label="备注" value={goodsDialog.data.note} onChange={e => setGoodsDialog({ ...goodsDialog, data: { ...goodsDialog.data, note: e.target.value } })} />
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setGoodsDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={saveGoods}>保存</Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Dialog>
 
-      {showOrderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">新建进货单</h3>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div><label className="block text-sm font-medium mb-1">供应商 *</label><input type="text" value={orderForm.supplier} onChange={e => setOrderForm({ ...orderForm, supplier: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="Olong Trading" /></div>
-              <div><label className="block text-sm font-medium mb-1">日期</label><input type="date" value={orderForm.order_date} onChange={e => setOrderForm({ ...orderForm, order_date: e.target.value })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium mb-1">运费</label><input type="number" step="0.01" value={orderForm.delivery_fee} onChange={e => setOrderForm({ ...orderForm, delivery_fee: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium mb-1">折扣</label><input type="number" step="0.01" value={orderForm.discount} onChange={e => setOrderForm({ ...orderForm, discount: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
+      <Dialog open={!!orderDialog} onClose={() => setOrderDialog(null)} title={orderDialog?.mode === 'add' ? '新建进货单' : '编辑进货单'} width="max-w-3xl">
+        {orderDialog && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <Input label="订单号" value={orderDialog.data.order_no} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, order_no: e.target.value } })} />
+              <Input label="供应商 *" value={orderDialog.data.supplier} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, supplier: e.target.value } })} />
+              <Input label="日期 *" type="date" value={orderDialog.data.order_date} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, order_date: e.target.value } })} />
             </div>
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-medium">货物明细</label>
-                <button onClick={addOrderItem} className="text-blue-500 text-sm hover:underline">+ 添加一项</button>
+            <div className="grid grid-cols-3 gap-4">
+              <Input label="配送费 ($)" type="number" step="0.01" value={orderDialog.data.delivery_fee} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, delivery_fee: parseFloat(e.target.value) || 0 } })} />
+              <Input label="折扣 ($)" type="number" step="0.01" value={orderDialog.data.discount} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, discount: parseFloat(e.target.value) || 0 } })} />
+              <Select label="付款方式" value={orderDialog.data.payment_method} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, payment_method: e.target.value } })}
+                options={[{ value: 'COD', label: '货到付款' }, { value: '转账', label: '银行转账' }, { value: '现金', label: '现金' }, { value: '支票', label: '支票' }]} />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">货物明细</label>
+                <Button size="sm" variant="outline" onClick={addOrderItem}>+ 添加一项</Button>
               </div>
-              <div className="space-y-2">
-                {orderForm.items.map((item, idx) => (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {orderDialog.data.items.map((item, idx) => (
                   <div key={idx} className="flex gap-2 items-center">
-                    <select value={item.goods_id} onChange={e => updateOrderItem(idx, 'goods_id', e.target.value)} className="w-40 px-2 py-1 border rounded text-sm">
-                      <option value="">选择货物</option>
-                      {goods.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
-                    <input type="text" placeholder="货物名称" value={item.goods_name} onChange={e => updateOrderItem(idx, 'goods_name', e.target.value)} className="flex-1 px-2 py-1 border rounded text-sm" />
-                    <input type="number" step="0.01" placeholder="数量" value={item.quantity} onChange={e => updateOrderItem(idx, 'quantity', Number(e.target.value))} className="w-20 px-2 py-1 border rounded text-sm" />
-                    <input type="text" placeholder="单位" value={item.unit} onChange={e => updateOrderItem(idx, 'unit', e.target.value)} className="w-16 px-2 py-1 border rounded text-sm" />
-                    <input type="number" step="0.01" placeholder="单价" value={item.unit_price} onChange={e => updateOrderItem(idx, 'unit_price', Number(e.target.value))} className="w-20 px-2 py-1 border rounded text-sm" />
-                    <span className="w-20 text-sm text-right">${(item.quantity * item.unit_price).toFixed(2)}</span>
-                    <button onClick={() => removeOrderItem(idx)} className="text-red-500 text-sm">×</button>
+                    <Select value={item.goods_id || ''} onChange={e => updateOrderItem(idx, 'goods_id', e.target.value)}
+                      options={[{ value: '', label: '选择已有货物...' }, ...goods.map(g => ({ value: g.id, label: `${g.name} (库存:${g.current_stock}${g.unit})` }))]}
+                      className="w-48" />
+                    <input type="text" value={item.goods_name} onChange={e => updateOrderItem(idx, 'goods_name', e.target.value)} placeholder="货物名称" className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+                    <input type="number" value={item.quantity} onChange={e => updateOrderItem(idx, 'quantity', parseFloat(e.target.value) || 0)} placeholder="数量" className="w-20 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+                    <input type="text" value={item.unit} onChange={e => updateOrderItem(idx, 'unit', e.target.value)} placeholder="单位" className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+                    <input type="number" step="0.01" value={item.unit_price} onChange={e => updateOrderItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} placeholder="单价" className="w-24 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+                    <span className="text-sm text-gray-600 w-20 text-right">${((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}</span>
+                    <button onClick={() => removeOrderItem(idx)} className="text-red-400 hover:text-red-600 text-sm px-1">✕</button>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex justify-between items-center border-t pt-4">
-              <div><label className="block text-sm font-medium mb-1">备注</label><input type="text" value={orderForm.note} onChange={e => setOrderForm({ ...orderForm, note: e.target.value })} className="px-3 py-2 border rounded-lg w-64" /></div>
-              <div className="text-right">
-                <div className="text-sm text-gray-500">合计</div>
-                <div className="text-2xl font-bold text-blue-600">${orderTotal.toFixed(2)}</div>
+
+            <Input label="备注" value={orderDialog.data.note} onChange={e => setOrderDialog({ ...orderDialog, data: { ...orderDialog.data, note: e.target.value } })} />
+
+            <div className="flex items-center justify-between pt-2 border-t">
+              <span className="text-sm text-gray-500">共 {orderDialog.data.items.length} 项货物</span>
+              <span className="text-lg font-bold text-primary-600">合计: ${calcOrderTotal().toFixed(2)}</span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setOrderDialog(null)}>取消</Button>
+              <Button className="flex-1" onClick={saveOrder}>保存</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog open={!!orderDetail} onClose={() => setOrderDetail(null)} title={`进货单详情 - ${orderDetail?.order_no || `#${orderDetail?.id}`}`} width="max-w-2xl">
+        {orderDetail && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><p className="text-gray-400">供应商</p><p className="font-medium">{orderDetail.supplier}</p></div>
+              <div><p className="text-gray-400">日期</p><p className="font-medium">{orderDetail.order_date}</p></div>
+              <div><p className="text-gray-400">付款方式</p><p className="font-medium">{orderDetail.payment_method}</p></div>
+              <div><p className="text-gray-400">订单号</p><p className="font-medium font-mono">{orderDetail.order_no || '-'}</p></div>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm text-gray-400 mb-2">货物明细</p>
+              <div className="space-y-2">
+                {orderDetail.items?.map((it, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-100">
+                    <span className="text-gray-700">{it.goods_name} × {it.quantity} {it.unit}</span>
+                    <span className="text-gray-600">${parseFloat(it.subtotal || it.quantity * it.unit_price).toFixed(2)}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowOrderModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-              <button onClick={handleCreateOrder} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">创建进货单</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {viewingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">进货单详情 {viewingOrder.order_no || `#${viewingOrder.id}`}</h3>
-              <button onClick={() => setViewingOrder(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+            <div className="border-t pt-4 space-y-1">
+              <div className="flex justify-between text-sm text-gray-600"><span>货物小计</span><span>${(orderDetail.items || []).reduce((s, it) => s + parseFloat(it.subtotal || it.quantity * it.unit_price), 0).toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm text-gray-600"><span>配送费</span><span>${parseFloat(orderDetail.delivery_fee || 0).toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm text-gray-600"><span>折扣</span><span>-${parseFloat(orderDetail.discount || 0).toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>合计</span><span className="text-primary-600">${parseFloat(orderDetail.total_amount || 0).toFixed(2)}</span></div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-              <div><span className="text-gray-500">供应商：</span>{viewingOrder.supplier}</div>
-              <div><span className="text-gray-500">日期：</span>{viewingOrder.order_date}</div>
-              <div><span className="text-gray-500">运费：</span>${Number(viewingOrder.delivery_fee || 0).toFixed(2)}</div>
-              <div><span className="text-gray-500">折扣：</span>${Number(viewingOrder.discount || 0).toFixed(2)}</div>
-              {viewingOrder.note && <div className="col-span-2"><span className="text-gray-500">备注：</span>{viewingOrder.note}</div>}
-            </div>
-            <table className="w-full text-sm mb-4">
-              <thead className="bg-gray-50">
-                <tr><th className="px-3 py-2 text-left">货物</th><th className="px-3 py-2 text-left">数量</th><th className="px-3 py-2 text-left">单位</th><th className="px-3 py-2 text-left">单价</th><th className="px-3 py-2 text-right">小计</th></tr>
-              </thead>
-              <tbody>
-                {(viewingOrder.items || []).map((item, idx) => (
-                  <tr key={idx} className="border-t"><td className="px-3 py-2">{item.goods_name}</td><td className="px-3 py-2">{item.quantity}</td><td className="px-3 py-2">{item.unit}</td><td className="px-3 py-2">${Number(item.unit_price).toFixed(2)}</td><td className="px-3 py-2 text-right">${Number(item.subtotal).toFixed(2)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="text-right border-t pt-3">
-              <span className="text-gray-500 mr-3">总金额：</span>
-              <span className="text-2xl font-bold text-blue-600">${Number(viewingOrder.total_amount).toFixed(2)}</span>
-            </div>
+
+            {orderDetail.note && <div><p className="text-sm text-gray-400">备注</p><p className="text-sm text-gray-700">{orderDetail.note}</p></div>}
           </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   )
 }
