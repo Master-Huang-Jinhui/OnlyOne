@@ -102,7 +102,7 @@ export default function Content() {
   const [teaSourcing, setTeaSourcing] = useState([])
   useEffect(() => { if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing) }, [settings.tea_sourcing])
   const saveTeaSourcing = () => { saveText('tea_sourcing', teaSourcing) }
-  const addTea = () => setTeaSourcing(prev => [...prev, { name: '', name_en: '', desc: '', desc_en: '' }])
+  const addTea = () => setTeaSourcing(prev => [...prev, { name: '', name_en: '', desc: '', desc_en: '', enabled: true }])
   const removeTea = (i) => setTeaSourcing(prev => prev.filter((_, j) => j !== i))
 
   const [craftPhilosophy, setCraftPhilosophy] = useState([])
@@ -184,7 +184,13 @@ export default function Content() {
           </div>
           {teaSourcing.map((tea, i) => (
             <div key={i} className="p-4 bg-gray-50 rounded-lg space-y-3 relative">
-              <button onClick={() => removeTea(i)} className="absolute top-3 right-3 text-red-400 hover:text-red-600 text-sm">删除</button>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={tea.enabled !== false} onChange={e => setTeaSourcing(prev => prev.map((t, j) => j === i ? { ...t, enabled: e.target.checked } : t))} className="w-4 h-4" />
+                  <span className="text-sm text-gray-600">前台显示</span>
+                </label>
+                <button onClick={() => removeTea(i)} className="text-red-400 hover:text-red-600 text-sm">删除</button>
+              </div>
               <div className="flex items-end gap-3">
                 <div className="flex-1">
                   <label className="block text-xs text-gray-500 mb-1">图标图片</label>
