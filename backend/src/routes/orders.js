@@ -40,7 +40,6 @@ router.post('/', (req, res) => {
 
   const total = Math.round((subtotal + tax + delivery_fee) * 100) / 100;
 
-  // 订单号每天从001开始，格式：MMDD-NNN（如 0907-001），跨天不重复
   const todayCount = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE date(created_at) = date('now','localtime')").get().cnt;
   const seq = String(todayCount + 1).padStart(3, '0');
   const d = new Date();
@@ -107,18 +106,23 @@ router.get('/stats', auth, managerAccess, (req, res) => {
   res.json({ today_count: today.cnt, today_revenue: today.revenue, pending_count: pending.cnt, week_count: week.cnt, week_revenue: week.revenue });
 });
 
-// 更新订单状态
+// 更新订单状态（状态变更时自动记录对应时间）
 router.put('/:id/status', auth, managerAccess, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null;
+  if (timeField) {
+    db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id);
+  } else {
+    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  }
   res.json({ success: true });
 });
 
-// 公开接口：根据订单号查询订单
+// 订单详情
 router.get('/lookup/:orderNo', (req, res) => {
-  const order = db.prepare('SELECT id, order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, created_at FROM orders WHERE order_no = ?').get(req.params.orderNo);
+  const order = db.prepare('SELECT id, order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, created_at, start_time, ready_time, complete_time FROM orders WHERE order_no = ?').get(req.params.orderNo);
   if (!order) return res.status(404).json({ error: '订单不存在，请检查订单号' });
   order.items = JSON.parse(order.items || '[]');
   res.json(order);
@@ -177,11 +181,18 @@ router.get('/employee/today', auth, (req, res) => {
   res.json({ orders, total: summary.cnt, revenue: summary.revenue });
 });
 
+// 员工端：更新订单状态（状态变更时自动记录对应时间）
 router.put('/employee/:id/status', auth, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
-  const result = db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null;
+  let result;
+  if (timeField) {
+    result = db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id);
+  } else {
+    result = db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  }
   if (result.changes === 0) return res.status(404).json({ error: '订单不存在' });
   res.json({ success: true });
 });
