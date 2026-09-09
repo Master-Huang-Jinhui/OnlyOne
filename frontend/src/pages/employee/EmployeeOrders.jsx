@@ -3,16 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { playOrderSound, vibrate } from '../../lib/notification'
 import { Card, Button, Badge, Dialog, Empty, toast } from '../../components/ui'
-
-const statusMap = {
-  pending: { label: '待处理', variant: 'warning', next: 'preparing', nextLabel: '开始制作' },
-  preparing: { label: '制作中', variant: 'primary', next: 'ready', nextLabel: '制作完成' },
-  ready: { label: '待取餐', variant: 'primary', next: 'completed', nextLabel: '确认取餐' },
-  completed: { label: '已完成', variant: 'success', next: null, nextLabel: null },
-  cancelled: { label: '已取消', variant: 'danger', next: null, nextLabel: null }
-}
-
-const diningMap = { dinein: '堂吃', takeout: '自取', delivery: '配送' }
+import { getStatusLabel, getStatusVariant, getNextStatus, getNextLabel, isActiveStatus, getDiningLabel, getOrderSteps } from '../../lib/orderStatus'
 
 const formatTime = (str) => {
   if (!str) return ''
@@ -34,16 +25,17 @@ export default function EmployeeOrders() {
 
   useEffect(() => {
     load()
+    // 每15秒自动刷新，有新待处理订单时声音提醒
     const timer = setInterval(() => {
       api.getEmployeeTodayOrders(statusFilter).then(data => {
         const list = data?.orders || []
         setOrders(list)
         setSummary({ total: data?.total || 0, revenue: data?.revenue || 0 })
-        const pendingCount = list.filter(o => o.status === 'pending').length
+        const pendingCount = list.filter(o => isActiveStatus(o.status)).length
         if (!isFirstLoad.current && pendingCount > lastPendingCount.current) {
           playOrderSound()
           vibrate()
-          toast(`🔔 有新订单！当前 ${pendingCount} 个待处理`, 'success')
+          toast(`🔔 有新订单！当前 ${pendingCount} 个进行中`, 'success')
         }
         lastPendingCount.current = pendingCount
         isFirstLoad.current = false
@@ -58,7 +50,7 @@ export default function EmployeeOrders() {
       const list = data?.orders || []
       setOrders(list)
       setSummary({ total: data?.total || 0, revenue: data?.revenue || 0 })
-      lastPendingCount.current = list.filter(o => o.status === 'pending').length
+      lastPendingCount.current = list.filter(o => isActiveStatus(o.status)).length
       isFirstLoad.current = false
     }).catch(() => {}).finally(() => setLoading(false))
   }
@@ -74,21 +66,22 @@ export default function EmployeeOrders() {
 
   const statusButtons = [
     { key: '', label: '全部' },
-    { key: 'pending', label: '待处理' },
-    { key: 'preparing', label: '制作中' },
-    { key: 'ready', label: '待取餐' },
-    { key: 'completed', label: '已完成' }
+    { key: 'active', label: '进行中' },
+    { key: 'ready', label: '待取/配送' },
+    { key: 'completed', label: '已完成' },
+    { key: 'cancelled', label: '已取消' }
   ]
 
-  const timelineSteps = [
-    { label: '下单', timeKey: 'created_at', icon: '📝' },
-    { label: '开始制作', timeKey: 'start_time', icon: '👨‍🍳' },
-    { label: '制作完成', timeKey: 'ready_time', icon: '✅' },
-    { label: '取餐完成', timeKey: 'complete_time', icon: '🎉' }
-  ]
+  // 按筛选条件过滤订单
+  const filteredOrders = orders.filter(o => {
+    if (!statusFilter) return true
+    if (statusFilter === 'active') return isActiveStatus(o.status)
+    return o.status === statusFilter
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 顶部栏 */}
       <header className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -105,6 +98,7 @@ export default function EmployeeOrders() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* 状态筛选 */}
         <div className="flex gap-2 flex-wrap mb-6">
           {statusButtons.map(btn => (
             <button
@@ -117,31 +111,33 @@ export default function EmployeeOrders() {
               }`}
             >
               {btn.label}
-              {btn.key === 'pending' && orders.filter(o => o.status === 'pending').length > 0 && (
+              {btn.key === 'active' && orders.filter(o => isActiveStatus(o.status)).length > 0 && (
                 <span className="ml-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full inline-flex items-center justify-center">
-                  {orders.filter(o => o.status === 'pending').length}
+                  {orders.filter(o => isActiveStatus(o.status)).length}
                 </span>
               )}
             </button>
           ))}
         </div>
 
+        {/* 订单列表 */}
         {loading ? (
           <div className="text-center py-12 text-gray-400">加载中...</div>
         ) : orders.length === 0 ? (
           <Empty text="暂无订单" icon="📋" />
         ) : (
           <div className="space-y-3">
-            {orders.map(order => {
-              const st = statusMap[order.status] || statusMap.pending
+            {filteredOrders.map(order => {
+              const nextStatus = getNextStatus(order.dining_type, order.status)
+              const nextLabel = getNextLabel(order.dining_type, order.status)
               return (
                 <Card key={order.id} className="overflow-hidden">
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <span className="font-mono font-bold text-gray-800 text-lg">{order.order_no}</span>
-                        <Badge variant={st.variant}>{st.label}</Badge>
-                        <Badge variant="default">{diningMap[order.dining_type] || order.dining_type}</Badge>
+                        <Badge variant={getStatusVariant(order.dining_type, order.status)}>{getStatusLabel(order.dining_type, order.status)}</Badge>
+                        <Badge variant="default">{getDiningLabel(order.dining_type)}</Badge>
                         {order.pickup_number && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">取餐号 {order.pickup_number}</span>}
                       </div>
                       <div className="text-right">
@@ -150,6 +146,7 @@ export default function EmployeeOrders() {
                       </div>
                     </div>
 
+                    {/* 商品摘要 */}
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {order.items?.slice(0, 4).map((it, i) => (
                         <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -159,20 +156,22 @@ export default function EmployeeOrders() {
                       {order.items?.length > 4 && <span className="text-xs text-gray-400 py-1">+{order.items.length - 4} 件</span>}
                     </div>
 
+                    {/* 顾客信息 */}
                     <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                       {order.customer_name && <span>👤 {order.customer_name}</span>}
                       {order.customer_phone && <span>📞 {order.customer_phone}</span>}
                       {order.dining_type === 'delivery' && order.customer_address && <span className="truncate max-w-[200px]">📍 {order.customer_address}</span>}
                     </div>
 
+                    {/* 操作按钮 */}
                     <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                       <Button size="sm" variant="outline" onClick={() => setDetail(order)}>查看详情</Button>
-                      {st.next && (
-                        <Button size="sm" onClick={() => updateStatus(order.id, st.next)}>
-                          {st.nextLabel}
+                      {nextStatus && (
+                        <Button size="sm" onClick={() => updateStatus(order.id, nextStatus)}>
+                          {nextLabel}
                         </Button>
                       )}
-                      {order.status === 'pending' && (
+                      {isActiveStatus(order.status) && (
                         <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => { if (confirm('确定取消此订单？')) updateStatus(order.id, 'cancelled') }}>
                           取消订单
                         </Button>
@@ -186,32 +185,28 @@ export default function EmployeeOrders() {
         )}
       </div>
 
+      {/* 订单详情弹窗 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`订单详情 - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-gray-400">取餐方式</p><p className="font-medium">{diningMap[detail.dining_type]}</p></div>
-              <div><p className="text-gray-400">状态</p><Badge variant={statusMap[detail.status]?.variant}>{statusMap[detail.status]?.label}</Badge></div>
+              <div><p className="text-gray-400">取餐方式</p><p className="font-medium">{getDiningLabel(detail.dining_type)}</p></div>
+              <div><p className="text-gray-400">状态</p><Badge variant={getStatusVariant(detail.dining_type, detail.status)}>{getStatusLabel(detail.dining_type, detail.status)}</Badge></div>
               <div><p className="text-gray-400">顾客</p><p className="font-medium">{detail.customer_name || '-'}</p></div>
               <div><p className="text-gray-400">电话</p><p className="font-medium">{detail.customer_phone || '-'}</p></div>
               {detail.dining_type === 'delivery' && <div className="col-span-2"><p className="text-gray-400">配送地址</p><p className="font-medium">{detail.customer_address}</p></div>}
               {detail.note && <div className="col-span-2"><p className="text-gray-400">备注</p><p className="font-medium">{detail.note}</p></div>}
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-sm text-gray-400 mb-3">订单流程</p>
-              <div className="space-y-2.5">
-                {timelineSteps.map((step, i) => {
-                  const time = detail[step.timeKey]
-                  return (
+              <div className="col-span-2">
+                <p className="text-gray-400 mb-2">订单流程</p>
+                <div className="space-y-2">
+                  {getOrderSteps(detail.dining_type).map((step, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${time ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>{step.icon}</div>
-                      <span className={`text-sm w-20 ${time ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{step.label}</span>
-                      <span className={`text-xs ${time ? 'text-gray-500' : 'text-gray-300'}`}>{time ? formatTime(time) : '待处理'}</span>
-                      {i < timelineSteps.length - 1 && <div className={`flex-1 h-px ${time ? 'bg-primary-200' : 'bg-gray-200'}`} />}
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${detail[step.field] ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>{step.icon}</div>
+                      <span className={`text-sm w-20 ${detail[step.field] ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{step.label}</span>
+                      <span className={`text-xs ${detail[step.field] ? 'text-gray-500' : 'text-gray-300'}`}>{detail[step.field] ? formatTime(detail[step.field]) : '待处理'}</span>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
             </div>
 
