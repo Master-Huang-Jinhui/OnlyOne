@@ -11,6 +11,7 @@ export default function EmployeeOrder() {
   const orderType = searchParams.get('type') || 'takeout'
   const tableId = searchParams.get('tableId')
   const tableNo = searchParams.get('tableNo') || ''
+
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCat, setActiveCat] = useState(0)
@@ -122,32 +123,64 @@ export default function EmployeeOrder() {
         res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: customerName || (orderType === 'dinein' ? `堂吃-${tableNo}` : ''), customer_phone: customerPhone, table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
         if (orderType === 'dinein' && res.order_no) { try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {} }
       }
-      // 下单/加单成功后，提示点餐成功，然后返回到员工主页
       toast(`点餐成功，订单号：${res.order_no}`)
-      // 下单/加单成功后，把待下单商品标记为已下单，并记录所属订单信息
       const now = new Date()
       const pad = n => String(n).padStart(2, '0')
       const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-      setCart(prev => prev.map(i => i.ordered ? i : {
-        ...i, ordered: true,
-        order_id: currentOrderId,
-        order_no: currentOrderNo || res.order_no,
-        order_time: orderTime
-      }))
+      setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true, order_id: currentOrderId, order_no: currentOrderNo || res.order_no, order_time: orderTime }))
       setOrderInfo({ name: '', phone: '' })
-      // 延迟1.5秒后返回到员工主页
-      setTimeout(() => {
-        navigate('/employee')
-      }, 1500)
-    } catch (err) {
-      toast(err.message, 'error')
-    }
+      setTimeout(() => { navigate('/employee') }, 1500)
+    } catch (err) { toast(err.message, 'error') }
   }
 
   const submitOrder = () => { if (pendingItems.length === 0) { toast('没有需要提交的商品', 'error'); return } if (orderType === 'dinein') doSubmitOrder(); else setOrderInfoDialog(true) }
   const confirmOrderInfo = () => { if (!orderInfo.name.trim()) { toast('请填写顾客姓名', 'error'); return } if (!orderInfo.phone.trim()) { toast('请填写手机号码', 'error'); return } setOrderInfoDialog(false); doSubmitOrder(orderInfo.name.trim(), orderInfo.phone.trim()) }
-  const handleCheckout = async () => { if (!tableId) { toast('无法获取桌子信息', 'error'); return } try { const data = await api.getTableOrders(tableId); setCheckoutData(data); setCheckoutDialog(true) } catch (e) { toast(e.message, 'error') } }
-  const confirmCheckout = async () => { if (!tableId) return; try { await api.clearTable(tableId); toast('结账成功，桌子已清空'); setCheckoutDialog(false); setCurrentOrderId(null); setCurrentOrderNo(''); setCart([]); navigate('/employee') } catch (e) { toast(e.message, 'error') } }
+
+  const doSubmitAndCheckout = async () => {
+    try {
+      const itemsToSubmit = cart.filter(i => !i.ordered)
+      if (itemsToSubmit.length === 0) { handleCheckout(); return }
+      const orderItems = itemsToSubmit.map(i => ({ id: i.id, quantity: i.quantity, price: getItemUnitPrice(i), note: (i.notes || []).join(', ') }))
+      let res
+      if (currentOrderId) { const appendRes = await api.appendOrder(currentOrderId, orderItems); res = { order_no: currentOrderNo, total: appendRes.total, pickup_number: '' } }
+      else {
+        res = await api.createOrder({ items: orderItems, dining_type: orderType === 'dinein' ? 'dine_in' : 'takeout', customer_name: orderType === 'dinein' ? `堂吃-${tableNo}` : '', customer_phone: '', table_id: tableId ? parseInt(tableId) : null, note: `员工: ${user?.username || ''}` })
+        if (orderType === 'dinein' && res.order_no) { try { const detail = await api.getOrderByNo(res.order_no); if (detail?.id) { setCurrentOrderId(detail.id); setCurrentOrderNo(res.order_no) } } catch (e) {} }
+      }
+      toast(`点餐成功，订单号：${res.order_no}`)
+      const now = new Date()
+      const pad = n => String(n).padStart(2, '0')
+      const orderTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+      setCart(prev => prev.map(i => i.ordered ? i : { ...i, ordered: true, order_id: currentOrderId, order_no: currentOrderNo || res.order_no, order_time: orderTime }))
+      setTimeout(() => { handleCheckout() }, 500)
+    } catch (err) { toast(err.message, 'error') }
+  }
+
+  const handleCheckout = async () => {
+    if (!tableId) { toast('无法获取桌子信息', 'error'); return }
+    try {
+      const data = await api.getTableOrders(tableId)
+      const allOrders = Array.isArray(data?.orders) ? data.orders : []
+      const activeOrders = allOrders.filter(o => o.status !== 'cancelled' && o.status !== 'completed')
+      const checkoutTotal = activeOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0)
+      setCheckoutData({ orders: activeOrders, total: checkoutTotal, count: activeOrders.length })
+      setCheckoutDialog(true)
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  const confirmCheckout = async () => {
+    if (!tableId) return
+    try {
+      await api.clearTable(tableId)
+      toast('结账成功，桌子已清空')
+      setCheckoutDialog(false)
+      setCurrentOrderId(null)
+      setCurrentOrderNo('')
+      setCart([])
+      navigate('/employee')
+    } catch (e) { toast(e.message, 'error') }
+  }
+
   const handleChangePassword = async () => { if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast('请填写完整', 'error'); return } if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast('两次密码不一致', 'error'); return } try { await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword); toast('密码修改成功'); setPwdDialog(false); setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' }) } catch (e) { toast(e.message, 'error') } }
 
   const singleChoiceCategories = ['辣度', '冰度', '甜度']
@@ -204,7 +237,6 @@ export default function EmployeeOrder() {
             <h2 className="font-bold text-gray-800">购物车</h2>
             <div className="flex items-center gap-2"><span className="text-xs text-gray-400">{totalItems} 件</span>{pendingItems.length > 0 && <button onClick={clearCart} className="text-xs text-red-400 hover:text-red-600">清空</button>}</div>
           </div>
-
           <div className="flex-1 overflow-y-auto p-3">
             {cart.length === 0 ? (<div className="flex flex-col items-center justify-center h-full text-gray-300"><span className="text-4xl mb-2">🛒</span><p className="text-sm">购物车为空</p><p className="text-xs mt-1">点击左侧商品添加</p></div>) : (
               <div className="space-y-2">
@@ -227,7 +259,6 @@ export default function EmployeeOrder() {
               </div>
             )}
           </div>
-
           <div className="border-t p-4 flex-shrink-0 bg-gray-50">
             <div className="space-y-1.5 mb-3">
               {orderedItems.length > 0 && <div className="flex justify-between text-sm text-gray-500"><span>已下单</span><span>${orderedItems.reduce((sum, i) => sum + getItemUnitPrice(i) * i.quantity, 0).toFixed(2)}</span></div>}
@@ -235,7 +266,7 @@ export default function EmployeeOrder() {
               <div className="flex justify-between text-sm text-gray-500"><span>税费</span><span>${tax.toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-base pt-2 border-t"><span>合计</span><span className="text-primary-600">${total.toFixed(2)}</span></div>
             </div>
-            {orderType === 'dinein' ? (<div className="flex gap-2"><Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`flex-1 py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>{currentOrderId ? '加单' : '下单'}</Button><Button onClick={handleCheckout} variant="outline" className="flex-1 py-3 text-base font-bold border-primary-300 text-primary-600 hover:bg-primary-50">结帐</Button></div>) : (<Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`w-full py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>确认下单（打包）</Button>)}
+            {orderType === 'dinein' ? (<div className="flex gap-2"><Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`flex-1 py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>{currentOrderId ? '加单' : '下单'}</Button><Button onClick={doSubmitAndCheckout} variant="outline" className="flex-1 py-3 text-base font-bold border-primary-300 text-primary-600 hover:bg-primary-50">结帐</Button></div>) : (<Button onClick={submitOrder} disabled={pendingItems.length === 0} className={`w-full py-3 text-base font-bold ${pendingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>确认下单（打包）</Button>)}
           </div>
         </aside>
       </div>
@@ -266,7 +297,7 @@ export default function EmployeeOrder() {
       <Dialog open={!!success} onClose={() => setSuccess(null)} title={currentOrderId ? '加单成功' : '下单成功'} width="max-w-sm">{success && (<div className="py-4">
         <div className="text-center mb-4"><p className="text-sm text-gray-400 mb-1">{orderType === 'dinein' ? '桌号' : '取餐号'}</p><p className="text-5xl font-mono font-bold text-primary-600 tracking-wider">{orderType === 'dinein' ? tableNo : success.pickup_number}</p>{orderType === 'takeout' && <p className="text-xs text-gray-400 mt-2">请凭此号取餐</p>}{orderType === 'dinein' && currentOrderNo && <p className="text-xs text-gray-400 mt-2">订单号：{currentOrderNo}</p>}</div>
         <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm"><div className="flex justify-between text-gray-500 mb-1"><span>订单号</span><span className="font-mono text-xs">{success.order_no}</span></div><div className="flex justify-between text-gray-500 mb-1"><span>类型</span><span>{orderType === 'dinein' ? `堂吃 · ${tableNo}桌` : '打包取餐'}</span></div><div className="flex justify-between font-bold text-base pt-2 border-t mt-2"><span>合计</span><span className="text-primary-600">${parseFloat(success.total).toFixed(2)}</span></div></div>
-        {orderType === 'dinein' ? (<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setSuccess(null)}>继续加单</Button><Button className="flex-1" onClick={() => { setSuccess(null); handleCheckout() }}>去结帐</Button></div>) : (<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => { setSuccess(null); navigate('/employee') }}>返回首页</Button><Button className="flex-1" onClick={() => setSuccess(null)}>继续点餐</Button></div>)}
+        {orderType === 'dinein' ? (<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setSuccess(null)}>继续加单</Button><Button className="flex-1" onClick={() => { setSuccess(null); doSubmitAndCheckout() }}>去结帐</Button></div>) : (<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => { setSuccess(null); navigate('/employee') }}>返回首页</Button><Button className="flex-1" onClick={() => setSuccess(null)}>继续点餐</Button></div>)}
       </div>)}</Dialog>
 
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm"><div className="space-y-4"><Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} /><Input label="新密码" type="password" value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} /><Input label="确认新密码" type="password" value={pwdForm.confirmPassword} onChange={e => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })} /><div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setPwdDialog(false)}>取消</Button><Button className="flex-1" onClick={handleChangePassword}>确认修改</Button></div></div></Dialog>
