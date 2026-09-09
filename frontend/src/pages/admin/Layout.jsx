@@ -31,19 +31,6 @@ export default function AdminLayout() {
     }).catch(() => {})
   }, [user])
 
-  useEffect(() => {
-    const activeParent = menus.find(m =>
-      m.children?.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + '/'))
-    )
-    if (activeParent && !expandedMenus[activeParent.id]) {
-      setExpandedMenus(prev => ({ ...prev, [activeParent.id]: true }))
-    }
-  }, [location.pathname, menus])
-
-  const toggleExpand = (id) => {
-    setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
   const handleLogout = () => {
     logout()
     navigate('/login')
@@ -51,75 +38,47 @@ export default function AdminLayout() {
 
   const closeSidebar = () => setSidebarOpen(false)
 
-  const SidebarContent = ({ onNavigate, showCollapse }) => (
-    <>
-      <div className="h-16 flex items-center justify-between px-4 border-b flex-shrink-0">
-        <Link to="/admin" className="flex items-center gap-2" onClick={onNavigate}>
-          <span className="text-xl">🍵</span>
-          {!desktopCollapsed && <span className="font-bold text-gray-800 text-sm">OnlyOne 管理</span>}
-        </Link>
-        {showCollapse && (
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      {sidebarOpen && (
+        <div
+          onClick={closeSidebar}
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+        />
+      )}
+
+      <aside className={`
+        fixed top-0 left-0 h-full bg-white border-r border-gray-200 flex flex-col z-50
+        transition-transform duration-300 lg:transition-none
+        lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto
+        ${desktopCollapsed ? 'lg:w-16' : 'lg:w-60'}
+        w-60
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="h-16 flex items-center justify-between px-4 border-b">
+          <Link to="/admin" className="flex items-center gap-2" onClick={closeSidebar}>
+            <span className="text-xl">🍵</span>
+            {!desktopCollapsed && <span className="font-bold text-gray-800 text-sm">OnlyOne 管理</span>}
+          </Link>
           <button
             onClick={() => setDesktopCollapsed(!desktopCollapsed)}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 hover:text-gray-600 p-1 hidden lg:block"
           >
             {desktopCollapsed ? '▶' : '◀'}
           </button>
-        )}
-        {!showCollapse && (
-          <button onClick={closeSidebar} className="text-gray-400 hover:text-gray-600 p-1">
+          <button
+            onClick={closeSidebar}
+            className="text-gray-400 hover:text-gray-600 p-1 lg:hidden"
+          >
             ✕
           </button>
-        )}
-      </div>
-      <nav className="flex-1 py-4 overflow-y-auto">
-        {(menus || []).map(menu => {
-          const hasChildren = menu.children && menu.children.length > 0
-          const isExpanded = expandedMenus[menu.id]
-
-          if (hasChildren) {
-            return (
-              <div key={menu.id}>
-                <button
-                  onClick={() => toggleExpand(menu.id)}
-                  className="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors text-gray-600 hover:bg-gray-50 w-full"
-                >
-                  <span className="text-lg">{menu.icon || '📄'}</span>
-                  {!desktopCollapsed && (
-                    <>
-                      <span className="flex-1 text-left">{menu.name}</span>
-                      <span className="text-xs text-gray-400">{isExpanded ? '▼' : '▶'}</span>
-                    </>
-                  )}
-                </button>
-                {isExpanded && !desktopCollapsed && (
-                  <div className="ml-3">
-                    {menu.children.map(child => (
-                      <NavLink
-                        key={child.id}
-                        to={child.path}
-                        onClick={onNavigate}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-2 mx-2 rounded-lg text-sm transition-colors ${
-                            isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-50'
-                          }`
-                        }
-                      >
-                        <span className="text-sm">{child.icon || '•'}</span>
-                        <span>{child.name}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          return (
+        </div>
+        <nav className="flex-1 py-4 overflow-y-auto">
+          {(menus || []).map(menu => (
             <NavLink
               key={menu.id}
               to={menu.path}
-              onClick={onNavigate}
+              onClick={closeSidebar}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                   isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
@@ -129,57 +88,36 @@ export default function AdminLayout() {
               <span className="text-lg">{menu.icon || '📄'}</span>
               {!desktopCollapsed && <span>{menu.name}</span>}
             </NavLink>
-          )
-        })}
-      </nav>
-      <div className="p-4 border-t flex-shrink-0">
-        <Link to="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-3" onClick={onNavigate}>
-          <span>🌐</span>{!desktopCollapsed && <span>查看前台</span>}
-        </Link>
-        <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-500 w-full">
-          <span>🚪</span>{!desktopCollapsed && <span>退出登录</span>}
-        </button>
-      </div>
-    </>
-  )
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className={`hidden lg:flex flex-col bg-white border-r border-gray-200 transition-all duration-200 sticky top-0 h-screen ${desktopCollapsed ? 'w-16' : 'w-60'}`}>
-        <SidebarContent showCollapse={true} />
+          ))}
+        </nav>
       </aside>
 
-      {sidebarOpen && (
-        <>
-          <div
-            onClick={closeSidebar}
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          />
-          <aside className="fixed inset-y-0 left-0 w-60 bg-white border-r border-gray-200 z-50 flex flex-col lg:hidden shadow-xl">
-            <SidebarContent onNavigate={closeSidebar} showCollapse={false} />
-          </aside>
-        </>
-      )}
-
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 min-w-0">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="text-2xl text-gray-600 lg:hidden p-1 -ml-1"
+              className="text-2xl text-gray-600 lg:hidden p-1"
             >
               ☰
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">OnlyOne 平台管理</h1>
+            <h1 className="text-lg font-semibold text-gray-800">
+              {user?.name || user?.username}
+              <span className="text-gray-300 mx-2">·</span>
+              <span className="text-sm font-normal text-gray-500">{user?.role === 'admin' ? '超级管理员' : user?.role === 'manager' ? '管理员' : '用户'}</span>
+            </h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className={`px-2 py-0.5 rounded text-xs ${user?.role === 'admin' ? 'bg-primary-100 text-primary-700' : user?.role === 'manager' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-              {user?.role === 'admin' ? '超级管理员' : user?.role === 'manager' ? '管理员' : '用户'}
-            </span>
+            <Link to="/" target="_blank" className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1">
+              <span>🌐</span>查看前台
+            </Link>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-500 flex items-center gap-1">
+              <span>🚪</span>退出登录
+            </button>
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
