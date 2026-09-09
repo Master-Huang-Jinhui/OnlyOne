@@ -67,7 +67,6 @@ export default function EmployeeOrders() {
   const statusButtons = [
     { key: '', label: '全部' },
     { key: 'active', label: '进行中' },
-    { key: 'ready', label: '待取/配送' },
     { key: 'completed', label: '已完成' },
     { key: 'cancelled', label: '已取消' }
   ]
