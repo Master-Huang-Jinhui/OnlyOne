@@ -6,7 +6,7 @@ const { auth, adminOnly } = require('../middleware/auth');
 const router = express.Router();
 router.use(auth, adminOnly);
 
-router.get('/', (req, res) => {
+router.post('/list', (req, res) => {
   const users = db.prepare('SELECT id, username, role, name, phone, email, permissions, enabled, created_at FROM users ORDER BY id').all();
   users.forEach(u => u.permissions = JSON.parse(u.permissions || '{}'));
   res.json(users);
@@ -18,13 +18,11 @@ router.post('/', (req, res) => {
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) return res.status(400).json({ error: '账号已存在' });
   const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare(`INSERT INTO users (username, password, role, name, phone, email, permissions) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-    username, hash, role, name, phone, email, JSON.stringify(permissions)
-  );
+  const result = db.prepare(`INSERT INTO users (username, password, role, name, phone, email, permissions) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(username, hash, role, name, phone, email, JSON.stringify(permissions));
   res.json({ id: result.lastInsertRowid });
 });
 
-router.put('/:id', (req, res) => {
+router.post('/update/:id', (req, res) => {
   const { role, name, phone, email, permissions, enabled, password } = req.body;
   const fields = [];
   const values = [];
@@ -41,7 +39,7 @@ router.put('/:id', (req, res) => {
   res.json({ success: true });
 });
 
-router.delete('/:id', (req, res) => {
+router.post('/delete/:id', (req, res) => {
   if (req.params.id == req.user.id) return res.status(400).json({ error: '不能删除自己' });
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ success: true });

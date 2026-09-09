@@ -4,13 +4,13 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', auth, (req, res) => {
+router.post('/list', auth, (req, res) => {
   const platforms = db.prepare('SELECT * FROM platforms ORDER BY sort_order, id').all();
   platforms.forEach(p => p.weekly_status = JSON.parse(p.weekly_status || '{}'));
   res.json(platforms);
 });
 
-router.get('/public', (req, res) => {
+router.post('/public', (req, res) => {
   const platforms = db.prepare('SELECT id, name, logo, url, phone, note FROM platforms WHERE enabled = 1 ORDER BY sort_order, id').all();
   res.json(platforms);
 });
@@ -18,13 +18,11 @@ router.get('/public', (req, res) => {
 router.post('/', auth, managerAccess, (req, res) => {
   const { name, logo, url, account, password, phone, note, enabled = 1, weekly_status = {}, sort_order = 0 } = req.body;
   if (!name) return res.status(400).json({ error: '平台名称必填' });
-  const result = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    name, logo, url, account, password, phone, note, enabled ? 1 : 0, JSON.stringify(weekly_status), sort_order
-  );
+  const result = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(name, logo, url, account, password, phone, note, enabled ? 1 : 0, JSON.stringify(weekly_status), sort_order);
   res.json({ id: result.lastInsertRowid });
 });
 
-router.put('/:id', auth, managerAccess, (req, res) => {
+router.post('/update/:id', auth, managerAccess, (req, res) => {
   const fields = [];
   const values = [];
   const allowed = ['name', 'logo', 'url', 'account', 'password', 'phone', 'note', 'enabled', 'weekly_status', 'sort_order'];
@@ -40,7 +38,7 @@ router.put('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
-router.delete('/:id', auth, managerAccess, (req, res) => {
+router.post('/delete/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM platforms WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
