@@ -36,7 +36,7 @@ export default function Tables() {
     api.deleteTable(table.id).then(() => { toast('已删除'); load() }).catch(e => toast(e.message, 'error'))
   }
 
-  const getQrUrl = (tableNo) => `${window.location.origin}/menu?table=${encodeURIComponent(tableNo)}`
+  const getQrUrl = (tableNo) => `${window.location.origin}/table?s=${encodeURIComponent(tableNo)}`
 
   return (
     <div className="p-6">

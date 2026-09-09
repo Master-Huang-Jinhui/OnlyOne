@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
+// 加载 .env 环境变量（如果存在，无需额外依赖）
 const envPath = path.join(__dirname, '..', '.env');
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, 'utf-8');
@@ -17,19 +18,22 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-require('./db');
+require('./db'); // 初始化数据库
 const { accessLog, errorLog, cleanupOldLogs } = require('./logger');
 const { startAutoBackup } = require('./backup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', true);
+app.set('trust proxy', true); // 信任代理，获取真实客户端IP
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// 访问日志
 app.use(accessLog);
 
+// API 路由
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/platforms', require('./routes/platforms'));
@@ -49,19 +53,32 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/inventory', require('./routes/inventory'));
 
+// 上传文件静态服务
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
+// 健康检查
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// 餐桌二维码中转跳转（隐藏真实地址，以后换域名/端口/路径不用重新打印二维码）
+app.get('/table', (req, res) => {
+  const tableNo = req.query.s || req.query.table || '';
+  if (!tableNo) return res.redirect('/menu');
+  console.log(`[餐桌扫码] 桌号: ${tableNo}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
+  res.redirect(302, `/menu?table=${encodeURIComponent(tableNo)}`);
+});
+
+// 前端静态文件
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
 
+// SPA 路由回退
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API 不存在' });
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
+// 全局错误处理中间件（必须在所有路由之后）
 app.use((err, req, res, next) => {
   errorLog(err, req);
   if (res.headersSent) return next(err);
@@ -70,10 +87,14 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: message });
 });
 
+// 启动自动备份
 startAutoBackup();
+
+// 启动时清理旧日志，之后每天清理一次
 cleanupOldLogs();
 setInterval(cleanupOldLogs, 24 * 60 * 60 * 1000);
 
+// 获取局域网 IP
 function getLocalIPs() {
   const interfaces = os.networkInterfaces();
   const ips = [];
