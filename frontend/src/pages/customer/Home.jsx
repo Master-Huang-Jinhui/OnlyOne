@@ -109,7 +109,7 @@ export default function Home() {
       <section className="pt-16">
         <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden bg-gradient-to-br from-primary-100 via-blue-50 to-white">
           {carousel.length > 0 ? carousel.map((item, i) => (
-            <div key={i} className={`absolute inset-0 transition-opacity duration-1000 ${i === currentSlide ? 'opacity-100' : 'opacity-0'}`}>
+            <div key={i} onClick={() => item.link && window.open(`/go?carousel=${item.id}`, '_blank')} className={`absolute inset-0 transition-opacity duration-1000 ${i === currentSlide ? 'opacity-100' : 'opacity-0'} ${item.link ? 'cursor-pointer' : ''}`}>
               {item.image ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" /> : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
