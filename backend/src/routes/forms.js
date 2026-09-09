@@ -4,13 +4,13 @@ const { auth, managerAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', auth, managerAccess, (req, res) => {
+router.post('/list', auth, (req, res) => {
   const forms = db.prepare('SELECT * FROM forms ORDER BY id DESC').all();
   forms.forEach(f => f.fields = JSON.parse(f.fields || '[]'));
   res.json(forms);
 });
 
-router.get('/public/:id', (req, res) => {
+router.post('/public/detail/:id', (req, res) => {
   const form = db.prepare('SELECT * FROM forms WHERE id = ? AND enabled = 1').get(req.params.id);
   if (!form) return res.status(404).json({ error: '表单不存在' });
   form.fields = JSON.parse(form.fields || '[]');
@@ -20,13 +20,11 @@ router.get('/public/:id', (req, res) => {
 router.post('/', auth, managerAccess, (req, res) => {
   const { name, description, fields = [], enabled = 1 } = req.body;
   if (!name) return res.status(400).json({ error: '表单名称必填' });
-  const result = db.prepare('INSERT INTO forms (name, description, fields, enabled) VALUES (?, ?, ?, ?)').run(
-    name, description, JSON.stringify(fields), enabled ? 1 : 0
-  );
+  const result = db.prepare('INSERT INTO forms (name, description, fields, enabled) VALUES (?, ?, ?, ?)').run(name, description, JSON.stringify(fields), enabled ? 1 : 0);
   res.json({ id: result.lastInsertRowid });
 });
 
-router.put('/:id', auth, managerAccess, (req, res) => {
+router.post('/update/:id', auth, managerAccess, (req, res) => {
   const { name, description, fields, enabled } = req.body;
   const fieldsList = [];
   const values = [];
@@ -40,8 +38,7 @@ router.put('/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
-// 删除表单（同时清理关联的菜单项）
-router.delete('/:id', auth, managerAccess, (req, res) => {
+router.post('/delete/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM forms WHERE id = ?').run(req.params.id);
   db.prepare('DELETE FROM form_submissions WHERE form_id = ?').run(req.params.id);
   db.prepare('DELETE FROM menus WHERE path = ?').run('/admin/form/' + req.params.id);
@@ -55,7 +52,7 @@ router.post('/:id/submit', (req, res) => {
   res.json({ success: true });
 });
 
-router.get('/:id/submissions', auth, managerAccess, (req, res) => {
+router.post('/:id/submissions', auth, managerAccess, (req, res) => {
   const submissions = db.prepare('SELECT * FROM form_submissions WHERE form_id = ? ORDER BY id DESC').all();
   submissions.forEach(s => s.data = JSON.parse(s.data || '{}'));
   res.json(submissions);
