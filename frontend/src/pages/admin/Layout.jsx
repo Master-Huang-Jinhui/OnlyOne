@@ -11,6 +11,23 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState({})
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode')
+      if (saved !== null) return saved === 'true'
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+    return false
+  })
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('darkMode', String(darkMode))
+  }, [darkMode])
 
   useEffect(() => {
     api.getMenus().then(data => {
@@ -108,6 +125,13 @@ export default function AdminLayout() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title={darkMode ? '切换到日间模式' : '切换到夜间模式'}
+            >
+              <span className="text-lg">{darkMode ? '☀️' : '🌙'}</span>
+            </button>
             <Link to="/" target="_blank" className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1">
               <span>🌐</span>查看前台
             </Link>
