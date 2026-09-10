@@ -154,7 +154,7 @@ if (!process.env.ENCRYPTION_KEY) {
 }
 
 try {
-  const platforms = db.prepare('SELECT id, name, password FROM platforms WHERE password IS NOT NULL AND password != ""').all();
+  const platforms = db.prepare("SELECT id, name, password FROM platforms WHERE password IS NOT NULL AND password != ''").all();
   let migratedCount = 0;
   platforms.forEach(p => {
     if (p.password && !isEncrypted(p.password)) {
