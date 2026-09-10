@@ -24,6 +24,12 @@ export const api = {
   updateUser: (id, data) => request(`/users/update/${id}`, { body: JSON.stringify(data) }),
   deleteUser: (id) => request(`/users/delete/${id}`),
 
+  getRoles: () => request('/roles/list'),
+  createRole: (data) => request('/roles', { body: JSON.stringify(data) }),
+  updateRole: (id, data) => request(`/roles/update/${id}`, { body: JSON.stringify(data) }),
+  deleteRole: (id) => request(`/roles/delete/${id}`),
+  getRoleDetail: (id) => request(`/roles/detail/${id}`),
+
   getPlatforms: () => request('/platforms/list'),
   getPublicPlatforms: () => request('/platforms/public'),
   createPlatform: (data) => request('/platforms', { body: JSON.stringify(data) }),
