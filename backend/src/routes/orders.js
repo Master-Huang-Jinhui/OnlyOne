@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
+const { auditLog } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -39,7 +40,9 @@ router.post('/', (req, res) => {
     const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(table_id);
     if (table) resolvedTableSession = table.current_session;
   }
-  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, guest_id, table_id, table_session, pickup_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, resolvedTableSession, pickup_number);
+  db.prepare(`INSERT INTO orders (order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, guest_id, table_id, table_session, pickup_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(
+    order_no, JSON.stringify(orderItems), subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, guest_id || null, table_id || null, resolvedTableSession, pickup_number
+  );
   if (table_id && (dining_type === 'dine_in' || dining_type === 'dinein')) {
     db.prepare('UPDATE tables SET status = ? WHERE id = ?').run('occupied', table_id);
   }
@@ -58,15 +61,8 @@ router.post('/list', auth, managerAccess, (req, res) => {
     sql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
     params.push(kw, kw, kw);
   }
-  if (start_date) {
-    const start = start_date.replace('T', ' ');
-    sql += ' AND created_at >= ?'; params.push(start.length === 16 ? start + ':00' : start);
-  }
-  if (end_date) {
-    const end = end_date.replace('T', ' ');
-    if (end.length === 10) { sql += ' AND created_at <= ?'; params.push(end + ' 23:59:59'); }
-    else { sql += ' AND created_at <= ?'; params.push(end.length === 16 ? end + ':00' : end); }
-  }
+  if (start_date) { const start = start_date.replace('T', ' '); sql += ' AND created_at >= ?'; params.push(start.length === 16 ? start + ':00' : start); }
+  if (end_date) { const end = end_date.replace('T', ' '); if (end.length === 10) { sql += ' AND created_at <= ?'; params.push(end + ' 23:59:59'); } else { sql += ' AND created_at <= ?'; params.push(end.length === 16 ? end + ':00' : end); } }
   const allowedSortBy = ['order_no', 'total', 'created_at', 'id'];
   const allowedSortOrder = ['asc', 'desc'];
   const sortBy = allowedSortBy.includes(sort_by) ? sort_by : 'created_at';
@@ -79,11 +75,7 @@ router.post('/list', auth, managerAccess, (req, res) => {
   let countSql = 'SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE 1=1';
   const countParams = [];
   if (status) { countSql += ' AND status = ?'; countParams.push(status); }
-  if (keyword && keyword.trim()) {
-    const kw = '%' + keyword.trim() + '%';
-    countSql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
-    countParams.push(kw, kw, kw);
-  }
+  if (keyword && keyword.trim()) { const kw = '%' + keyword.trim() + '%'; countSql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)'; countParams.push(kw, kw, kw); }
   if (start_date) { const start = start_date.replace('T', ' '); countSql += ' AND created_at >= ?'; countParams.push(start.length === 16 ? start + ':00' : start); }
   if (end_date) { const end = end_date.replace('T', ' '); if (end.length === 10) { countSql += ' AND created_at <= ?'; countParams.push(end + ' 23:59:59'); } else { countSql += ' AND created_at <= ?'; countParams.push(end.length === 16 ? end + ':00' : end); } }
   const summary = db.prepare(countSql).get(...countParams);
@@ -101,12 +93,12 @@ router.post('/:id/status', auth, managerAccess, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
+  const order = db.prepare('SELECT order_no, total, dining_type FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: '订单不存在' });
   const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null;
-  if (timeField) {
-    db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id);
-  } else {
-    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
-  }
+  if (timeField) { db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id); }
+  else { db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id); }
+  auditLog(req, 'UPDATE_ORDER_STATUS', `订单 ${order.order_no} 状态改为 ${status}`, { orderId: req.params.id, orderNo: order.order_no, status, total: order.total });
   res.json({ success: true });
 });
 
@@ -145,11 +137,8 @@ router.post('/table/:tableId', auth, (req, res) => {
   const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(req.params.tableId);
   const session = table?.current_session;
   let orders;
-  if (session) {
-    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND table_session = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId, session);
-  } else {
-    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
-  }
+  if (session) { orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND table_session = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId, session); }
+  else { orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId); }
   orders.forEach(o => { o.items = JSON.parse(o.items || '[]'); });
   const total = orders.reduce((sum, o) => sum + parseFloat(o.total), 0);
   res.json({ orders, total, count: orders.length });
@@ -180,11 +169,8 @@ router.post('/employee/:id/status', auth, (req, res) => {
   if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
   const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null;
   let result;
-  if (timeField) {
-    result = db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id);
-  } else {
-    result = db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
-  }
+  if (timeField) { result = db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id); }
+  else { result = db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id); }
   if (result.changes === 0) return res.status(404).json({ error: '订单不存在' });
   res.json({ success: true });
 });

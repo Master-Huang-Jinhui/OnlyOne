@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { signToken, auth } = require('../middleware/auth');
 const { loginRateLimit, resetLoginAttempts } = require('../middleware/rateLimit');
+const { auditLog } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -10,11 +11,21 @@ router.post('/login', loginRateLimit, (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: '请输入账号和密码' });
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user) return res.status(401).json({ error: '账号不存在' });
-  if (!user.enabled) return res.status(403).json({ error: '账号已被禁用' });
-  if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ error: '密码错误' });
+  if (!user) {
+    auditLog(req, 'LOGIN_FAILED', `登录失败：账号不存在 (${username})`, { username });
+    return res.status(401).json({ error: '账号不存在' });
+  }
+  if (!user.enabled) {
+    auditLog(req, 'LOGIN_FAILED', `登录失败：账号已禁用 (${username})`, { username, userId: user.id });
+    return res.status(403).json({ error: '账号已被禁用' });
+  }
+  if (!bcrypt.compareSync(password, user.password)) {
+    auditLog(req, 'LOGIN_FAILED', `登录失败：密码错误 (${username})`, { username, userId: user.id });
+    return res.status(401).json({ error: '密码错误' });
+  }
   resetLoginAttempts(req);
   const token = signToken(user);
+  auditLog(req, 'LOGIN_SUCCESS', `登录成功：${username} (${user.role})`, { username, userId: user.id, role: user.role });
   res.json({ token, user: { id: user.id, username: user.username, role: user.role, name: user.name, permissions: JSON.parse(user.permissions || '{}') } });
 });
 

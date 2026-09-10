@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
+const { auditLog } = require('../utils/audit');
 const XLSX = require('xlsx');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
@@ -66,7 +67,9 @@ router.post('/detail/:id', (req, res) => {
 router.post('/', auth, managerAccess, (req, res) => {
   const { name, name_en, category_id, price, description, description_en, image, available = 1, is_recommend = 0, sort_order = 0 } = req.body;
   if (!name || price === undefined) return res.status(400).json({ error: '商品名称和价格必填' });
-  const result = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, description_en, image, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(name, name_en, category_id, price, description, description_en, image, available ? 1 : 0, is_recommend ? 1 : 0, sort_order);
+  const result = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, description_en, image, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    name, name_en, category_id, price, description, description_en, image, available ? 1 : 0, is_recommend ? 1 : 0, sort_order
+  );
   res.json({ id: result.lastInsertRowid });
 });
 
@@ -87,7 +90,9 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
 });
 
 router.post('/delete/:id', auth, managerAccess, (req, res) => {
+  const product = db.prepare('SELECT name, name_en FROM products WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+  auditLog(req, 'DELETE_PRODUCT', `删除商品: ${product?.name || product?.name_en || req.params.id}`, { productId: req.params.id });
   res.json({ success: true });
 });
 
@@ -160,8 +165,8 @@ router.post('/import', auth, managerAccess, upload.single('file'), (req, res) =>
         categoryId = cat ? cat.id : null;
       }
       const dup = findDuplicate.get(name, categoryId);
-      if (dup) duplicates.push({ row: i + 1, name, category: categoryId ? String(row[catIdx]) : '未分类' });
-      else validRows.push(row);
+      if (dup) { duplicates.push({ row: i + 1, name, category: categoryId ? String(row[catIdx]) : '未分类' }); }
+      else { validRows.push(row); }
     }
     if (!confirmImport && duplicates.length > 0) {
       return res.json({ needConfirm: true, duplicates: duplicates.slice(0, 20), duplicateCount: duplicates.length, totalRows: rows.length - 1 });
@@ -180,7 +185,7 @@ router.post('/import', auth, managerAccess, upload.single('file'), (req, res) =>
           const catName = String(row[catIdx]).trim();
           let cat = getCategory.get(catName, catName);
           if (!cat) { const r = createCategory.run(catName, '', 0); categoryId = r.lastInsertRowid; }
-          else categoryId = cat.id;
+          else { categoryId = cat.id; }
         }
         const dup = findDuplicate.get(name, categoryId);
         if (dup) { skipped++; continue; }
