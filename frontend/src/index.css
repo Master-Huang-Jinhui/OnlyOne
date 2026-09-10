@@ -11,22 +11,22 @@ body {
   color: #1e293b;
 }
 
-.dark body { background: #0f172a; color: #e2e8f0; }
-.dark ::-webkit-scrollbar-thumb { background: #475569; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-.dark .bg-white { background-color: #1e293b !important; }
-.dark .bg-gray-50 { background-color: #0f172a !important; }
-.dark .bg-gray-100 { background-color: #1e293b !important; }
-.dark .border-gray-200 { border-color: #334155 !important; }
-.dark .border-gray-300 { border-color: #475569 !important; }
-.dark .text-gray-800 { color: #f1f5f9 !important; }
-.dark .text-gray-700 { color: #e2e8f0 !important; }
-.dark .text-gray-600 { color: #cbd5e1 !important; }
-.dark .text-gray-500 { color: #94a3b8 !important; }
-.dark .text-gray-400 { color: #64748b !important; }
-.dark .text-gray-300 { color: #475569 !important; }
-.dark input, .dark select, .dark textarea { background-color: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
-.dark input::placeholder, .dark textarea::placeholder { color: #64748b !important; }
+.dark-admin body { background: #0f172a; color: #e2e8f0; }
+.dark-admin ::-webkit-scrollbar-thumb { background: #475569; }
+.dark-admin ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+.dark-admin .bg-white { background-color: #1e293b !important; }
+.dark-admin .bg-gray-50 { background-color: #0f172a !important; }
+.dark-admin .bg-gray-100 { background-color: #1e293b !important; }
+.dark-admin .border-gray-200 { border-color: #334155 !important; }
+.dark-admin .border-gray-300 { border-color: #475569 !important; }
+.dark-admin .text-gray-800 { color: #f1f5f9 !important; }
+.dark-admin .text-gray-700 { color: #e2e8f0 !important; }
+.dark-admin .text-gray-600 { color: #cbd5e1 !important; }
+.dark-admin .text-gray-500 { color: #94a3b8 !important; }
+.dark-admin .text-gray-400 { color: #64748b !important; }
+.dark-admin .text-gray-300 { color: #475569 !important; }
+.dark-admin input, .dark-admin select, .dark-admin textarea { background-color: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+.dark-admin input::placeholder, .dark-admin textarea::placeholder { color: #64748b !important; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
