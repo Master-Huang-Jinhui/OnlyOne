@@ -48,7 +48,7 @@ export default function Roles() {
   const openPerm = (r) => {
     setPermRole(r)
     try {
-      const perms = r.permissions || JSON.parse(r.permissions || '{}')
+      const perms = r.permissions || {}
       setSelectedMenus(perms.menus || [])
     } catch { setSelectedMenus([]) }
     setPermDialog(true)
@@ -109,7 +109,7 @@ export default function Roles() {
               </thead>
               <tbody>
                 {roles.map(r => {
-                  const menuCount = (r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).length
+                  const menuCount = (r.permissions?.menus || []).length
                   return (
                     <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
@@ -129,7 +129,7 @@ export default function Roles() {
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-primary-600">{menuCount} 个</span>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
-                              {(r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).slice(0, 2).map(id => (
+                              {(r.permissions?.menus || []).slice(0, 2).map(id => (
                                 <Badge key={id} variant="primary" className="text-xs">{getMenuName(id)}</Badge>
                               ))}
                               {menuCount > 2 && <Badge variant="default" className="text-xs">+{menuCount - 2}</Badge>}
