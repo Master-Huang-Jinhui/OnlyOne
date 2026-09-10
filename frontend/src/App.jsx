@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from './components/ui'
 import { useAuth } from './context/AuthContext'
@@ -43,6 +44,15 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
 }
 
 export default function App() {
+  useEffect(() => {
+    const saved = localStorage.getItem('darkMode')
+    if (saved !== null) {
+      if (saved === 'true') document.documentElement.classList.add('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
   return (
     <>
       <ToastContainer />
