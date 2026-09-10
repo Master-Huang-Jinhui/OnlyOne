@@ -2,20 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { api } from '../../lib/api'
 import { Card, Button, Badge, Dialog, Input, Select, Switch, Empty, toast } from '../../components/ui'
 
-const emptyForm = { username: '', password: '', role: 'user', name: '', phone: '', email: '', enabled: true }
+const emptyForm = { username: '', password: '', role: 'user', role_id: null, name: '', phone: '', email: '', enabled: true }
 
-const ROLE_OPTIONS = [
-  { value: 'user', label: '普通用户', color: 'default' },
-  { value: 'employee', label: '员工', color: 'warning' },
-  { value: 'manager', label: '管理员', color: 'success' },
-  { value: 'admin', label: '超级管理员', color: 'primary' }
-]
-
-const getRoleLabel = (role) => ROLE_OPTIONS.find(r => r.value === role)?.label || role
-const getRoleColor = (role) => ROLE_OPTIONS.find(r => r.value === role)?.color || 'default'
+const SYSTEM_ROLE_MAP = {
+  admin: { label: '超级管理员', color: 'primary' },
+  manager: { label: '管理员', color: 'success' },
+  employee: { label: '员工', color: 'warning' },
+  user: { label: '普通用户', color: 'default' }
+}
 
 export default function Users() {
   const [users, setUsers] = useState([])
+  const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(false)
   const [dialog, setDialog] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -33,8 +31,33 @@ export default function Users() {
 
   const load = () => {
     setLoading(true)
-    api.getUsers().then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
+    api.getUsers().then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getRoles().then(data => setRoles(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
   }
+
+  const getUserRoleLabel = (u) => {
+    if (u.role_id) {
+      const role = roles.find(r => r.id === u.role_id)
+      if (role) return role.name
+    }
+    return SYSTEM_ROLE_MAP[u.role]?.label || u.role
+  }
+  const getUserRoleColor = (u) => {
+    if (u.role_id) {
+      const role = roles.find(r => r.id === u.role_id)
+      if (role && !role.is_system) return 'primary'
+    }
+    return SYSTEM_ROLE_MAP[u.role]?.color || 'default'
+  }
+
+  const roleSelectOptions = [
+    { value: '', label: '请选择角色' },
+    { value: 'system:admin', label: '超级管理员（系统）' },
+    { value: 'system:manager', label: '管理员（系统）' },
+    { value: 'system:employee', label: '员工（系统）' },
+    { value: 'system:user', label: '普通用户（系统）' },
+    ...roles.filter(r => !r.is_system).map(r => ({ value: `custom:${r.id}`, label: `${r.name}（自定义）` }))
+  ]
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
@@ -46,7 +69,13 @@ export default function Users() {
           (u.email || '').toLowerCase().includes(kw)
         if (!match) return false
       }
-      if (roleFilter && u.role !== roleFilter) return false
+      if (roleFilter) {
+        if (roleFilter.startsWith('custom:')) {
+          if (u.role_id !== parseInt(roleFilter.split(':')[1])) return false
+        } else if (roleFilter.startsWith('system:')) {
+          if (u.role !== roleFilter.split(':')[1]) return false
+        }
+      }
       if (statusFilter === 'enabled' && !u.enabled) return false
       if (statusFilter === 'disabled' && u.enabled) return false
       return true
@@ -67,14 +96,26 @@ export default function Users() {
     disabled: users.filter(u => !u.enabled).length
   }), [users])
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
-  const openEdit = (u) => { setEditing(u); setForm({ ...u, password: '', enabled: !!u.enabled }); setDialog(true) }
+  const openAdd = () => { setEditing(null); setForm({ ...emptyForm, roleSelect: '' }); setDialog(true) }
+  const openEdit = (u) => {
+    const roleSelect = u.role_id ? `custom:${u.role_id}` : `system:${u.role}`
+    setEditing(u); setForm({ ...u, password: '', enabled: !!u.enabled, roleSelect }); setDialog(true)
+  }
 
   const save = async () => {
     if (!form.username) { toast('账号必填', 'error'); return }
     if (!editing && !form.password) { toast('密码必填', 'error'); return }
+    if (!form.roleSelect) { toast('请选择角色', 'error'); return }
     try {
       const data = { ...form }
+      if (form.roleSelect.startsWith('custom:')) {
+        data.role_id = parseInt(form.roleSelect.split(':')[1])
+        data.role = 'manager'
+      } else {
+        data.role = form.roleSelect.split(':')[1]
+        data.role_id = null
+      }
+      delete data.roleSelect
       if (!data.password) delete data.password
       if (editing) {
         await api.updateUser(editing.id, data)
@@ -195,17 +236,38 @@ export default function Users() {
           <h2 className="text-xl font-bold text-gray-800">用户管理</h2>
           <p className="text-sm text-gray-400 mt-1">admin 超级管理员 / manager 管理员(可分配权限) / employee 员工 / user 普通用户</p>
         </div>
-        <Button onClick={openAdd}>+ 添加用户</Button>
+        <div className="flex gap-2">
+          <Button onClick={openAdd}>+ 添加用户</Button>
+        </div>
       </div>
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[200px]">
-            <Input placeholder="搜索账号 / 姓名 / 电话 / 邮箱..." value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1) }} />
+            <Input
+              placeholder="搜索账号 / 姓名 / 电话 / 邮箱..."
+              value={keyword}
+              onChange={e => { setKeyword(e.target.value); setPage(1) }}
+            />
           </div>
-          <Select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1) }} options={[{ value: '', label: '全部角色' }, ...ROLE_OPTIONS]} className="w-36" />
-          <Select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} options={[{ value: '', label: '全部状态' }, { value: 'enabled', label: '正常' }, { value: 'disabled', label: '禁用' }]} className="w-32" />
-          <Select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1) }} options={[{ value: 10, label: '10条/页' }, { value: 20, label: '20条/页' }, { value: 50, label: '50条/页' }]} className="w-28" />
+          <Select
+            value={roleFilter}
+            onChange={e => { setRoleFilter(e.target.value); setPage(1) }}
+            options={roleSelectOptions}
+            className="w-44"
+          />
+          <Select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+            options={[{ value: '', label: '全部状态' }, { value: 'enabled', label: '正常' }, { value: 'disabled', label: '禁用' }]}
+            className="w-32"
+          />
+          <Select
+            value={pageSize}
+            onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1) }}
+            options={[{ value: 10, label: '10条/页' }, { value: 20, label: '20条/页' }, { value: 50, label: '50条/页' }]}
+            className="w-28"
+          />
         </div>
         {selectedIds.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3 bg-primary-50 -mx-4 -mb-4 px-4 py-2.5 rounded-b-xl">
@@ -229,7 +291,9 @@ export default function Users() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-left w-10"><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4" /></th>
+                  <th className="px-4 py-3 text-left w-10">
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4" />
+                  </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">账号</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">角色</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">电话</th>
@@ -242,10 +306,17 @@ export default function Users() {
               <tbody>
                 {pagedUsers.map(u => (
                   <tr key={u.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedIds.includes(u.id) ? 'bg-primary-50/50' : ''}`}>
-                    <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} className="w-4 h-4" /></td>
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} className="w-4 h-4" />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-medium text-sm flex-shrink-0 ${u.role === 'admin' ? 'bg-blue-100 text-blue-600' : u.role === 'manager' ? 'bg-green-100 text-green-600' : u.role === 'employee' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-medium text-sm flex-shrink-0 ${
+                          u.role === 'admin' ? 'bg-blue-100 text-blue-600' :
+                          u.role === 'manager' ? 'bg-green-100 text-green-600' :
+                          u.role === 'employee' ? 'bg-amber-100 text-amber-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
                           {(u.name || u.username).charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -254,11 +325,15 @@ export default function Users() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><Badge variant={getRoleColor(u.role)}>{getRoleLabel(u.role)}</Badge></td>
+                    <td className="px-4 py-3">
+                      <Badge variant={getUserRoleColor(u)}>{getUserRoleLabel(u)}</Badge>
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{u.phone || '-'}</td>
                     <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{u.email || '-'}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{formatDate(u.created_at)}</td>
-                    <td className="px-4 py-3"><Badge variant={u.enabled ? 'success' : 'danger'}>{u.enabled ? '正常' : '禁用'}</Badge></td>
+                    <td className="px-4 py-3">
+                      <Badge variant={u.enabled ? 'success' : 'danger'}>{u.enabled ? '正常' : '禁用'}</Badge>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => openEdit(u)} className="text-primary-500 hover:text-primary-700 text-xs">编辑</button>
@@ -273,9 +348,12 @@ export default function Users() {
             </table>
           </div>
         )}
+
         {filteredUsers.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
-            <span className="text-sm text-gray-500">共 {filteredUsers.length} 条，第 {currentPage}/{totalPages} 页</span>
+            <span className="text-sm text-gray-500">
+              共 {filteredUsers.length} 条，第 {currentPage}/{totalPages} 页
+            </span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</Button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -285,7 +363,15 @@ export default function Users() {
                   if (currentPage > totalPages - 2) p = totalPages - 4 + i
                 }
                 return (
-                  <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded text-sm font-medium transition-colors ${currentPage === p ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}>{p}</button>
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                      currentPage === p ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
                 )
               })}
               <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>下一页</Button>
@@ -302,7 +388,7 @@ export default function Users() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="姓名" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="显示名称" />
-            <Select label="角色" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} options={ROLE_OPTIONS} />
+            <Select label="角色 *" value={form.roleSelect || ''} onChange={e => setForm({ ...form, roleSelect: e.target.value })} options={roleSelectOptions} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="电话" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="手机号码" />
