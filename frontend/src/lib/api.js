@@ -18,15 +18,18 @@ export const api = {
   login: (username, password) => request('/auth/login', { body: JSON.stringify({ username, password }) }),
   getMe: () => request('/auth/me'),
   changePassword: (oldPassword, newPassword) => request('/auth/change-password', { body: JSON.stringify({ oldPassword, newPassword }) }),
+
   getUsers: () => request('/users/list'),
   createUser: (data) => request('/users', { body: JSON.stringify(data) }),
   updateUser: (id, data) => request(`/users/update/${id}`, { body: JSON.stringify(data) }),
   deleteUser: (id) => request(`/users/delete/${id}`),
+
   getPlatforms: () => request('/platforms/list'),
   getPublicPlatforms: () => request('/platforms/public'),
   createPlatform: (data) => request('/platforms', { body: JSON.stringify(data) }),
   updatePlatform: (id, data) => request(`/platforms/update/${id}`, { body: JSON.stringify(data) }),
   deletePlatform: (id) => request(`/platforms/delete/${id}`),
+
   getProducts: (categoryId) => request(`/products/list${categoryId ? `?category_id=${categoryId}` : ''}`),
   getAllProducts: () => request('/products/all'),
   getProductById: (id) => request(`/products/detail/${id}`),
@@ -38,6 +41,7 @@ export const api = {
   createCategory: (data) => request('/products/categories', { body: JSON.stringify(data) }),
   updateCategory: (id, data) => request(`/products/categories/update/${id}`, { body: JSON.stringify(data) }),
   deleteCategory: (id) => request(`/products/categories/delete/${id}`),
+
   createOrder: (data) => request('/orders', { body: JSON.stringify(data) }),
   getOrders: (params) => {
     const qs = new URLSearchParams()
@@ -68,18 +72,45 @@ export const api = {
     const qs = params.toString()
     return request(`/orders/mine${qs ? `?${qs}` : ''}`)
   },
+
   getTableByNo: (tableNo) => request(`/tables/by-no/${encodeURIComponent(tableNo)}`),
   getPublicTables: () => request('/tables/public'),
-  getTables: () => request('/tables/list'),
+  getTables: (params) => {
+    const qs = new URLSearchParams(params || {}).toString()
+    return request(`/tables/list${qs ? `?${qs}` : ''}`)
+  },
   createTable: (data) => request('/tables', { body: JSON.stringify(data) }),
+  batchCreateTables: (data) => request('/tables/batch', { body: JSON.stringify(data) }),
   updateTable: (id, data) => request(`/tables/update/${id}`, { body: JSON.stringify(data) }),
   deleteTable: (id) => request(`/tables/delete/${id}`),
   clearTable: (id) => request(`/tables/${id}/clear`),
+  cleanDoneTable: (id) => request(`/tables/${id}/clean-done`),
   occupyTable: (id) => request(`/tables/${id}/occupy`),
+  openTable: (id) => request(`/tables/${id}/open`),
+  setTableMaintenance: (id, maintenance) => request(`/tables/${id}/maintenance`, { body: JSON.stringify({ maintenance }) }),
+  transferTable: (data) => request('/tables/transfer', { body: JSON.stringify(data) }),
+  mergeTables: (data) => request('/tables/merge', { body: JSON.stringify(data) }),
+  getTableZones: () => request('/tables/zones/list'),
+  createTableZone: (data) => request('/tables/zones', { body: JSON.stringify(data) }),
+  updateTableZone: (id, data) => request(`/tables/zones/update/${id}`, { body: JSON.stringify(data) }),
+  deleteTableZone: (id) => request(`/tables/zones/delete/${id}`),
+  getReservations: (params) => {
+    const qs = new URLSearchParams(params || {}).toString()
+    return request(`/tables/reservations/list${qs ? `?${qs}` : ''}`)
+  },
+  createReservation: (data) => request('/tables/reservations', { body: JSON.stringify(data) }),
+  updateReservation: (id, data) => request(`/tables/reservations/update/${id}`, { body: JSON.stringify(data) }),
+  deleteReservation: (id) => request(`/tables/reservations/delete/${id}`),
+  getTableTurnoverStats: (params) => {
+    const qs = new URLSearchParams(params || {}).toString()
+    return request(`/tables/stats/turnover${qs ? `?${qs}` : ''}`)
+  },
+
   getSettings: () => request('/settings/list'),
   getSetting: (key) => request(`/settings/detail/${key}`),
   updateSettings: (data) => request('/settings', { body: JSON.stringify(data) }),
   getTodayBusiness: () => request('/settings/business/today'),
+
   getForms: () => request('/forms/list'),
   getPublicForm: (id) => request(`/forms/public/${id}`),
   createForm: (data) => request('/forms', { body: JSON.stringify(data) }),
@@ -87,13 +118,16 @@ export const api = {
   deleteForm: (id) => request(`/forms/delete/${id}`),
   submitForm: (id, data) => request(`/forms/${id}/submit`, { body: JSON.stringify(data) }),
   getFormSubmissions: (id) => request(`/forms/${id}/submissions`),
+
   getMenus: () => request('/menus/list'),
   getAllMenus: () => request('/menus/all'),
   createMenu: (data) => request('/menus', { body: JSON.stringify(data) }),
   updateMenu: (id, data) => request(`/menus/update/${id}`, { body: JSON.stringify(data) }),
   deleteMenu: (id) => request(`/menus/delete/${id}`),
+
   getProductStats: (threshold) => request(`/stats/products${threshold ? `?threshold=${threshold}` : ''}`),
   getTopProducts: () => request('/stats/products/top5'),
+
   downloadProfitTemplate: async () => {
     const token = getToken()
     const res = await fetch(`${BASE}/stats/profit/template`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
@@ -139,6 +173,7 @@ export const api = {
     return request(`/stats/profit/history/latest?${params.toString()}`)
   },
   saveProfitRecord: (data) => request('/stats/profit/save', { body: JSON.stringify(data) }),
+
   getCarousel: () => request('/content/carousel/list'),
   getAllCarousel: () => request('/content/carousel/all'),
   createCarousel: (data) => request('/content/carousel', { body: JSON.stringify(data) }),
@@ -147,6 +182,7 @@ export const api = {
   getContentBlocks: () => request('/content/blocks'),
   getContentBlock: (key) => request(`/content/blocks/detail/${key}`),
   updateContentBlock: (key, data) => request(`/content/blocks/update/${key}`, { body: JSON.stringify(data) }),
+
   getContentSections: () => request('/content/sections/list'),
   getAllContentSections: () => request('/content/sections/all'),
   createContentSection: (data) => request('/content/sections', { body: JSON.stringify(data) }),
@@ -157,25 +193,30 @@ export const api = {
   createNewProduct: (data) => request('/content/new-products', { body: JSON.stringify(data) }),
   updateNewProduct: (id, data) => request(`/content/new-products/update/${id}`, { body: JSON.stringify(data) }),
   deleteNewProduct: (id) => request(`/content/new-products/delete/${id}`),
+
   getMemos: (type) => request(`/memos/list${type ? `?type=${type}` : ''}`),
   createMemo: (data) => request('/memos', { body: JSON.stringify(data) }),
   updateMemo: (id, data) => request(`/memos/update/${id}`, { body: JSON.stringify(data) }),
   deleteMemo: (id) => request(`/memos/delete/${id}`),
+
   getFlavorTags: (productCategoryId) => request(`/flavor-tags/list${productCategoryId ? `?product_category_id=${productCategoryId}` : ''}`),
   getAllFlavorTags: () => request('/flavor-tags/all'),
   createFlavorTag: (data) => request('/flavor-tags', { body: JSON.stringify(data) }),
   updateFlavorTag: (id, data) => request(`/flavor-tags/update/${id}`, { body: JSON.stringify(data) }),
   deleteFlavorTag: (id) => request(`/flavor-tags/delete/${id}`),
+
   getFlavorCategories: () => request('/flavor-categories/list'),
   getAllFlavorCategories: () => request('/flavor-categories/all'),
   createFlavorCategory: (data) => request('/flavor-categories', { body: JSON.stringify(data) }),
   updateFlavorCategory: (id, data) => request(`/flavor-categories/update/${id}`, { body: JSON.stringify(data) }),
   deleteFlavorCategory: (id) => request(`/flavor-categories/delete/${id}`),
+
   getOrderStatuses: (diningType) => request(`/order-statuses/list${diningType ? `?dining_type=${diningType}` : ''}`),
   getAllOrderStatuses: () => request('/order-statuses/all'),
   createOrderStatus: (data) => request('/order-statuses', { body: JSON.stringify(data) }),
   updateOrderStatus: (id, data) => request(`/order-statuses/update/${id}`, { body: JSON.stringify(data) }),
   deleteOrderStatus: (id) => request(`/order-statuses/delete/${id}`),
+
   uploadImage: async (file) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -187,15 +228,18 @@ export const api = {
     if (!res.ok) throw new Error(data.error || '上传失败')
     return data
   },
+
   getTodayAttendance: () => request('/attendance/today'),
   clockIn: () => request('/attendance/clock-in'),
   clockOut: () => request('/attendance/clock-out'),
   getAttendanceRecords: (params) => request(`/attendance/list?${new URLSearchParams(params).toString()}`),
+
   getGoods: (params) => request(`/inventory/goods/list?${new URLSearchParams(params || {}).toString()}`),
   getGoodsById: (id) => request(`/inventory/goods/detail/${id}`),
   createGoods: (data) => request('/inventory/goods', { body: JSON.stringify(data) }),
   updateGoods: (id, data) => request(`/inventory/goods/update/${id}`, { body: JSON.stringify(data) }),
   deleteGoods: (id) => request(`/inventory/goods/delete/${id}`),
+
   getPurchaseOrders: (params) => request(`/inventory/orders/list?${new URLSearchParams(params || {}).toString()}`),
   getPurchaseOrder: (id) => request(`/inventory/orders/detail/${id}`),
   createPurchaseOrder: (data) => request('/inventory/orders', { body: JSON.stringify(data) }),
