@@ -21,6 +21,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS platforms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -35,6 +36,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -42,6 +44,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -56,6 +59,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no TEXT UNIQUE NOT NULL,
@@ -75,15 +79,50 @@ db.exec(`
     table_session TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS tables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_no TEXT UNIQUE NOT NULL,
+    zone TEXT DEFAULT '大厅',
+    seats INTEGER DEFAULT 4,
     status TEXT DEFAULT 'idle',
     current_session TEXT,
     sort_order INTEGER DEFAULT 0,
+    min_charge REAL DEFAULT 0,
+    waiter_id INTEGER,
+    waiter_name TEXT,
+    note TEXT DEFAULT '',
+    opened_at TEXT,
+    qr_custom_url TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
-  CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+
+  CREATE TABLE IF NOT EXISTS table_zones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+
+  CREATE TABLE IF NOT EXISTS table_reservations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_id INTEGER,
+    table_no TEXT,
+    customer_name TEXT,
+    customer_phone TEXT,
+    reserve_date TEXT NOT NULL,
+    reserve_time TEXT NOT NULL,
+    party_size INTEGER DEFAULT 2,
+    note TEXT DEFAULT '',
+    status TEXT DEFAULT 'pending',
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+  );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS menus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER DEFAULT 0,
@@ -93,6 +132,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS forms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -101,12 +141,14 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS form_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     form_id INTEGER,
     data TEXT DEFAULT '{}',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_blocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     block_key TEXT UNIQUE,
@@ -118,6 +160,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS carousel (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image TEXT,
@@ -126,6 +169,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS memos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -135,6 +179,7 @@ db.exec(`
     completed INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -147,6 +192,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS new_products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -157,6 +203,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS role_permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -164,6 +211,7 @@ db.exec(`
     can_view INTEGER DEFAULT 1,
     can_edit INTEGER DEFAULT 0
   );
+
   CREATE TABLE IF NOT EXISTS flavor_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -171,6 +219,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     category_ids TEXT
   );
+
   CREATE TABLE IF NOT EXISTS flavor_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     category_id INTEGER,
@@ -181,6 +230,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS order_statuses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     status_key TEXT NOT NULL,
@@ -193,6 +243,7 @@ db.exec(`
     next_status TEXT,
     next_label TEXT
   );
+
   CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -201,42 +252,6 @@ db.exec(`
     clock_in TEXT,
     clock_out TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
-  CREATE TABLE IF NOT EXISTS goods (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    name_en TEXT DEFAULT '',
-    unit TEXT DEFAULT '个',
-    current_stock REAL DEFAULT 0,
-    avg_price REAL DEFAULT 0,
-    supplier TEXT DEFAULT '',
-    category TEXT DEFAULT '',
-    note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now','localtime')),
-    updated_at TEXT DEFAULT (datetime('now','localtime'))
-  );
-  CREATE TABLE IF NOT EXISTS purchase_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_no TEXT,
-    supplier TEXT NOT NULL,
-    order_date TEXT NOT NULL,
-    total_amount REAL DEFAULT 0,
-    delivery_fee REAL DEFAULT 0,
-    discount REAL DEFAULT 0,
-    payment_method TEXT DEFAULT 'COD',
-    note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now','localtime'))
-  );
-  CREATE TABLE IF NOT EXISTS purchase_order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    purchase_order_id INTEGER NOT NULL,
-    goods_id INTEGER,
-    goods_name TEXT NOT NULL,
-    quantity REAL NOT NULL DEFAULT 0,
-    unit TEXT DEFAULT '个',
-    unit_price REAL NOT NULL DEFAULT 0,
-    subtotal REAL DEFAULT 0,
-    FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE
   );
 `);
 
@@ -292,8 +307,11 @@ const defaultSettings = {
   'about_text_en': 'About Us',
   'language': 'zh'
 };
+
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
-for (const [key, value] of Object.entries(defaultSettings)) { insertSetting.run(key, value); }
+for (const [key, value] of Object.entries(defaultSettings)) {
+  insertSetting.run(key, value);
+}
 
 const defaultMenus = [
   { parent_id: 0, name: '外卖平台', icon: '🛵', path: '/admin/platforms', sort_order: 1 },
@@ -307,17 +325,27 @@ const defaultMenus = [
   { parent_id: 0, name: '内容管理', icon: '🖼️', path: '/admin/content', sort_order: 9 },
   { parent_id: 0, name: '系统设置', icon: '⚙️', path: '/admin/settings', sort_order: 10 }
 ];
+
 const menuCount = db.prepare('SELECT COUNT(*) as cnt FROM menus').get().cnt;
 if (menuCount === 0) {
   const insertMenu = db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order) VALUES (?, ?, ?, ?, ?)');
-  for (const m of defaultMenus) { insertMenu.run(m.parent_id, m.name, m.icon, m.path, m.sort_order); }
+  for (const m of defaultMenus) {
+    insertMenu.run(m.parent_id, m.name, m.icon, m.path, m.sort_order);
+  }
 }
 
 const catCount = db.prepare('SELECT COUNT(*) as cnt FROM categories').get().cnt;
 if (catCount === 0) {
   const insertCat = db.prepare('INSERT INTO categories (name, name_en, sort_order) VALUES (?, ?, ?)');
-  const cats = [['招牌奶茶', 'Signature Milk Tea', 1], ['鲜果茶', 'Fresh Fruit Tea', 2], ['烧烤串', 'BBQ Skewers', 3], ['小食', 'Snacks', 4], ['其他', 'Others', 5]];
+  const cats = [
+    ['招牌奶茶', 'Signature Milk Tea', 1],
+    ['鲜果茶', 'Fresh Fruit Tea', 2],
+    ['烧烤串', 'BBQ Skewers', 3],
+    ['小食', 'Snacks', 4],
+    ['其他', 'Others', 5]
+  ];
   cats.forEach(c => insertCat.run(...c));
+
   const insertProd = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`);
   const products = [
     ['黑糖珍珠奶茶', 'Brown Sugar Boba Milk Tea', 1, 5.99, '香浓黑糖搭配Q弹珍珠', 1, 1],
@@ -336,15 +364,39 @@ const flavorCount = db.prepare('SELECT COUNT(*) as cnt FROM flavor_tags').get().
 if (flavorCount === 0) {
   const insertCat = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');
   const insertFlavor = db.prepare('INSERT INTO flavor_tags (category_id, category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
-  const categories = [{ name: '辣度', sort: 1 }, { name: '冰度', sort: 2 }, { name: '甜度', sort: 3 }, { name: '配料', sort: 4 }, { name: '其他', sort: 5 }];
+  const categories = [
+    { name: '辣度', sort: 1 },
+    { name: '冰度', sort: 2 },
+    { name: '甜度', sort: 3 },
+    { name: '配料', sort: 4 },
+    { name: '其他', sort: 5 }
+  ];
   const catIds = {};
   categories.forEach(c => { const r = insertCat.run(c.name, c.sort); catIds[c.name] = r.lastInsertRowid; });
   const flavors = [
-    ['辣度', '不辣', 0, 0, 1], ['辣度', '微辣', 0, 0, 2], ['辣度', '少辣', 0, 0, 3], ['辣度', '中辣', 0, 0, 4], ['辣度', '特辣', 0, 0, 5],
-    ['冰度', '去冰', 1, 0, 1], ['冰度', '少冰', 0, 0, 2], ['冰度', '正常冰', 0, 1, 3], ['冰度', '多冰', 0, 0, 4], ['冰度', '热饮', 0, 0, 5],
-    ['甜度', '无糖', 0, 0, 1], ['甜度', '半糖', 0, 0, 2], ['甜度', '少糖', 0, 0, 3], ['甜度', '正常糖', 0, 1, 4], ['甜度', '全糖', 0, 0, 5],
-    ['配料', '加珍珠', 0.75, 0, 1], ['配料', '加椰果', 0.75, 0, 2], ['配料', '加布丁', 0.75, 0, 3], ['配料', '加芋圆', 1, 0, 4],
-    ['其他', '不要葱', 0, 0, 1], ['其他', '不要香菜', 0, 0, 2], ['其他', '不要蒜', 0, 0, 3], ['其他', '打包', 0, 0, 4]
+    ['辣度', '不辣', 0, 0, 1],
+    ['辣度', '微辣', 0, 0, 2],
+    ['辣度', '少辣', 0, 0, 3],
+    ['辣度', '中辣', 0, 0, 4],
+    ['辣度', '特辣', 0, 0, 5],
+    ['冰度', '去冰', 1, 0, 1],
+    ['冰度', '少冰', 0, 0, 2],
+    ['冰度', '正常冰', 0, 1, 3],
+    ['冰度', '多冰', 0, 0, 4],
+    ['冰度', '热饮', 0, 0, 5],
+    ['甜度', '无糖', 0, 0, 1],
+    ['甜度', '半糖', 0, 0, 2],
+    ['甜度', '少糖', 0, 0, 3],
+    ['甜度', '正常糖', 0, 1, 4],
+    ['甜度', '全糖', 0, 0, 5],
+    ['配料', '加珍珠', 0.75, 0, 1],
+    ['配料', '加椰果', 0.75, 0, 2],
+    ['配料', '加布丁', 0.75, 0, 3],
+    ['配料', '加芋圆', 1, 0, 4],
+    ['其他', '不要葱', 0, 0, 1],
+    ['其他', '不要香菜', 0, 0, 2],
+    ['其他', '不要蒜', 0, 0, 3],
+    ['其他', '打包', 0, 0, 4]
   ];
   flavors.forEach(f => insertFlavor.run(catIds[f[0]], f[0], f[1], f[2], f[3], f[4]));
 }
@@ -381,20 +433,46 @@ if (carouselCount === 0) {
 }
 
 const tagColumns = db.prepare("PRAGMA table_info(flavor_tags)").all();
-if (!tagColumns.find(c => c.name === 'category_id')) { db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run(); }
+if (!tagColumns.find(c => c.name === 'category_id')) {
+  db.prepare('ALTER TABLE flavor_tags ADD COLUMN category_id INTEGER').run();
+}
 
 const flavorCatColumns = db.prepare("PRAGMA table_info(flavor_categories)").all();
-if (!flavorCatColumns.find(c => c.name === 'category_ids')) { db.prepare('ALTER TABLE flavor_categories ADD COLUMN category_ids TEXT').run(); }
+if (!flavorCatColumns.find(c => c.name === 'category_ids')) {
+  db.prepare('ALTER TABLE flavor_categories ADD COLUMN category_ids TEXT').run();
+}
 
 const sectionColumns = db.prepare("PRAGMA table_info(content_sections)").all();
-if (!sectionColumns.find(c => c.name === 'image')) { db.prepare('ALTER TABLE content_sections ADD COLUMN image TEXT').run(); }
-if (!sectionColumns.find(c => c.name === 'layout')) { db.prepare("ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT 'left'").run(); }
+if (!sectionColumns.find(c => c.name === 'image')) {
+  db.prepare('ALTER TABLE content_sections ADD COLUMN image TEXT').run();
+}
+if (!sectionColumns.find(c => c.name === 'layout')) {
+  db.prepare("ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT 'left'").run();
+}
 
 const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
-if (!orderColumns.find(c => c.name === 'guest_id')) { db.prepare('ALTER TABLE orders ADD COLUMN guest_id TEXT').run(); }
-if (!orderColumns.find(c => c.name === 'table_id')) { db.prepare('ALTER TABLE orders ADD COLUMN table_id INTEGER').run(); }
-if (!orderColumns.find(c => c.name === 'table_session')) { db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run(); }
-if (!orderColumns.find(c => c.name === 'pickup_number')) { db.prepare('ALTER TABLE orders ADD COLUMN pickup_number TEXT').run(); }
+if (!orderColumns.find(c => c.name === 'guest_id')) {
+  db.prepare('ALTER TABLE orders ADD COLUMN guest_id TEXT').run();
+}
+if (!orderColumns.find(c => c.name === 'table_id')) {
+  db.prepare('ALTER TABLE orders ADD COLUMN table_id INTEGER').run();
+}
+if (!orderColumns.find(c => c.name === 'table_session')) {
+  db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run();
+}
+if (!orderColumns.find(c => c.name === 'pickup_number')) {
+  db.prepare('ALTER TABLE orders ADD COLUMN pickup_number TEXT').run();
+}
+
+const tableColumns = db.prepare("PRAGMA table_info(tables)").all();
+if (!tableColumns.find(c => c.name === 'zone')) db.prepare("ALTER TABLE tables ADD COLUMN zone TEXT DEFAULT '大厅'").run();
+if (!tableColumns.find(c => c.name === 'seats')) db.prepare("ALTER TABLE tables ADD COLUMN seats INTEGER DEFAULT 4").run();
+if (!tableColumns.find(c => c.name === 'min_charge')) db.prepare("ALTER TABLE tables ADD COLUMN min_charge REAL DEFAULT 0").run();
+if (!tableColumns.find(c => c.name === 'waiter_id')) db.prepare("ALTER TABLE tables ADD COLUMN waiter_id INTEGER").run();
+if (!tableColumns.find(c => c.name === 'waiter_name')) db.prepare("ALTER TABLE tables ADD COLUMN waiter_name TEXT").run();
+if (!tableColumns.find(c => c.name === 'note')) db.prepare("ALTER TABLE tables ADD COLUMN note TEXT DEFAULT ''").run();
+if (!tableColumns.find(c => c.name === 'opened_at')) db.prepare("ALTER TABLE tables ADD COLUMN opened_at TEXT").run();
+if (!tableColumns.find(c => c.name === 'qr_custom_url')) db.prepare("ALTER TABLE tables ADD COLUMN qr_custom_url TEXT").run();
 
 try {
   const dirtyOrders = db.prepare("SELECT id, table_id FROM orders WHERE table_id IS NOT NULL AND (table_session IS NULL OR table_session = '')").all();
@@ -414,30 +492,60 @@ try {
 const tableCount = db.prepare('SELECT COUNT(*) as cnt FROM tables').get().cnt;
 if (tableCount === 0) {
   const crypto = require('crypto');
-  const insertTable = db.prepare('INSERT INTO tables (table_no, status, current_session, sort_order) VALUES (?, ?, ?, ?)');
-  ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4'].forEach((no, i) => { insertTable.run(no, 'idle', crypto.randomUUID(), i + 1); });
+  const insertTable = db.prepare('INSERT INTO tables (table_no, zone, seats, status, current_session, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+  const defaultTables = [
+    { no: 'A1', zone: '大厅', seats: 4 }, { no: 'A2', zone: '大厅', seats: 4 },
+    { no: 'A3', zone: '大厅', seats: 4 }, { no: 'A4', zone: '大厅', seats: 4 },
+    { no: 'B1', zone: '包间', seats: 6 }, { no: 'B2', zone: '包间', seats: 8 },
+    { no: 'C1', zone: '户外', seats: 2 }, { no: 'C2', zone: '户外', seats: 2 }
+  ];
+  defaultTables.forEach((t, i) => {
+    insertTable.run(t.no, t.zone, t.seats, 'idle', crypto.randomUUID(), i + 1);
+  });
 }
 
+const defaultZones = ['大厅', '包间', '户外', '吧台'];
+defaultZones.forEach((name, i) => {
+  const exists = db.prepare('SELECT id FROM table_zones WHERE name = ?').get(name);
+  if (!exists) {
+    db.prepare('INSERT INTO table_zones (name, sort_order) VALUES (?, ?)').run(name, i + 1);
+  }
+});
+
 const otherCat = db.prepare("SELECT id FROM categories WHERE name = '其他'").get();
-if (!otherCat) { db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)').run('其他', 'Others', 5); }
+if (!otherCat) {
+  db.prepare("INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)").run('其他', 'Others', 5);
+}
 
 const thankProduct = db.prepare("SELECT id FROM products WHERE name = '感谢支持，祝你发大财'").get();
 if (!thankProduct) {
   const otherCatId = db.prepare("SELECT id FROM categories WHERE name = '其他'").get()?.id;
-  if (otherCatId) { db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, 0, 99)`).run('感谢支持，祝你发大财', 'Thank You for Your Support', otherCatId, 1.00, '感谢您的支持，祝您财源广进，生意兴隆！'); }
+  if (otherCatId) {
+    db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, 1, 0, 99)`).run(
+      '感谢支持，祝你发大财', 'Thank You for Your Support', otherCatId, 1.00, '感谢您的支持，祝您财源广进，生意兴隆！'
+    );
+  }
 }
 
 const flavorMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/flavors'").get();
-if (!flavorMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors'); }
+if (!flavorMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('口味管理', '🌶️', '/admin/flavors');
+}
 
 const orderStatusMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/order-statuses'").get();
-if (!orderStatusMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('订单状态管理', '🔄', '/admin/order-statuses'); }
+if (!orderStatusMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 3, 1)').run('订单状态管理', '🔄', '/admin/order-statuses');
+}
 
 const inventoryMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/inventory'").get();
-if (!inventoryMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('货物管理', '📦', '/admin/inventory'); }
+if (!inventoryMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('货物管理', '📦', '/admin/inventory');
+}
 
 const statsMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/stats/product'").get();
-if (!statsMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('销售统计', '📊', '/admin/stats/product'); }
+if (!statsMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('销售统计', '📊', '/admin/stats/product');
+}
 
 const defaultPlatforms = [
   { name: 'Uber Eats', account: 'only16201@hotmail.com', password: '121227jJ162', url: 'https://merchants.ubereats.com', note: 'Uber Eats 商家后台', sort_order: 1 },
@@ -453,19 +561,28 @@ const insertPlatform = db.prepare('INSERT INTO platforms (name, logo, url, accou
 const updatePlatformAccount = db.prepare("UPDATE platforms SET account = ?, password = ?, url = COALESCE(NULLIF(url, ''), ?), phone = COALESCE(NULLIF(phone, ''), ?), note = COALESCE(NULLIF(note, ''), ?) WHERE name = ? AND (account IS NULL OR account = '')");
 defaultPlatforms.forEach(p => {
   const exists = db.prepare('SELECT id FROM platforms WHERE name = ?').get(p.name);
-  if (!exists) { insertPlatform.run(p.name, '', p.url || '', p.account || '', p.password || '', p.phone || '', p.note || '', '{}', p.sort_order); }
-  else { updatePlatformAccount.run(p.account || '', p.password || '', p.url || '', p.phone || '', p.note || '', p.name); }
+  if (!exists) {
+    insertPlatform.run(p.name, '', p.url || '', p.account || '', p.password || '', p.phone || '', p.note || '', '{}', p.sort_order);
+  } else {
+    updatePlatformAccount.run(p.account || '', p.password || '', p.url || '', p.phone || '', p.note || '', p.name);
+  }
 });
 
 const tableMenu = db.prepare("SELECT id FROM menus WHERE path = '/admin/tables'").get();
-if (!tableMenu) { db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables'); }
+if (!tableMenu) {
+  db.prepare('INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled) VALUES (0, ?, ?, ?, 4, 1)').run('餐桌管理', '🪑', '/admin/tables');
+}
 
 const existingCats = db.prepare('SELECT DISTINCT category FROM flavor_tags WHERE category_id IS NULL').all();
 if (existingCats.length > 0) {
   const insertCat = db.prepare('INSERT OR IGNORE INTO flavor_categories (name, sort_order, enabled) VALUES (?, ?, 1)');
   const getCatId = db.prepare('SELECT id FROM flavor_categories WHERE name = ?');
   const updateTag = db.prepare('UPDATE flavor_tags SET category_id = ? WHERE category = ? AND category_id IS NULL');
-  existingCats.forEach((c, i) => { insertCat.run(c.category, i + 1); const cat = getCatId.get(c.category); if (cat) updateTag.run(cat.id, c.category); });
+  existingCats.forEach((c, i) => {
+    insertCat.run(c.category, i + 1);
+    const cat = getCatId.get(c.category);
+    if (cat) updateTag.run(cat.id, c.category);
+  });
 }
 
 module.exports = db;
