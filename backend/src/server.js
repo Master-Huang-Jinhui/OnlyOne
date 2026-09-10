@@ -64,6 +64,7 @@ app.use(accessLog);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/roles', require('./routes/roles'));
 app.use('/api/platforms', require('./routes/platforms'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
@@ -164,9 +165,7 @@ try {
       console.log(`[迁移] 平台 "${p.name}" 密码已加密`);
     }
   });
-  if (migratedCount > 0) {
-    console.log(`[迁移] 共加密 ${migratedCount} 个平台密码`);
-  }
+  if (migratedCount > 0) console.log(`[迁移] 共加密 ${migratedCount} 个平台密码`);
 } catch (e) {
   console.error('[迁移] 平台密码加密迁移失败:', e.message);
 }
