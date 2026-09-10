@@ -21,11 +21,6 @@ export default function AdminLayout() {
   })
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
     localStorage.setItem('darkMode', String(darkMode))
   }, [darkMode])
 
@@ -56,7 +51,7 @@ export default function AdminLayout() {
   const closeSidebar = () => setSidebarOpen(false)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className={`flex min-h-screen bg-gray-50 ${darkMode ? 'dark-admin' : ''}`}>
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
@@ -127,7 +122,7 @@ export default function AdminLayout() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 dark-admin:hover:bg-gray-700 transition-colors"
               title={darkMode ? '切换到日间模式' : '切换到夜间模式'}
             >
               <span className="text-lg">{darkMode ? '☀️' : '🌙'}</span>
