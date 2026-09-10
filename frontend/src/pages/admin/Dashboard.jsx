@@ -4,6 +4,15 @@ import { api } from '../../lib/api'
 import { playOrderSound, vibrate } from '../../lib/notification'
 import { Card, CardContent, StatCard, Badge, Button, Dialog, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
+// ============================================================
+// 【功能路线图 - 仪表盘】详见 FEATURE_ROADMAP.md
+// TODO[P1] KDS入口：添加"厨房显示"按钮跳转 /kds 全屏厨显页面
+// TODO[P1] 销售趋势图：近7天/30天销售额折线图，高峰时段热力图
+// TODO[P1] 库存预警卡片：显示库存不足的货物列表
+// TODO[P1] 数据备份：添加"立即备份"按钮，每日自动备份data.db
+// TODO[P2] 品类销售占比饼图，人工成本占比
+// ============================================================
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState({})
