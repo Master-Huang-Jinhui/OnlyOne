@@ -2,6 +2,15 @@ const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
 
+// ============================================================
+// 【功能路线图 - 库存模块】详见 FEATURE_ROADMAP.md
+// TODO[P1] 商品配方管理：products表添加recipe字段(JSON)，记录每道菜用哪些原料+用量
+// TODO[P1] 实时库存追踪：下单时自动扣减库存，库存低于阈值后台红色预警
+// TODO[P1] 菜品盈利能力：结合采购价和售价自动计算每道菜的毛利和毛利率
+// TODO[P2] 采购建议：根据近7天销量和当前库存自动生成采购清单
+// TODO[P2] 库存盘点：定期盘点功能，记录盘盈盘亏
+// ============================================================
+
 const router = express.Router();
 
 db.exec(`CREATE TABLE IF NOT EXISTS goods (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_en TEXT DEFAULT '', unit TEXT DEFAULT '个', current_stock REAL DEFAULT 0, avg_price REAL DEFAULT 0, supplier TEXT DEFAULT '', category TEXT DEFAULT '', note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now','localtime')), updated_at TEXT DEFAULT (datetime('now','localtime'))); CREATE TABLE IF NOT EXISTS purchase_orders (id INTEGER PRIMARY KEY AUTOINCREMENT, order_no TEXT, supplier TEXT NOT NULL, order_date TEXT NOT NULL, total_amount REAL DEFAULT 0, delivery_fee REAL DEFAULT 0, discount REAL DEFAULT 0, payment_method TEXT DEFAULT 'COD', note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now','localtime'))); CREATE TABLE IF NOT EXISTS purchase_order_items (id INTEGER PRIMARY KEY AUTOINCREMENT, purchase_order_id INTEGER NOT NULL, goods_id INTEGER, goods_name TEXT NOT NULL, quantity REAL NOT NULL DEFAULT 0, unit TEXT DEFAULT '个', unit_price REAL NOT NULL DEFAULT 0, subtotal REAL DEFAULT 0, FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE)`);
