@@ -6,27 +6,35 @@ const { auth, adminOnly } = require('../middleware/auth');
 const router = express.Router();
 router.use(auth, adminOnly);
 
+// 用户列表
 router.post('/list', (req, res) => {
-  const users = db.prepare('SELECT id, username, role, name, phone, email, permissions, enabled, created_at FROM users ORDER BY id').all();
+  const users = db.prepare('SELECT id, username, role, role_id, name, phone, email, permissions, enabled, created_at FROM users ORDER BY id').all();
   users.forEach(u => u.permissions = JSON.parse(u.permissions || '{}'));
   res.json(users);
 });
 
+// 创建用户
 router.post('/', (req, res) => {
-  const { username, password, role = 'user', name, phone, email, permissions = {} } = req.body;
-  if (!username || !password) return res.status(400).json({ error: '账号和密码必填' });
+  const { username, password, role = 'user', role_id = null, name, phone, email, permissions = {} } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: '账号和密码必填' });
+  }
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) return res.status(400).json({ error: '账号已存在' });
   const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare(`INSERT INTO users (username, password, role, name, phone, email, permissions) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(username, hash, role, name, phone, email, JSON.stringify(permissions));
+  const result = db.prepare(`INSERT INTO users (username, password, role, role_id, name, phone, email, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    username, hash, role, role_id, name, phone, email, JSON.stringify(permissions)
+  );
   res.json({ id: result.lastInsertRowid });
 });
 
+// 更新用户
 router.post('/update/:id', (req, res) => {
-  const { role, name, phone, email, permissions, enabled, password } = req.body;
+  const { role, role_id, name, phone, email, permissions, enabled, password } = req.body;
   const fields = [];
   const values = [];
   if (role !== undefined) { fields.push('role = ?'); values.push(role); }
+  if (role_id !== undefined) { fields.push('role_id = ?'); values.push(role_id); }
   if (name !== undefined) { fields.push('name = ?'); values.push(name); }
   if (phone !== undefined) { fields.push('phone = ?'); values.push(phone); }
   if (email !== undefined) { fields.push('email = ?'); values.push(email); }
@@ -39,8 +47,11 @@ router.post('/update/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// 删除用户
 router.post('/delete/:id', (req, res) => {
-  if (req.params.id == req.user.id) return res.status(400).json({ error: '不能删除自己' });
+  if (req.params.id == req.user.id) {
+    return res.status(400).json({ error: '不能删除自己' });
+  }
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
