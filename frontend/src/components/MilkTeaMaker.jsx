@@ -1,250 +1,205 @@
-import { useState, useEffect, useRef } from 'react'
-import lottie from 'lottie-web'
+import { useState } from 'react'
+import './MilkTeaMaker.css'
 
-const teaPresets = {
-  '绿茶': { key: 'green', emoji: '🍵', color: '#7CB342' },
-  '红茶': { key: 'black', emoji: '☕', color: '#8B4513' },
-  '乌龙茶': { key: 'oolong', emoji: '🍃', color: '#B8860B' },
-  '茉莉花茶': { key: 'jasmine', emoji: '🌸', color: '#F8BBD9' },
-  '铁观音': { key: 'tieguanyin', emoji: '🌿', color: '#66BB6A' },
-  '普洱茶': { key: 'puer', emoji: '🫖', color: '#5D4037' },
-  '大麦茶': { key: 'barley', emoji: '🌾', color: '#A1887F' }
-}
-
-const defaultTeas = [
-  { name: '绿茶', name_en: 'Green Tea' },
-  { name: '红茶', name_en: 'Black Tea' },
-  { name: '乌龙茶', name_en: 'Oolong Tea' }
+const defaultTeaOptions = [
+  { name: '乌龙茶', color: '#a97542' },
+  { name: '绿茶', color: '#9fb555' },
+  { name: '红茶', color: '#b04d2a' },
+  { name: '铁观音', color: '#6b5a44' }
 ]
 
 const toppingOptions = [
-  { key: 'pearl', label: '珍珠', emoji: '⚫', color: '#1a1a1a', shape: 'round' },
-  { key: 'pudding', label: '布丁', emoji: '🍮', color: '#F4D03F', shape: 'square' },
-  { key: 'coconut', label: '椰果', emoji: '🥥', color: 'rgba(255,255,255,0.85)', shape: 'square' }
+  { name: '珍珠', emoji: '●', color: '#2b2b2b' },
+  { name: '布丁', emoji: '🍮', color: '#f2c063' },
+  { name: '椰果', emoji: '▢', color: '#c9eec7' }
 ]
 
-const FRAME = {
-  EMPTY: 0,
-  TEA_POURED: 40,
-  MILK_ADDED: 75,
-  SEALED: 118
-}
+const teaColorPalette = ['#a97542', '#9fb555', '#b04d2a', '#6b5a44', '#7c3aed', '#0891b2', '#be185d', '#65a30d']
 
 export default function MilkTeaMaker({ teas }) {
-  const teaList = (teas && teas.length > 0 ? teas : defaultTeas)
-  const teaOptions = teaList.map((t, i) => {
-    const preset = teaPresets[t.name] || {
-      key: `tea_${i}`,
-      emoji: t.image ? '' : '🍵',
-      color: `hsl(${(i * 47) % 360}, 50%, 45%)`
-    }
-    return { ...preset, label: t.name, image: t.image }
-  })
-
-  const [tea, setTea] = useState(null)
-  const [milk, setMilk] = useState(false)
+  const teaOptions = teas && teas.length > 0
+    ? teas.map((t, i) => ({ name: t.name || t, color: t.color || teaColorPalette[i % teaColorPalette.length] }))
+    : defaultTeaOptions
+  const [teaBase, setTeaBase] = useState('')
+  const [hasMilk, setHasMilk] = useState(false)
   const [toppings, setToppings] = useState([])
-  const [ice, setIce] = useState(false)
-  const [sealed, setSealed] = useState(false)
-  const [lottieReady, setLottieReady] = useState(false)
+  const [hasIce, setHasIce] = useState(false)
+  const [isFinish, setIsFinish] = useState(false)
 
-  const containerRef = useRef(null)
-  const animRef = useRef(null)
-
-  useEffect(() => {
-    if (!containerRef.current) return
-    const anim = lottie.loadAnimation({
-      container: containerRef.current,
-      renderer: 'svg',
-      loop: false,
-      autoplay: false,
-      path: '/lottie/milk-tea.json'
-    })
-    animRef.current = anim
-    anim.addEventListener('DOMLoaded', () => setLottieReady(true))
-    return () => { anim.destroy(); animRef.current = null }
-  }, [])
-
-  const playTo = (frame) => {
-    if (!animRef.current) return
-    animRef.current.goToAndPlay(frame, true)
-  }
-
-  const goTo = (frame) => {
-    if (!animRef.current) return
-    animRef.current.goToAndStop(frame, true)
-  }
-
-  const selectTea = (key) => {
-    if (sealed) return
-    setTea(key)
-    playTo(FRAME.TEA_POURED)
-  }
-
-  const toggleMilk = () => {
-    if (sealed || !tea) return
-    const next = !milk
-    setMilk(next)
-    if (next) {
-      playTo(FRAME.MILK_ADDED)
+  const toggleTopping = (name) => {
+    if (toppings.includes(name)) {
+      setToppings(toppings.filter(item => item !== name))
     } else {
-      goTo(FRAME.TEA_POURED)
+      setToppings([...toppings, name])
     }
   }
 
-  const toggleTopping = (key) => {
-    if (sealed) return
-    setToppings(prev => prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key])
+  const resetAll = () => {
+    setTeaBase('')
+    setHasMilk(false)
+    setToppings([])
+    setHasIce(false)
+    setIsFinish(false)
   }
 
-  const toggleIce = () => {
-    if (sealed || !tea) return
-    setIce(!ice)
+  const finish = () => {
+    if (!teaBase) return
+    setIsFinish(true)
   }
 
-  const handleSeal = () => {
-    if (!tea) return
-    setSealed(true)
-    playTo(FRAME.SEALED)
+  const getFormulaText = () => {
+    const parts = []
+    if (teaBase) parts.push(teaBase)
+    if (hasMilk) parts.push('牛奶')
+    if (toppings.length > 0) parts.push(toppings.join('/'))
+    if (hasIce) parts.push('冰')
+    return parts.length ? parts.join(' · ') : '选择茶底开始制作'
   }
 
-  const reset = () => {
-    setTea(null); setMilk(false); setToppings([]); setIce(false); setSealed(false)
-    goTo(FRAME.EMPTY)
-  }
-
-  const selectedTea = teaOptions.find(t => t.key === tea)
-
-  const toppingPositions = {
-    pearl: [{ bottom: '18%', left: '28%' }, { bottom: '18%', left: '42%' }, { bottom: '18%', left: '56%' }, { bottom: '24%', left: '35%' }, { bottom: '24%', left: '49%' }],
-    pudding: [{ bottom: '20%', left: '32%' }, { bottom: '20%', left: '52%' }, { bottom: '26%', left: '42%' }],
-    coconut: [{ bottom: '22%', left: '30%' }, { bottom: '22%', left: '46%' }, { bottom: '22%', left: '60%' }]
-  }
+  const currentTea = teaOptions.find(t => t.name === teaBase)
 
   return (
-    <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-      <div className="relative w-56 h-72 flex items-center justify-center shrink-0">
-        {tea && !sealed && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-3 z-20 pointer-events-none">
-            <span className="text-2xl steam-1 opacity-60">💨</span>
-            <span className="text-2xl steam-2 opacity-60">💨</span>
-            <span className="text-2xl steam-3 opacity-60">💨</span>
-          </div>
-        )}
+    <section className="milk-tea-maker">
+      <div className="mtm-header">
+        <span className="mtm-tag">互动体验</span>
+        <h2>一杯奶茶的诞生</h2>
+        <p>点击配料，亲手调一杯属于你的奶茶</p>
+      </div>
 
-        <div ref={containerRef} className="w-full h-full" style={{ transform: 'scale(1.1)' }} />
+      <div className="mtm-body">
+        <div className="mtm-stage">
+          <div className="mtm-scene">
+            {teaBase && (
+              <div className="liquid-stream tea-stream" style={{ background: currentTea?.color }} />
+            )}
+            {hasMilk && <div className="liquid-stream milk-stream" />}
 
-        {tea && (
-          <div className="absolute inset-0 pointer-events-none">
-            {toppings.map(tkey => {
-              const opt = toppingOptions.find(o => o.key === tkey)
-              const positions = toppingPositions[tkey] || []
-              return positions.map((pos, i) => (
-                <div key={`${tkey}-${i}`}
-                  className={`absolute ${opt.shape === 'round' ? 'rounded-full' : 'rounded'} pearl-bounce-${(i % 5) + 1}`}
-                  style={{
-                    width: opt.shape === 'round' ? '11px' : '9px',
-                    height: opt.shape === 'round' ? '11px' : '9px',
-                    background: opt.color,
-                    boxShadow: opt.shape === 'round' ? 'inset -1px -1px 2px rgba(0,0,0,0.3)' : 'none',
-                    ...pos,
-                    animationDelay: `${i * 0.1}s`,
-                    zIndex: 5
-                  }} />
-              ))
-            })}
+            <div className="cup-area">
+              <div className="cup-shadow" />
+              <div className="cup">
+                <div className="cup-glass">
+                  <div
+                    className="layer tea-layer"
+                    style={{ background: currentTea?.color, opacity: teaBase ? 1 : 0 }}
+                  />
+                  <div className="layer milk-layer" style={{ opacity: hasMilk ? 1 : 0 }} />
 
-            {ice && (
-              <>
-                <div className="absolute w-4 h-4 bg-white/75 rounded-sm ice-float-1" style={{ top: '38%', left: '32%', zIndex: 6, boxShadow: 'inset 1px 1px 2px rgba(255,255,255,0.8)' }} />
-                <div className="absolute w-3 h-3 bg-white/65 rounded-sm ice-float-2" style={{ top: '42%', left: '52%', zIndex: 6 }} />
-                <div className="absolute w-4 h-4 bg-white/75 rounded-sm ice-float-3" style={{ top: '36%', left: '60%', zIndex: 6 }} />
-              </>
+                  {hasIce && (
+                    <div className="ice-group">
+                      <span className="ice-cube">🧊</span>
+                      <span className="ice-cube">🧊</span>
+                      <span className="ice-cube">🧊</span>
+                    </div>
+                  )}
+
+                  <div className="topping-layer">
+                    {toppings.includes('珍珠') && (
+                      <div className="pearl-group">
+                        <span className="pearl">●</span>
+                        <span className="pearl">●</span>
+                        <span className="pearl">●</span>
+                      </div>
+                    )}
+                    {toppings.includes('布丁') && <span className="topping-icon">🍮</span>}
+                    {toppings.includes('椰果') && <span className="topping-icon coconut">▢▢▢</span>}
+                  </div>
+                </div>
+
+                <div className={`cup-lid ${isFinish ? 'drop' : ''}`} />
+                <div className={`straw ${isFinish ? 'insert' : ''}`} />
+              </div>
+            </div>
+
+            {isFinish && (
+              <div className="steam-group">
+                <span className="steam" />
+                <span className="steam s2" />
+                <span className="steam s3" />
+              </div>
             )}
           </div>
-        )}
 
-        {!lottieReady && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-            加载动画中...
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 max-w-xs w-full space-y-4">
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">第一步：选择茶底</p>
-          <div className="flex gap-2 flex-wrap">
-            {teaOptions.map(t => (
-              <button key={t.key} onClick={() => selectTea(t.key)}
-                disabled={sealed}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                  tea === t.key ? 'bg-primary-600 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
-                } ${sealed ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                {t.image ? <img src={t.image} alt={t.label} className="w-4 h-4 rounded-full object-cover" /> : t.emoji} {t.label}
-              </button>
-            ))}
+          <div className="formula-card">
+            <span className="formula-label">当前配方</span>
+            <span className="formula-text">{getFormulaText()}</span>
           </div>
         </div>
 
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">第二步：加牛奶</p>
-          <button onClick={toggleMilk} disabled={sealed || !tea}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              milk ? 'bg-blue-500 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
-            } ${(sealed || !tea) ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-            🥛 {milk ? '已加牛奶' : '加入牛奶'}
-          </button>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">第三步：加小料（可多选）</p>
-          <div className="flex gap-2 flex-wrap">
-            {toppingOptions.map(t => (
-              <button key={t.key} onClick={() => toggleTopping(t.key)} disabled={sealed || !tea}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  toppings.includes(t.key) ? 'bg-amber-500 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-amber-300'
-                } ${(sealed || !tea) ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                {t.emoji} {t.label}
-              </button>
-            ))}
+        <div className="mtm-panel">
+          <div className="step-card">
+            <div className="step-title">
+              <span className="step-num">1</span>
+              <span>选择茶底</span>
+            </div>
+            <div className="button-row">
+              {teaOptions.map(item => (
+                <button
+                  key={item.name}
+                  className={`pill-btn tea-btn ${teaBase === item.name ? 'active' : ''}`}
+                  style={{
+                    borderColor: teaBase === item.name ? item.color : '#e5e7eb',
+                    background: teaBase === item.name ? item.color : '#fff',
+                    color: teaBase === item.name ? '#fff' : '#374151'
+                  }}
+                  onClick={() => setTeaBase(item.name)}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">第四步：加冰块</p>
-          <button onClick={toggleIce} disabled={sealed || !tea}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              ice ? 'bg-cyan-500 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-cyan-300'
-            } ${(sealed || !tea) ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-            🧊 {ice ? '已加冰块' : '加入冰块'}
-          </button>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          {!sealed ? (
-            <button onClick={handleSeal} disabled={!tea}
-              className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                tea ? 'bg-primary-600 hover:bg-primary-700 text-white active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}>
-              ✅ 封顶完成
+          <div className="step-card">
+            <div className="step-title">
+              <span className="step-num">2</span>
+              <span>加牛奶</span>
+            </div>
+            <button
+              className={`pill-btn milk-btn ${hasMilk ? 'active' : ''}`}
+              onClick={() => setHasMilk(!hasMilk)}
+            >
+              {hasMilk ? '✓ 已加牛奶' : '+ 加牛奶'}
             </button>
-          ) : (
-            <button onClick={reset}
-              className="flex-1 px-4 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors active:scale-95">
-              🔄 重新制作
-            </button>
-          )}
-        </div>
-
-        {tea && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
-            <p className="font-medium text-gray-700 mb-1">当前配方：</p>
-            <p>{selectedTea?.label}{milk ? ' + 牛奶' : ''}{toppings.length > 0 ? ` + ${toppings.map(k => toppingOptions.find(o => o.key === k)?.label).join('/')}` : ''}{ice ? ' + 冰' : ''}</p>
-            {sealed && <p className="text-green-600 font-medium mt-1">🎉 制作完成，请享用！</p>}
           </div>
-        )}
+
+          <div className="step-card">
+            <div className="step-title">
+              <span className="step-num">3</span>
+              <span>加小料</span>
+            </div>
+            <div className="button-row">
+              {toppingOptions.map(item => (
+                <button
+                  key={item.name}
+                  className={`pill-btn topping-btn ${toppings.includes(item.name) ? 'active' : ''}`}
+                  onClick={() => toggleTopping(item.name)}
+                >
+                  <span className="btn-icon" style={{ color: item.color }}>{item.emoji}</span>
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="step-card">
+            <div className="step-title">
+              <span className="step-num">4</span>
+              <span>加冰块</span>
+            </div>
+            <button
+              className={`pill-btn ice-btn ${hasIce ? 'active' : ''}`}
+              onClick={() => setHasIce(!hasIce)}
+            >
+              {hasIce ? '✓ 已加冰块' : '+ 加冰块'}
+            </button>
+          </div>
+
+          <div className="action-row">
+            <button className="primary-btn" onClick={finish}>封顶完成</button>
+            <button className="ghost-btn" onClick={resetAll}>重新制作</button>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
