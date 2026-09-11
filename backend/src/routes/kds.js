@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/pending', auth, (req, res) => {
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id, o.table_session,
-           t.name as table_name, t.position as table_position
+           t.table_no as table_name, t.position as table_position
     FROM orders o
     LEFT JOIN tables t ON o.table_id = t.id
     WHERE o.status IN ('pending', 'preparing')
