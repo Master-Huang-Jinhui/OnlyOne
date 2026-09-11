@@ -17,7 +17,12 @@ export default function Roles() {
 
   const load = () => {
     setLoading(true)
-    api.getRoles().then(data => setRoles(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getRoles().then(data => {
+      // 隐藏系统内置角色（管理员/员工/普通用户），只显示超级管理员和自定义角色
+      const list = Array.isArray(data) ? data : []
+      const filtered = list.filter(r => r.role_key === 'admin' || !r.is_system)
+      setRoles(filtered)
+    }).catch(() => {})
     api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
   }
 
