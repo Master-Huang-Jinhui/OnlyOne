@@ -188,7 +188,9 @@ export default function Roles() {
                         <Badge variant={r.is_system ? 'default' : 'primary'}>{r.is_system ? '系统内置' : '自定义'}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        {menuCount === 0 ? (
+                        {r.is_system ? (
+                          <span className="text-xs text-green-600 font-medium">✓ 全部权限（系统固定）</span>
+                        ) : menuCount === 0 ? (
                           <span className="text-xs text-red-400">无权限（请配置）</span>
                         ) : (
                           <div className="flex items-center gap-2">
