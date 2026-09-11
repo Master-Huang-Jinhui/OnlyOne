@@ -7,12 +7,14 @@ const router = express.Router();
 // KDS 待制作订单列表（pending + preparing 状态，按时间正序，最早下单的先做）
 router.post('/pending', auth, (req, res) => {
   const orders = db.prepare(`
-    SELECT id, order_no, items, dining_type, customer_name, note, status, created_at, table_id, table_session
-    FROM orders
-    WHERE status IN ('pending', 'preparing')
+    SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id, o.table_session,
+           t.name as table_name, t.position as table_position
+    FROM orders o
+    LEFT JOIN tables t ON o.table_id = t.id
+    WHERE o.status IN ('pending', 'preparing')
     ORDER BY 
-      CASE status WHEN 'pending' THEN 0 ELSE 1 END,
-      created_at ASC
+      CASE o.status WHEN 'pending' THEN 0 ELSE 1 END,
+      o.created_at ASC
   `).all();
 
   const result = orders.map(o => {
