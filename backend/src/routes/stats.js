@@ -13,7 +13,10 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => { const ts = new Date().toISOString().replace(/[:.]/g, '-'); cb(null, `${ts}_${file.originalname}`); }
+  filename: (req, file, cb) => {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    cb(null, `${ts}_${file.originalname}`);
+  }
 });
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -161,5 +164,138 @@ router.post('/profit/save', auth, managerAccess, (req, res) => {
   try { saveProfitRecord({ productId, name, purchasePrice, purchaseQty, unit, portionPerUnit, sellPrice }); res.json({ success: true, message: '记录已保存' }); }
   catch (e) { res.status(500).json({ error: '保存失败：' + e.message }); }
 });
+
+router.post('/overview', auth, managerAccess, (req, res) => {
+  const { start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(created_at) <= ?'; params.push(end_date) }
+  const totalOrders = db.prepare(`SELECT COUNT(*) as cnt FROM orders ${dateWhere}`).get(...params).cnt
+  const totalRevenue = db.prepare(`SELECT COALESCE(SUM(total),0) as total FROM orders ${dateWhere}`).get(...params).total
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
+  const totalItems = db.prepare(`SELECT items FROM orders ${dateWhere}`).all(...params)
+  let totalQty = 0
+  for (const o of totalItems) { try { const items = JSON.parse(o.items || '[]'); totalQty += items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0) } catch {} }
+  const todayOrders = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE date(created_at) = date('now','localtime') AND status != 'cancelled'").get().cnt
+  const todayRevenue = db.prepare("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE date(created_at) = date('now','localtime') AND status != 'cancelled'").get().total
+  res.json({ totalOrders, totalRevenue, avgOrder, totalQty, todayOrders, todayRevenue })
+})
+
+router.post('/sales/trend', auth, managerAccess, (req, res) => {
+  const { days = 7, start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(created_at) <= ?'; params.push(end_date) }
+  else { dateWhere += " AND date(created_at) >= date('now','localtime', ?)"; params.push(`-${days - 1} days`) }
+  const data = db.prepare(`SELECT date(created_at) as date, COUNT(*) as orders, COALESCE(SUM(total),0) as revenue FROM orders ${dateWhere} GROUP BY date(created_at) ORDER BY date ASC`).all(...params)
+  res.json(data)
+})
+
+router.post('/category/sales', auth, managerAccess, (req, res) => {
+  const { start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE o.status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(o.created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(o.created_at) <= ?'; params.push(end_date) }
+  const orders = db.prepare(`SELECT o.items FROM orders o ${dateWhere}`).all(...params)
+  const catMap = {}
+  const categories = db.prepare('SELECT id, name FROM categories').all()
+  const products = db.prepare('SELECT id, category_id, name, price FROM products').all()
+  const prodCat = {}
+  for (const p of products) prodCat[p.id] = p
+  for (const o of orders) {
+    try {
+      const items = JSON.parse(o.items || '[]')
+      for (const it of items) {
+        const p = prodCat[it.id]
+        if (!p) continue
+        const catId = p.category_id || 0
+        if (!catMap[catId]) { const cat = categories.find(c => c.id === catId); catMap[catId] = { category_id: catId, category_name: cat?.name || '未分类', quantity: 0, revenue: 0, order_count: 0 } }
+        catMap[catId].quantity += parseInt(it.quantity) || 0
+        catMap[catId].revenue += (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 0)
+      }
+    } catch {}
+  }
+  const result = Object.values(catMap).sort((a, b) => b.revenue - a.revenue)
+  const totalRevenue = result.reduce((s, c) => s + c.revenue, 0)
+  result.forEach(c => { c.percentage = totalRevenue > 0 ? (c.revenue / totalRevenue * 100).toFixed(1) : 0 })
+  res.json(result)
+})
+
+router.post('/hourly/sales', auth, managerAccess, (req, res) => {
+  const { start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(created_at) <= ?'; params.push(end_date) }
+  const data = db.prepare(`SELECT CAST(strftime('%H', created_at) as INTEGER) as hour, COUNT(*) as orders, COALESCE(SUM(total),0) as revenue FROM orders ${dateWhere} GROUP BY hour ORDER BY hour ASC`).all(...params)
+  const full = []
+  for (let h = 0; h < 24; h++) { const found = data.find(d => d.hour === h); full.push({ hour: h, orders: found?.orders || 0, revenue: found?.revenue || 0 }) }
+  res.json(full)
+})
+
+router.post('/dining-type/sales', auth, managerAccess, (req, res) => {
+  const { start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(created_at) <= ?'; params.push(end_date) }
+  const data = db.prepare(`SELECT dining_type, COUNT(*) as orders, COALESCE(SUM(total),0) as revenue, COALESCE(AVG(total),0) as avg_order FROM orders ${dateWhere} GROUP BY dining_type`).all(...params)
+  const labelMap = { dinein: '堂吃', takeout: '外带', delivery: '配送' }
+  const result = data.map(d => ({ ...d, label: labelMap[d.dining_type] || d.dining_type }))
+  res.json(result)
+})
+
+router.post('/top/products', auth, managerAccess, (req, res) => {
+  const { limit = 10, start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE o.status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(o.created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(o.created_at) <= ?'; params.push(end_date) }
+  const orders = db.prepare(`SELECT o.items FROM orders o ${dateWhere}`).all(...params)
+  const prodMap = {}
+  const products = db.prepare('SELECT id, name, name_en, price, category_id FROM products').all()
+  const prodInfo = {}
+  for (const p of products) prodInfo[p.id] = p
+  for (const o of orders) {
+    try {
+      const items = JSON.parse(o.items || '[]')
+      for (const it of items) {
+        if (!prodMap[it.id]) prodMap[it.id] = { product_id: it.id, quantity: 0, revenue: 0, order_count: 0 }
+        prodMap[it.id].quantity += parseInt(it.quantity) || 0
+        prodMap[it.id].revenue += (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 0)
+      }
+    } catch {}
+  }
+  const result = Object.values(prodMap).map(p => ({ ...p, name: prodInfo[p.product_id]?.name || '未知', name_en: prodInfo[p.product_id]?.name_en || '', price: prodInfo[p.product_id]?.price || 0 })).sort((a, b) => b.quantity - a.quantity).slice(0, limit)
+  res.json(result)
+})
+
+router.post('/profit/analysis', auth, managerAccess, (req, res) => {
+  const { start_date, end_date } = req.body || {}
+  let dateWhere = "WHERE o.status != 'cancelled'"
+  const params = []
+  if (start_date) { dateWhere += ' AND date(o.created_at) >= ?'; params.push(start_date) }
+  if (end_date) { dateWhere += ' AND date(o.created_at) <= ?'; params.push(end_date) }
+  const orders = db.prepare(`SELECT o.items, o.total FROM orders o ${dateWhere}`).all(...params)
+  const totalRevenue = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0)
+  const totalOrders = orders.length
+  const prodSales = {}
+  for (const o of orders) {
+    try {
+      const items = JSON.parse(o.items || '[]')
+      for (const it of items) {
+        if (!prodSales[it.id]) prodSales[it.id] = { quantity: 0, revenue: 0 }
+        prodSales[it.id].quantity += parseInt(it.quantity) || 0
+        prodSales[it.id].revenue += (parseFloat(it.price) || 0) * (parseInt(it.quantity) || 0)
+      }
+    } catch {}
+  }
+  const products = db.prepare('SELECT id, name, price FROM products').all()
+  const result = products.map(p => ({ product_id: p.id, name: p.name, price: p.price, quantity: prodSales[p.id]?.quantity || 0, revenue: prodSales[p.id]?.revenue || 0, cost: 0, profit: prodSales[p.id]?.revenue || 0 })).filter(r => r.quantity > 0).sort((a, b) => b.revenue - a.revenue)
+  res.json({ totalRevenue, totalOrders, products: result, totalCost: 0, totalProfit: totalRevenue })
+})
 
 module.exports = router;
