@@ -1,13 +1,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from './components/ui'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import { useAuth } from './context/AuthContext'
 
+// 前台
 import Home from './pages/customer/Home'
 import Menu from './pages/customer/Menu'
 import Cart from './pages/customer/Cart'
 import Checkout from './pages/customer/Checkout'
 import OrderStatus from './pages/customer/OrderStatus'
 
+// 后台
 import Login from './pages/admin/Login'
 import AdminLayout from './pages/admin/Layout'
 import Dashboard from './pages/admin/Dashboard'
@@ -33,6 +36,7 @@ import Coupons from './pages/admin/Coupons'
 import Queue from './pages/admin/Queue'
 import Reports from './pages/admin/Reports'
 
+// 员工
 import EmployeeHome from './pages/employee/EmployeeHome'
 import EmployeeOrder from './pages/employee/EmployeeOrder'
 import EmployeeOrders from './pages/employee/EmployeeOrders'
@@ -42,7 +46,9 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">加载中...</div>
   if (!user) return <Navigate to="/login" />
+  // superAdminOnly：只有超级管理员能访问（用户管理、权限管理）
   if (superAdminOnly && user.role !== 'admin') return <Navigate to="/" />
+  // adminOnly：超级管理员和管理员都能访问后台大部分页面
   if (adminOnly && user.role !== 'admin' && user.role !== 'manager') return <Navigate to="/" />
   if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/" />
   return children
@@ -50,22 +56,26 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
 
 export default function App() {
   return (
-    <>
+    <ConfirmProvider>
       <ToastContainer />
       <Routes>
+        {/* 前台公开页面 */}
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/cart" element={<Navigate to="/menu" />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-status" element={<OrderStatus />} />
 
+        {/* 登录 */}
         <Route path="/login" element={<Login />} />
 
+        {/* 员工 */}
         <Route path="/employee" element={<ProtectedRoute employeeOnly><EmployeeHome /></ProtectedRoute>} />
         <Route path="/employee/order" element={<ProtectedRoute employeeOnly><EmployeeOrder /></ProtectedRoute>} />
         <Route path="/employee/table-detail" element={<ProtectedRoute employeeOnly><EmployeeTableDetail /></ProtectedRoute>} />
         <Route path="/employee/orders" element={<ProtectedRoute employeeOnly><EmployeeOrders /></ProtectedRoute>} />
 
+        {/* 后台 */}
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<ProtectedRoute superAdminOnly><Users /></ProtectedRoute>} />
@@ -93,6 +103,6 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </>
+    </ConfirmProvider>
   )
 }
