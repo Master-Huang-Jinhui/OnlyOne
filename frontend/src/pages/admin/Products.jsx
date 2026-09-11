@@ -10,8 +10,54 @@ export default function Products() {
   const [moveDialog, setMoveDialog] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [ingredients, setIngredients] = useState([])
+  const [goodsList, setGoodsList] = useState([])
   const fileInputRef = useRef(null)
   const productImageInputRef = useRef(null)
+
+  useEffect(() => {
+    api.getGoods({}).then(data => {
+      setGoodsList(Array.isArray(data) ? data : [])
+    }).catch(() => {})
+  }, [])
+
+  const openEditProduct = async (product) => {
+    setProductDialog({ mode: 'edit', data: { ...product } })
+    try {
+      const data = await api.getProductIngredients(product.id)
+      setIngredients(Array.isArray(data) ? data : [])
+    } catch (e) {
+      setIngredients([])
+    }
+  }
+
+  const openAddProduct = (categoryId = '') => {
+    setProductDialog({ mode: 'add', data: { name: '', name_en: '', category_id: categoryId, price: '', description: '', description_en: '', image: '', available: 1, is_recommend: 0, sort_order: 0 } })
+    setIngredients([])
+  }
+
+  const addIngredient = () => {
+    setIngredients(prev => [...prev, { goods_id: '', goods_name: '', quantity: 1, unit: '个' }])
+  }
+
+  const updateIngredient = (index, field, value) => {
+    setIngredients(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], [field]: value }
+      if (field === 'goods_id') {
+        const goods = goodsList.find(g => g.id === Number(value))
+        if (goods) {
+          next[index].goods_name = goods.name
+          next[index].unit = goods.unit || '个'
+        }
+      }
+      return next
+    })
+  }
+
+  const removeIngredient = (index) => {
+    setIngredients(prev => prev.filter((_, i) => i !== index))
+  }
 
   const handleProductImageUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -157,8 +203,21 @@ export default function Products() {
         is_recommend: data.is_recommend ? 1 : 0,
         sort_order: data.sort_order || 0
       }
-      if (mode === 'add') { await api.createProduct(payload); toast('商品已添加') }
-      else { await api.updateProduct(data.id, payload); toast('商品已更新') }
+      let productId = data.id
+      if (mode === 'add') {
+        const result = await api.createProduct(payload)
+        productId = result.id
+        toast('商品已添加')
+      } else {
+        await api.updateProduct(data.id, payload)
+        toast('商品已更新')
+      }
+      if (productId && ingredients.length > 0) {
+        const validIngredients = ingredients.filter(i => i.goods_id && i.quantity > 0)
+        if (validIngredients.length > 0) {
+          await api.saveProductIngredients(productId, validIngredients)
+        }
+      }
       setProductDialog(null); load()
     } catch (e) { toast(e.message, 'error') }
   }
@@ -291,7 +350,7 @@ export default function Products() {
                   <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat } })}>编辑分类</Button>
                 </>
               )}
-              <Button size="sm" onClick={() => setProductDialog({ mode: 'add', data: { name: '', name_en: '', category_id: cat.id || '', price: '', description: '', description_en: '', image: '', available: true, is_recommend: false, sort_order: 0 } })}>+ 商品</Button>
+              <Button size="sm" onClick={() => openAddProduct(cat.id || '')}>+ 商品</Button>
               {cat.id !== 0 && <button onClick={() => deleteCategory(cat)} className="text-red-400 hover:text-red-600 text-sm px-2">删除</button>}
             </div>
           </div>
@@ -308,7 +367,7 @@ export default function Products() {
                     <div className="flex items-center gap-3">
                       <button onClick={() => setMoveDialog({ products: [p], targetCategoryId: p.category_id || '' })} className="text-xs text-indigo-600 hover:text-indigo-700">移动</button>
                       <button onClick={() => toggleProduct(p)} className={`text-xs ${p.available ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{p.available ? '下架' : '上架'}</button>
-                      <button onClick={() => setProductDialog({ mode: 'edit', data: { ...p } })} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
+                      <button onClick={() => openEditProduct(p)} className="text-xs text-primary-600 hover:text-primary-700">编辑</button>
                       <button onClick={() => deleteProduct(p)} className="text-xs text-red-400 hover:text-red-600">删除</button>
                     </div>
                   )}
@@ -345,14 +404,21 @@ export default function Products() {
               <Input label="英文名" value={productDialog.data.name_en} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, name_en: e.target.value } })} />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <Select label="分类" value={productDialog.data.category_id || ''} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, category_id: e.target.value } })} options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+              <Select label="分类" value={productDialog.data.category_id || ''} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, category_id: e.target.value } })}
+                options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
               <Input label="价格 * ($)" type="number" step="0.01" value={productDialog.data.price} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, price: e.target.value } })} />
               <Input label="排序" type="number" value={productDialog.data.sort_order} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">商品图片</label>
               <div className="flex gap-2">
-                <input type="text" value={productDialog.data.image} onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })} placeholder="https://... 或 /uploads/images/xxx.jpg" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                <input
+                  type="text"
+                  value={productDialog.data.image}
+                  onChange={e => setProductDialog({ ...productDialog, data: { ...productDialog.data, image: e.target.value } })}
+                  placeholder="https://... 或 /uploads/images/xxx.jpg"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
                 <Button variant="outline" onClick={() => productImageInputRef.current?.click()}>上传图片</Button>
                 <input ref={productImageInputRef} type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
               </div>
@@ -376,6 +442,46 @@ export default function Products() {
                 <span className="text-sm text-gray-700">推荐商品</span>
               </label>
             </div>
+
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">🧂 配料管理（下单自动扣减库存）</h3>
+                <Button size="sm" variant="outline" onClick={addIngredient}>+ 添加配料</Button>
+              </div>
+              {ingredients.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-3">暂无配料，点击上方按钮添加</p>
+              ) : (
+                <div className="space-y-2">
+                  {ingredients.map((ing, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select
+                        value={ing.goods_id}
+                        onChange={e => updateIngredient(idx, 'goods_id', e.target.value)}
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">选择货物...</option>
+                        {goodsList.map(g => (
+                          <option key={g.id} value={g.id}>{g.name} ({g.unit})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={ing.quantity}
+                        onChange={e => updateIngredient(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                        className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="用量"
+                      />
+                      <span className="text-xs text-gray-500 w-8">{ing.unit}</span>
+                      <button onClick={() => removeIngredient(idx)} className="text-red-500 hover:text-red-700 text-sm px-2">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-2">💡 例：一杯奶茶用 0.05 磅茶叶、0.2 杯牛奶，下单后自动扣减对应库存</p>
+            </div>
+
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setProductDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={saveProduct}>保存</Button>
@@ -394,7 +500,8 @@ export default function Products() {
                 {moveDialog.products.map(p => <p key={p.id} className="truncate">• {p.name}</p>)}
               </div>
             )}
-            <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })} options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
+            <Select label="目标分类" value={moveDialog.targetCategoryId} onChange={e => setMoveDialog({ ...moveDialog, targetCategoryId: e.target.value })}
+              options={[{ value: '', label: '未分类' }, ...categories.filter(c => c.id !== 0).map(c => ({ value: c.id, label: c.name }))]} />
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setMoveDialog(null)}>取消</Button>
               <Button className="flex-1" onClick={confirmMove}>确认移动</Button>
