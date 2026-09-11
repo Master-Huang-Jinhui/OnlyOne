@@ -85,6 +85,7 @@ app.use('/api/kds', require('./routes/kds'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/queue', require('./routes/queue'));
+app.use('/api/translations', require('./routes/translations'));
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir, {
