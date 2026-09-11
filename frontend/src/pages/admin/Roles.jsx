@@ -48,7 +48,7 @@ export default function Roles() {
   const openPerm = (r) => {
     setPermRole(r)
     try {
-      const perms = r.permissions || {}
+      const perms = r.permissions || JSON.parse(r.permissions || '{}')
       setSelectedMenus(perms.menus || [])
     } catch { setSelectedMenus([]) }
     setPermDialog(true)
@@ -77,6 +77,70 @@ export default function Roles() {
   const parentMenus = useMemo(() => menus.filter(m => m.parent_id === 0 || !m.parent_id), [menus])
   const getChildren = (parentId) => menus.filter(m => m.parent_id === parentId)
   const getMenuName = (menuId) => menus.find(m => m.id === menuId)?.name || `菜单${menuId}`
+
+  // 快速权限模板（按菜单路径匹配，不受ID变化影响）
+  const roleTemplates = useMemo(() => [
+    {
+      name: '老板/店长',
+      desc: '全部权限',
+      icon: '👑',
+      match: () => allMenuIds
+    },
+    {
+      name: '经理',
+      desc: '运营+营销+报表',
+      icon: '📊',
+      match: () => menus.filter(m => !['/admin/permissions','/admin/roles','/admin/menus','/admin/settings','/admin/users'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '管理员',
+      desc: '日常运营管理',
+      icon: '👨‍💼',
+      match: () => menus.filter(m => ['/admin/orders','/admin/products','/admin/flavors','/admin/tables','/admin/inventory','/admin/order-statuses'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '收银员',
+      desc: '订单+收款+餐桌',
+      icon: '💰',
+      match: () => menus.filter(m => ['/admin/orders','/admin/tables','/admin/order-statuses'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '服务员',
+      desc: '点餐+餐桌服务',
+      icon: '🍽️',
+      match: () => menus.filter(m => ['/admin/tables','/admin/orders'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '后厨师傅',
+      desc: '厨房显示+出餐',
+      icon: '👨‍🍳',
+      match: () => menus.filter(m => m.path === '/admin/kds' || m.name.includes('厨房') || m.name.includes('KDS')).map(m => m.id)
+    },
+    {
+      name: '库管员',
+      desc: '货物+库存+统计',
+      icon: '📦',
+      match: () => menus.filter(m => ['/admin/inventory','/admin/stats/product'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '内容运营',
+      desc: '内容+平台+表单',
+      icon: '📝',
+      match: () => menus.filter(m => ['/admin/content','/admin/platforms','/admin/forms'].includes(m.path)).map(m => m.id)
+    },
+    {
+      name: '只读权限',
+      desc: '查看全部菜单',
+      icon: '👁️',
+      match: () => allMenuIds
+    },
+  ], [menus, allMenuIds])
+
+  const applyTemplate = (template) => {
+    const ids = template.match()
+    setSelectedMenus(ids)
+    toast(`已应用「${template.name}」模板，选中 ${ids.length} 个菜单`)
+  }
 
   return (
     <div className="space-y-6">
@@ -109,7 +173,7 @@ export default function Roles() {
               </thead>
               <tbody>
                 {roles.map(r => {
-                  const menuCount = (r.permissions?.menus || []).length
+                  const menuCount = (r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).length
                   return (
                     <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
@@ -129,7 +193,7 @@ export default function Roles() {
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-primary-600">{menuCount} 个</span>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
-                              {(r.permissions?.menus || []).slice(0, 2).map(id => (
+                              {(r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).slice(0, 2).map(id => (
                                 <Badge key={id} variant="primary" className="text-xs">{getMenuName(id)}</Badge>
                               ))}
                               {menuCount > 2 && <Badge variant="default" className="text-xs">+{menuCount - 2}</Badge>}
@@ -196,6 +260,24 @@ export default function Roles() {
             </div>
           ) : (
             <>
+              {/* 快速模板 */}
+              <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                <p className="text-xs font-medium text-gray-600 mb-2">⚡ 快速模板（点击应用，可在此基础上微调）</p>
+                <div className="flex flex-wrap gap-2">
+                  {roleTemplates.map(tpl => (
+                    <button
+                      key={tpl.name}
+                      onClick={() => applyTemplate(tpl)}
+                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>{tpl.icon}</span>
+                      <span className="font-medium">{tpl.name}</span>
+                      <span className="text-gray-400">（{tpl.desc}）</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-400">勾选该角色可见的后台菜单，未勾选的菜单将不在侧边栏显示。</p>
                 <div className="flex gap-2">
