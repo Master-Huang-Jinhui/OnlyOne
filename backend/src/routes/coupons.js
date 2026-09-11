@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const db = require('../db')
-const auth = require('../middleware/auth')
+const { auth } = require('../middleware/auth')
 
 router.post('/list', auth, (req, res) => {
   const { status, page = 1, page_size = 20 } = req.body || {}
