@@ -30,9 +30,11 @@ export default function AdminLayout() {
       // 非超级管理员都需要过滤菜单（基于角色权限或用户个人权限）
       if (user?.role !== 'admin') {
         try {
-          const perms = user.permissions || JSON.parse(user.permissions || '{}')
-          const allowedIds = perms.menus || []
-          if (allowedIds.length > 0) {
+          const perms = user.permissions || {}
+          // 只有配置了 menus 字段才过滤（空数组表示无权限）
+          // 未配置 menus 字段的老数据保持全部可见
+          if (perms.menus !== undefined) {
+            const allowedIds = perms.menus || []
             const allowed = menuList.filter(m => allowedIds.includes(m.id))
             const parentIds = [...new Set(allowed.filter(m => m.parent_id && m.parent_id !== 0).map(m => m.parent_id))]
             const parents = menuList.filter(m => parentIds.includes(m.id))
