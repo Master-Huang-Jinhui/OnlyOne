@@ -48,7 +48,7 @@ export default function Roles() {
   const openPerm = (r) => {
     setPermRole(r)
     try {
-      const perms = r.permissions || JSON.parse(r.permissions || '{}')
+      const perms = r.permissions || {}
       setSelectedMenus(perms.menus || [])
     } catch { setSelectedMenus([]) }
     setPermDialog(true)
@@ -173,7 +173,8 @@ export default function Roles() {
               </thead>
               <tbody>
                 {roles.map(r => {
-                  const menuCount = (r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).length
+                  const roleMenus = r.permissions?.menus || []
+                  const menuCount = roleMenus.length
                   return (
                     <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
@@ -188,12 +189,12 @@ export default function Roles() {
                       </td>
                       <td className="px-4 py-3">
                         {menuCount === 0 ? (
-                          <span className="text-xs text-amber-500">未配置（默认全部可见）</span>
+                          <span className="text-xs text-red-400">无权限（请配置）</span>
                         ) : (
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-primary-600">{menuCount} 个</span>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
-                              {(r.permissions?.menus || JSON.parse(r.permissions || '{}').menus || []).slice(0, 2).map(id => (
+                              {roleMenus.slice(0, 2).map(id => (
                                 <Badge key={id} variant="primary" className="text-xs">{getMenuName(id)}</Badge>
                               ))}
                               {menuCount > 2 && <Badge variant="default" className="text-xs">+{menuCount - 2}</Badge>}
@@ -335,7 +336,7 @@ export default function Roles() {
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
             <div className="text-sm text-gray-500">
               已选择 <span className="font-bold text-primary-600">{selectedMenus.length}</span> 个菜单
-              {selectedMenus.length === 0 && !permRole?.is_system && <span className="text-amber-500 ml-2">（不选则默认全部可见）</span>}
+              {selectedMenus.length === 0 && !permRole?.is_system && <span className="text-red-400 ml-2">（不选则无任何权限）</span>}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setPermDialog(false)}>取消</Button>
