@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
+import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
@@ -27,12 +28,9 @@ export default function AdminLayout() {
   useEffect(() => {
     api.getMenus().then(data => {
       let menuList = Array.isArray(data) ? data : []
-      // 非超级管理员都需要过滤菜单（基于角色权限或用户个人权限）
       if (user?.role !== 'admin') {
         try {
           const perms = user.permissions || {}
-          // 只有配置了 menus 字段才过滤（空数组表示无权限）
-          // 未配置 menus 字段的老数据保持全部可见
           if (perms.menus !== undefined) {
             const allowedIds = perms.menus || []
             const allowed = menuList.filter(m => allowedIds.includes(m.id))
@@ -55,7 +53,6 @@ export default function AdminLayout() {
 
   return (
     <div className={`flex min-h-screen bg-gray-50 ${darkMode ? 'dark-admin' : ''}`}>
-      {/* 移动端遮罩 */}
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
@@ -63,7 +60,6 @@ export default function AdminLayout() {
         />
       )}
 
-      {/* 侧边栏 - 手机端fixed抽屉，桌面端sticky固定 */}
       <aside className={`
         fixed top-0 left-0 h-full bg-white border-r border-gray-200 flex flex-col z-50
         transition-transform duration-300 lg:transition-none
@@ -109,9 +105,7 @@ export default function AdminLayout() {
         </nav>
       </aside>
 
-      {/* 主内容区 */}
       <div className="flex-1 min-w-0">
-        {/* 顶部栏 - 手机端显示汉堡按钮 */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
@@ -127,6 +121,7 @@ export default function AdminLayout() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -143,7 +138,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* 页面内容 */}
         <main className="p-4 lg:p-6">
           <Outlet />
         </main>
