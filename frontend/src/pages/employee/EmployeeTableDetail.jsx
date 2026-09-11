@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { Dialog, Button, toast } from '../../components/ui'
 import { getStatusLabel, getStatusVariant, getDiningLabel } from '../../lib/orderStatus'
+import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function EmployeeTableDetail() {
   const { user, logout } = useAuth()
@@ -16,6 +17,8 @@ export default function EmployeeTableDetail() {
   const [taxRate, setTaxRate] = useState(0.08875)
   const [checkoutDialog, setCheckoutDialog] = useState(false)
   const [checkoutData, setCheckoutData] = useState({ orders: [], total: 0, count: 0 })
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [checkingOut, setCheckingOut] = useState(false)
 
   useEffect(() => {
     api.getSettings().then(s => setTaxRate(parseFloat(s?.tax_rate || 0.08875))).catch(() => {})
@@ -60,14 +63,41 @@ export default function EmployeeTableDetail() {
   }
 
   const confirmCheckout = async () => {
-    if (!tableId) return
+    if (!tableId || checkoutData.orders.length === 0) return
+    setCheckingOut(true)
     try {
-      await api.clearTable(tableId)
-      toast('结账成功，桌子已清空')
+      // 逐个订单结账
+      for (const order of checkoutData.orders) {
+        await api.checkoutOrder(order.id, paymentMethod)
+      }
+      
+      // 现金结账自动打开钱箱
+      if (paymentMethod === 'cash') {
+        try {
+          const result = await api.openCashDrawer()
+          if (result?.command) {
+            const pulse = atob(result.command)
+            const printWindow = window.open('', '_blank', 'width=1,height=1')
+            if (printWindow) {
+              printWindow.document.write('<pre>' + pulse + '</pre>')
+              printWindow.document.close()
+              printWindow.print()
+              setTimeout(() => printWindow.close(), 500)
+            }
+          }
+        } catch (e) {
+          console.log('钱箱打开失败（需连接打印机）:', e.message)
+        }
+      }
+      
+      toast(`结账成功（${paymentMethod === 'cash' ? '现金' : paymentMethod === 'card' ? '刷卡' : paymentMethod === 'apple_pay' ? 'Apple Pay' : '外卖平台'}），共 $${parseFloat(checkoutData.total).toFixed(2)}`)
       setCheckoutDialog(false)
+      setPaymentMethod('cash')
       navigate('/employee')
     } catch (e) {
       toast(e.message, 'error')
+    } finally {
+      setCheckingOut(false)
     }
   }
 
@@ -98,41 +128,42 @@ export default function EmployeeTableDetail() {
 
       <div className="flex-1 overflow-y-auto p-4">
         {orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <span className="text-5xl mb-3">📋</span>
-            <p className="text-lg">该桌暂无进行中的订单</p>
-            <p className="text-sm mt-1">点击下方按钮开始点餐</p>
+          <div className="text-center py-20 text-gray-400">
+            <p className="text-4xl mb-3">🍽️</p>
+            <p className="text-lg font-medium">暂无进行中的订单</p>
+            <p className="text-sm mt-1">点击下方「编辑 / 加单」开始点餐</p>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-4">
-            {orders.map((order, oIdx) => (
-              <div key={order.id} className={`bg-white rounded-xl shadow-sm overflow-hidden ${oIdx > 0 ? 'mt-4' : ''}`}>
+            {orders.map(order => (
+              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-bold text-primary-600">{order.order_no}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusVariant(order.dining_type, order.status) === 'success' ? 'bg-green-100 text-green-700' : getStatusVariant(order.dining_type, order.status) === 'danger' ? 'bg-red-100 text-red-700' : getStatusVariant(order.dining_type, order.status) === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {getStatusLabel(order.dining_type, order.status)}
-                    </span>
+                    <span className="font-mono text-primary-600 font-bold">{order.order_no}</span>
+                    <span className="text-xs text-gray-400">{formatDateTime(order.created_at)}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{order.created_at}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${getStatusVariant(order.status)}`}>
+                    {getStatusLabel(order.status)}
+                  </span>
                 </div>
-                <div className="divide-y divide-gray-50">
-                  {(typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || [])).map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between px-4 py-3">
+                <div className="p-4 space-y-2">
+                  {(order.items || []).map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-sm">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-800">{item.name}</p>
-                        {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                        <span className="text-gray-700 font-medium">{item.name}</span>
+                        {item.note && <span className="text-xs text-gray-400 ml-1">({item.note})</span>}
                       </div>
-                      <div className="flex items-center gap-4 ml-4">
-                        <span className="text-sm text-gray-500">${parseFloat(item.price).toFixed(2)}</span>
-                        <span className="text-sm text-gray-500 w-8 text-center">x{item.quantity}</span>
-                        <span className="text-sm font-medium text-gray-700 w-16 text-right">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
+                      <div className="flex items-center gap-3 text-gray-500">
+                        <span className="text-xs">${parseFloat(item.price).toFixed(2)}</span>
+                        <span className="text-xs">x{item.quantity}</span>
+                        <span className="text-xs font-medium text-gray-700 w-14 text-right">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-end px-4 py-2 bg-gray-50 border-t">
-                  <span className="text-sm text-gray-500">小计：<span className="font-medium text-gray-700">${parseFloat(order.total).toFixed(2)}</span></span>
+                <div className="px-4 py-2 bg-gray-50 border-t flex justify-between items-center">
+                  <span className="text-xs text-gray-400">小计</span>
+                  <span className="font-bold text-primary-600">${parseFloat(order.total).toFixed(2)}</span>
                 </div>
               </div>
             ))}
@@ -179,6 +210,32 @@ export default function EmployeeTableDetail() {
               <span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span>
             </div>
           </div>
+          
+          {/* 付款方式选择 */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">选择付款方式</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'cash', label: '💵 现金', desc: '自动弹钱箱' },
+                { value: 'card', label: '💳 刷卡', desc: 'Tap to Pay' },
+                { value: 'apple_pay', label: '🍎 Apple Pay', desc: '非接触支付' },
+                { value: 'platform', label: '📱 外卖平台', desc: 'Uber/DoorDash等' },
+              ].map(method => (
+                <button
+                  key={method.value}
+                  onClick={() => setPaymentMethod(method.value)}
+                  className={`p-3 rounded-lg border-2 text-left transition-all ${
+                    paymentMethod === method.value
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <p className={`font-medium text-sm ${paymentMethod === method.value ? 'text-primary-700' : 'text-gray-700'}`}>{method.label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{method.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           {checkoutData.orders?.length > 0 && (
             <div className="max-h-64 overflow-y-auto space-y-3">
               {checkoutData.orders.map(o => (
@@ -186,7 +243,7 @@ export default function EmployeeTableDetail() {
                   <div className="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-gray-100">
                     <div>
                       <span className="font-mono text-primary-600 text-sm">{o.order_no}</span>
-                      <span className="text-xs text-gray-400 ml-2">{o.created_at}</span>
+                      <span className="text-xs text-gray-400 ml-2">{formatDateTime(o.created_at)}</span>
                     </div>
                     <span className="text-sm font-medium">${parseFloat(o.total).toFixed(2)}</span>
                   </div>
@@ -210,8 +267,10 @@ export default function EmployeeTableDetail() {
             </div>
           )}
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)}>取消</Button>
-            <Button className="flex-1" onClick={confirmCheckout}>确认结账并清桌</Button>
+            <Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)} disabled={checkingOut}>取消</Button>
+            <Button className="flex-1" onClick={confirmCheckout} disabled={checkingOut || checkoutData.orders.length === 0}>
+              {checkingOut ? '结账中...' : paymentMethod === 'cash' ? '现金结账并弹钱箱' : '确认结账'}
+            </Button>
           </div>
         </div>
       </Dialog>
