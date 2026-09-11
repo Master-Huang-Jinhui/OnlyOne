@@ -29,6 +29,7 @@ import Content from './pages/admin/Content'
 import Permissions from './pages/admin/Permissions'
 import Roles from './pages/admin/Roles'
 import Inventory from './pages/admin/Inventory'
+import KDS from './pages/admin/KDS'
 
 // 员工
 import EmployeeHome from './pages/employee/EmployeeHome'
@@ -40,9 +41,7 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">加载中...</div>
   if (!user) return <Navigate to="/login" />
-  // superAdminOnly：只有超级管理员能访问（用户管理、权限管理）
   if (superAdminOnly && user.role !== 'admin') return <Navigate to="/" />
-  // adminOnly：超级管理员和管理员都能访问后台大部分页面
   if (adminOnly && user.role !== 'admin' && user.role !== 'manager') return <Navigate to="/" />
   if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/" />
   return children
@@ -81,6 +80,7 @@ export default function App() {
           <Route path="order-statuses" element={<ProtectedRoute adminOnly><OrderStatuses /></ProtectedRoute>} />
           <Route path="tables" element={<ProtectedRoute adminOnly><Tables /></ProtectedRoute>} />
           <Route path="orders" element={<ProtectedRoute adminOnly><Orders /></ProtectedRoute>} />
+          <Route path="kds" element={<ProtectedRoute adminOnly><KDS /></ProtectedRoute>} />
           <Route path="stats/product" element={<ProtectedRoute adminOnly><ProductStats /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
           <Route path="menus" element={<ProtectedRoute adminOnly><Menus /></ProtectedRoute>} />
