@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const db = require('../db')
-const auth = require('../middleware/auth')
+const { auth } = require('../middleware/auth')
 
 function calcLevel(totalSpent) {
   if (totalSpent >= 1000) return { level: '钻石会员', discount: 0.9, points_rate: 2 }
