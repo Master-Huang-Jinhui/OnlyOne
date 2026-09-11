@@ -131,6 +131,15 @@ export const api = {
   updateMenu: (id, data) => request(`/menus/update/${id}`, { body: JSON.stringify(data) }),
   deleteMenu: (id) => request(`/menus/delete/${id}`),
 
+  // 多语言翻译
+  getTranslations: (page) => request(`/translations${page ? `?page=${page}` : ''}`),
+  getTranslationLanguages: () => request('/translations/languages'),
+  getAdminTranslations: () => request('/translations/admin'),
+  createTranslation: (data) => request('/translations', { body: JSON.stringify(data) }),
+  updateTranslation: (id, data) => request(`/translations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTranslation: (id) => request(`/translations/${id}`, { method: 'DELETE' }),
+  importTranslations: (items) => request('/translations/import', { body: JSON.stringify({ items }) }),
+
   getProductStats: (threshold) => request(`/stats/products${threshold ? `?threshold=${threshold}` : ''}`),
   getTopProducts: () => request('/stats/products/top5'),
 
