@@ -250,5 +250,17 @@ export const api = {
   getPurchaseOrder: (id) => request(`/inventory/orders/detail/${id}`),
   createPurchaseOrder: (data) => request('/inventory/orders', { body: JSON.stringify(data) }),
   updatePurchaseOrder: (id, data) => request(`/inventory/orders/update/${id}`, { body: JSON.stringify(data) }),
-  deletePurchaseOrder: (id) => request(`/inventory/orders/delete/${id}`)
+  deletePurchaseOrder: (id) => request(`/inventory/orders/delete/${id}`),
+
+  getProductIngredients: (productId) => request(`/inventory/ingredients/list?product_id=${productId}`),
+  saveProductIngredients: (productId, ingredients) => request('/inventory/ingredients/save', { body: JSON.stringify({ product_id: productId, ingredients }) }),
+  getInventoryAlerts: () => request('/inventory/alerts'),
+  getInventoryTransactions: (params) => request(`/inventory/transactions/list?${new URLSearchParams(params || {}).toString()}`),
+  adjustStock: (data) => request('/inventory/goods/adjust', { body: JSON.stringify(data) }),
+
+  getKDSPendingOrders: () => request('/kds/pending'),
+  advanceKDSOrder: (id) => request(`/kds/advance/${id}`),
+  completeKDSOrder: (id) => request(`/kds/complete/${id}`),
+  getKDSStats: () => request('/kds/stats'),
+  getReceipt: (id) => request(`/kds/receipt/${id}`)
 }
