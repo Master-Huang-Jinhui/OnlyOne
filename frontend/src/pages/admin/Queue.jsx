@@ -46,6 +46,14 @@ export default function Queue() {
     try { await api.callQueueNumber(q.id); toast(`正在叫号 ${q.number}`); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  const recallNumber = async (q) => {
+    try {
+      const data = await api.recallQueueNumber(q.id)
+      toast(`再次叫号 ${q.number}（第${data.recall_count}次）`)
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+
   const completeNumber = async (q) => {
     if (!window.confirm(`确认 ${q.number} 已完成？`)) return
     try { await api.completeQueueNumber(q.id); toast('已完成'); load() } catch (e) { toast(e.message, 'error') }
@@ -138,6 +146,7 @@ export default function Queue() {
               <p className="text-sm opacity-80 mt-2">{typeLabel(callingList[0].type)} · {callingList[0].customer_name || '匿名顾客'} · {callingList[0].people_count}人</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => recallNumber(callingList[0])}>🔔 再叫一次</Button>
               <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => completeNumber(callingList[0])}>✓ 完成</Button>
               <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => skipNumber(callingList[0])}>⏭ 跳过</Button>
             </div>
