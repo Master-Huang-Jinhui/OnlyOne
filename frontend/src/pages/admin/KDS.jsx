@@ -220,8 +220,8 @@ export default function KDS() {
                           ? (order.table_name || order.table_position || '堂吃')
                           : order.dining_type === 'takeout' ? '自取' : '配送'}
                       </span>
-                      <span className={`text-xs font-medium ${order.wait_minutes > 15 ? 'text-red-500' : order.wait_minutes > 8 ? 'text-amber-500' : 'text-gray-500'}`}>
-                        等待 {order.wait_minutes} 分钟
+                      <span className={`text-xs font-medium ${order.is_overdue ? 'text-red-600 font-bold' : order.wait_minutes > 15 ? 'text-red-500' : order.wait_minutes > 8 ? 'text-amber-500' : 'text-gray-500'}`}>
+                        {order.is_overdue ? '⚠️ 已超时' : `等待 ${order.wait_minutes} 分钟`}
                       </span>
                     </div>
                     {order.customer_name && (
