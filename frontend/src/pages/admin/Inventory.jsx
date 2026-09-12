@@ -17,6 +17,14 @@ export default function Inventory() {
 
   useEffect(() => { loadGoods(); loadOrders() }, [])
 
+  // 搜索防抖：输入后300ms自动搜索
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadGoods()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchKeyword])
+
   const loadGoods = () => {
     api.getGoods({ keyword: searchKeyword }).then(data => {
       setGoods(Array.isArray(data) ? data : [])
@@ -307,7 +315,7 @@ export default function Inventory() {
               {ocrLoading && (
                 <div className="mb-2">
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-primary-600 h-2 rounded-full transition-all" style={{ width: `${ocrProgress}%` }}></div>
+                    <div className="bg-primary-600 h-2 rounded-full transition-all" style={{ width: `${ocrProgress}%`}}></div>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">正在识别图片文字，请稍候...</p>
                 </div>
