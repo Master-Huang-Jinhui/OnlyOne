@@ -28,7 +28,6 @@ export default function Orders() {
   const [detail, setDetail] = useState(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [keyword, setKeyword] = useState('')
 
   useEffect(() => {
     const orderId = searchParams.get('orderId')
@@ -48,12 +47,10 @@ export default function Orders() {
     const curSortOrder = overrides.sortOrder || sortOrder
     const curPage = overrides.page !== undefined ? overrides.page : page
     const curPageSize = overrides.pageSize !== undefined ? overrides.pageSize : pageSize
-    const curKeyword = overrides.keyword !== undefined ? overrides.keyword : keyword
     const params = { sort_by: curSortBy, sort_order: curSortOrder, page: curPage, page_size: curPageSize }
     if (curStatus) params.status = curStatus
     if (curStart) params.start_date = curStart
     if (curEnd) params.end_date = curEnd
-    if (curKeyword) params.keyword = curKeyword
     api.getOrders(params).then(data => {
       if (data && Array.isArray(data.orders)) { setOrders(data.orders); setSummary({ total: data.total || 0, revenue: data.revenue || 0 }) }
       else { setOrders(Array.isArray(data) ? data : []) }
@@ -104,9 +101,6 @@ export default function Orders() {
           <div><label className="block text-xs text-gray-500 mb-1">开始时间</label><input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" /></div>
           <div><label className="block text-xs text-gray-500 mb-1">结束时间</label><input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" /></div>
           <Button onClick={handleSearch}>查询</Button>
-          <div className="flex items-center gap-2">
-            <input type="text" value={keyword} onChange={e => setKeyword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSearch() }} placeholder="搜索订单号/顾客名/电话" className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:border-primary-400" />
-          </div>
           <div className="flex gap-2 ml-auto">
             <button onClick={setToday} className="px-3 py-2 text-sm text-gray-600 hover:text-primary-600 border border-gray-200 rounded-lg">今日</button>
             <button onClick={setThisWeek} className="px-3 py-2 text-sm text-gray-600 hover:text-primary-600 border border-gray-200 rounded-lg">本周</button>
