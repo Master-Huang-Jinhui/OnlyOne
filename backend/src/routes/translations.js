@@ -6,53 +6,63 @@ const router = express.Router();
 
 // 获取所有翻译（公开，前端加载用）
 router.get('/', (req, res) => {
-  const { page } = req.query;
-  let sql = 'SELECT * FROM translations';
-  const params = [];
-  if (page) {
-    sql += ' WHERE page = ?';
-    params.push(page);
-  }
-  sql += ' ORDER BY page, key';
-  const list = db.prepare(sql).all(...params);
-  const result = {};
-  list.forEach(item => {
-    try {
-      result[item.key] = {
-        ...JSON.parse(item.translations || '{}'),
-        _page: item.page,
-        _desc: item.description
-      };
-    } catch (e) {
-      result[item.key] = {};
+  try {
+    const { page } = req.query;
+    let sql = 'SELECT * FROM translations';
+    const params = [];
+    if (page) {
+      sql += ' WHERE page = ?';
+      params.push(page);
     }
-  });
-  res.json(result);
+    sql += ' ORDER BY page, key';
+    const list = db.prepare(sql).all(...params);
+    const result = {};
+    list.forEach(item => {
+      try {
+        result[item.key] = {
+          ...JSON.parse(item.translations || '{}'),
+          _page: item.page,
+          _desc: item.description
+        };
+      } catch (e) {
+        result[item.key] = {};
+      }
+    });
+    res.json(result);
+  } catch (e) {
+    console.error('获取翻译失败:', e.message);
+    res.json({});
+  }
 });
 
 // 获取支持的语言列表（从所有翻译中提取）
 router.get('/languages', (req, res) => {
-  const list = db.prepare('SELECT translations FROM translations').all();
-  const languages = new Set();
-  list.forEach(item => {
-    try {
-      const trans = JSON.parse(item.translations || '{}');
-      Object.keys(trans).forEach(lang => languages.add(lang));
-    } catch (e) {}
-  });
-  const langNames = {
-    zh: '中文',
-    en: 'English',
-    es: 'Español',
-    fr: 'Français',
-    ja: '日本語',
-    ko: '한국어'
-  };
-  const result = Array.from(languages).map(code => ({
-    code,
-    name: langNames[code] || code
-  }));
-  res.json(result);
+  try {
+    const list = db.prepare('SELECT translations FROM translations').all();
+    const languages = new Set();
+    list.forEach(item => {
+      try {
+        const trans = JSON.parse(item.translations || '{}');
+        Object.keys(trans).forEach(lang => languages.add(lang));
+      } catch (e) {}
+    });
+    const langNames = {
+      zh: '中文',
+      en: 'English',
+      es: 'Español',
+      fr: 'Français',
+      ja: '日本語',
+      ko: '한국어'
+    };
+    const result = Array.from(languages).map(code => ({
+      code,
+      name: langNames[code] || code
+    }));
+    res.json(result);
+  } catch (e) {
+    console.error('获取语言列表失败:', e.message);
+    res.json([{ code: 'zh', name: '中文' }, { code: 'en', name: 'English' }]);
+  }
 });
 
 // 按页面分组获取（后台管理用）
