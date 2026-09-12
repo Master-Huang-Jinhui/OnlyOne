@@ -104,6 +104,15 @@ export default function Settings() {
               )
             })}
           </div>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <p className="text-sm font-medium text-gray-700 mb-2">营业日结算时间</p>
+            <p className="text-xs text-gray-400 mb-3">每天这个时间点之前的订单算前一天的营业日，之后算新的一天。比如设为04:00，则凌晨4点前的订单算前一天。</p>
+            <div className="flex items-center gap-2">
+              <input type="time" value={settings.business_day_start || '04:00'} onChange={e => update('business_day_start', e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+              <span className="text-xs text-gray-400">默认 04:00（凌晨4点）</span>
+            </div>
+          </div>
         </Card>
       )}
 
