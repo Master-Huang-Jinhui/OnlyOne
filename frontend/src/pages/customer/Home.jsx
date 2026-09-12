@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useCart } from '../../context/CartContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { Button, Badge } from '../../components/ui'
 import MilkTeaMaker from '../../components/MilkTeaMaker'
 
 export default function Home() {
   const navigate = useNavigate()
   const { addItem, totalCount } = useCart()
+  const { language, setLanguage, supportedLanguages, t } = useLanguage()
   const [carousel, setCarousel] = useState([])
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -17,14 +19,8 @@ export default function Home() {
   const [business, setBusiness] = useState({ open: true })
   const [contentSections, setContentSections] = useState([])
   const [newProducts, setNewProducts] = useState([])
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
 
-  const teaSourcing = settings.tea_sourcing || [
-    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
-    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
-    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
-  ]
-  const enabledTeas = teaSourcing.filter(t => t.enabled !== false)
-  const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
   const sections = [
     { id: 'new', label: '新品' },
     { id: 'brand', label: '品牌' },
@@ -68,6 +64,14 @@ export default function Home() {
   const scrollTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
   const handleAddToCart = (product) => { addItem(product); navigate('/cart') }
 
+  const teaSourcing = settings.tea_sourcing || [
+    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
+    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
+    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
+  ]
+  const enabledTeas = teaSourcing.filter(t => t.enabled !== false)
+  const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
+
   const craftPhilosophy = settings.craft_philosophy || [
     { name: '原叶现萃', name_en: 'Fresh Brewed' },
     { name: '鲜果鲜做', name_en: 'Fresh Fruit' },
@@ -88,6 +92,27 @@ export default function Home() {
             {sections.map(s => (<button key={s.id} onClick={() => scrollTo(s.id)} className="text-gray-600 hover:text-primary-600 transition-colors">{s.label}</button>))}
           </div>
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <button onClick={() => setLangMenuOpen(!langMenuOpen)} className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600 font-medium px-2 py-1 rounded hover:bg-gray-100">
+                <span>{supportedLanguages.find(l => l.code === language)?.flag || '🌐'}</span>
+                <span className="hidden sm:inline">{supportedLanguages.find(l => l.code === language)?.name || '语言'}</span>
+                <span className="text-xs">▾</span>
+              </button>
+              {langMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px] z-50">
+                    {supportedLanguages.map(lang => (
+                      <button key={lang.code} onClick={() => { setLanguage(lang.code); setLangMenuOpen(false) }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${language === lang.code ? 'text-primary-600 font-medium bg-primary-50' : 'text-gray-700'}`}>
+                        <span>{lang.flag}</span>
+                        <span>{lang.name}</span>
+                        {language === lang.code && <span className="ml-auto">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <Link to="/order-status" className="text-sm text-gray-600 hover:text-primary-600 font-medium hidden sm:block">查订单</Link>
             <Link to="/cart" className="relative p-2 text-gray-600 hover:text-primary-600">
               <span className="text-xl">🛒</span>
@@ -244,27 +269,6 @@ export default function Home() {
                   <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
                     <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  </div>
-                  <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                    <div className="relative w-32 h-40">
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
-                        <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
-                        <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
-                        <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
-                        <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
-                      </div>
-                      <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
-                      <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
-                        <span className="steam-1">💨</span><span className="steam-2">💨</span><span className="steam-3">💨</span>
-                      </div>
-                      <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
-                      <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
-                      <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
-                      <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
-                      <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
-                    </div>
                   </div>
                 </div>
               ) : (
