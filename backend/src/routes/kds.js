@@ -4,19 +4,40 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// KDS 待制作订单列表（pending + preparing 状态，只显示今天的订单，按时间正序，最早下单的先做）
+// 计算当前营业日的开始时间（比如凌晨4点，则4点前算前一天的营业日）
+function getBusinessDayStart() {
+  const setting = db.prepare("SELECT value FROM settings WHERE key = 'business_day_start'").get();
+  const startStr = setting?.value || '04:00';
+  const [startHour, startMinute] = startStr.split(':').map(Number);
+  
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(startHour, startMinute, 0, 0);
+  
+  // 如果当前时间早于今天的营业日开始时间，则营业日从昨天开始
+  if (now < todayStart) {
+    todayStart.setDate(todayStart.getDate() - 1);
+  }
+  
+  // 格式化为 SQLite datetime 格式
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${todayStart.getFullYear()}-${pad(todayStart.getMonth() + 1)}-${pad(todayStart.getDate())} ${pad(todayStart.getHours())}:${pad(todayStart.getMinutes())}:00`;
+}
+
+// KDS 待制作订单列表（pending + preparing 状态，只显示当前营业日的订单，按时间正序，最早下单的先做）
 router.post('/pending', auth, (req, res) => {
+  const businessDayStart = getBusinessDayStart();
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id, o.table_session,
            t.table_no as table_name, t.zone as table_position
     FROM orders o
     LEFT JOIN tables t ON o.table_id = t.id
     WHERE o.status IN ('pending', 'preparing')
-      AND date(o.created_at) = date('now','localtime')
+      AND o.created_at >= ?
     ORDER BY 
       CASE o.status WHEN 'pending' THEN 0 ELSE 1 END,
       o.created_at ASC
-  `).all();
+  `).all(businessDayStart);
 
   const result = orders.map(o => {
     let items = [];
@@ -76,12 +97,13 @@ router.post('/complete/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
-// KDS 统计（待做数量、制作中数量、今日完成数量，只统计今天的订单）
+// KDS 统计（待做数量、制作中数量、今日完成数量，只统计当前营业日的订单）
 router.post('/stats', auth, (req, res) => {
-  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending' AND date(created_at) = date('now','localtime')").get().cnt;
-  const preparing = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'preparing' AND date(created_at) = date('now','localtime')").get().cnt;
-  const ready = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'ready' AND date(created_at) = date('now','localtime')").get().cnt;
-  const todayCompleted = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'completed' AND date(created_at) = date('now','localtime')").get().cnt;
+  const businessDayStart = getBusinessDayStart();
+  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending' AND created_at >= ?").get(businessDayStart).cnt;
+  const preparing = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'preparing' AND created_at >= ?").get(businessDayStart).cnt;
+  const ready = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'ready' AND created_at >= ?").get(businessDayStart).cnt;
+  const todayCompleted = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'completed' AND created_at >= ?").get(businessDayStart).cnt;
 
   res.json({ pending, preparing, ready, todayCompleted });
 });
