@@ -25,7 +25,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
-    description TEXT,
+    description,
     permissions TEXT DEFAULT '{}',
     is_system INTEGER DEFAULT 0,
     sort_order INTEGER DEFAULT 0,
@@ -133,7 +133,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS forms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT,
+    description,
     fields TEXT DEFAULT '[]',
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
@@ -349,7 +349,8 @@ const defaultSettings = {
   ]),
   'about_text': '关于我们',
   'about_text_en': 'About Us',
-  'language': 'zh'
+  'language': 'zh',
+  'business_day_start': '04:00'
 };
 
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
@@ -472,7 +473,7 @@ if (!sectionColumns.find(c => c.name === 'image')) {
   db.prepare('ALTER TABLE content_sections ADD COLUMN image TEXT').run();
 }
 if (!sectionColumns.find(c => c.name === 'layout')) {
-  db.prepare("ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT 'left'").run();
+  db.prepare('ALTER TABLE content_sections ADD COLUMN layout TEXT DEFAULT \'left\'').run();
 }
 
 const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
