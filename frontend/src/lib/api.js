@@ -14,6 +14,16 @@ async function request(path, options = {}) {
   return data
 }
 
+async function getRequest(path) {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BASE}${path}`, { method: 'GET', headers })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || '请求失败')
+  return data
+}
+
 export const api = {
   login: (username, password) => request('/auth/login', { body: JSON.stringify({ username, password }) }),
   getMe: () => request('/auth/me'),
@@ -96,6 +106,9 @@ export const api = {
   setTableMaintenance: (id, maintenance) => request(`/tables/${id}/maintenance`, { body: JSON.stringify({ maintenance }) }),
   transferTable: (data) => request('/tables/transfer', { body: JSON.stringify(data) }),
   mergeTables: (data) => request('/tables/merge', { body: JSON.stringify(data) }),
+  checkoutOrder: (id, payment_method, note) => request(`/orders/checkout/${id}`, { body: JSON.stringify({ payment_method, note }) }),
+  openCashDrawer: () => request('/orders/cash-drawer/open'),
+  getPaymentStats: (params) => request('/orders/payment-stats', { body: JSON.stringify(params) }),
   getTableZones: () => request('/tables/zones/list'),
   createTableZone: (data) => request('/tables/zones', { body: JSON.stringify(data) }),
   updateTableZone: (id, data) => request(`/tables/zones/update/${id}`, { body: JSON.stringify(data) }),
@@ -131,9 +144,8 @@ export const api = {
   updateMenu: (id, data) => request(`/menus/update/${id}`, { body: JSON.stringify(data) }),
   deleteMenu: (id) => request(`/menus/delete/${id}`),
 
-  // 多语言翻译
-  getTranslations: (page) => request(`/translations${page ? `?page=${page}` : ''}`),
-  getTranslationLanguages: () => request('/translations/languages'),
+  getTranslations: (page) => getRequest(`/translations${page ? `?page=${page}` : ''}`),
+  getTranslationLanguages: () => getRequest('/translations/languages'),
   getAdminTranslations: () => request('/translations/admin'),
   createTranslation: (data) => request('/translations', { body: JSON.stringify(data) }),
   updateTranslation: (id, data) => request(`/translations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
