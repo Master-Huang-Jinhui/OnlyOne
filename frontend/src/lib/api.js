@@ -299,6 +299,7 @@ export const api = {
   getCurrentQueue: (type) => request('/queue/current', { body: JSON.stringify({ type }) }),
   takeQueueNumber: (data) => request('/queue/take', { body: JSON.stringify(data) }),
   callQueueNumber: (id) => request(`/queue/call/${id}`),
+  recallQueueNumber: (id) => request(`/queue/recall/${id}`),
   completeQueueNumber: (id) => request(`/queue/complete/${id}`),
   skipQueueNumber: (id) => request(`/queue/skip/${id}`),
   callNextQueue: (type) => request('/queue/next', { body: JSON.stringify({ type }) }),
