@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { Button, Input, toast } from '../../components/ui'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { t } = useLanguage()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -13,13 +15,13 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!username || !password) {
-      toast('请输入账号和密码', 'error')
+      toast(t('login.enterCredentials', '请输入账号和密码'), 'error')
       return
     }
     setLoading(true)
     try {
       const user = await login(username, password)
-      toast('登录成功')
+      toast(t('login.success', '登录成功'))
       if (user.role === 'admin') navigate('/admin')
       else if (user.role === 'employee') navigate('/employee')
       else navigate('/')
@@ -36,36 +38,36 @@ export default function Login() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
             <div className="text-5xl mb-3">🍵</div>
-            <h1 className="text-2xl font-bold text-gray-800">Only One 平台管理</h1>
-            <p className="text-gray-400 text-sm mt-1">一站式管理系统</p>
+            <h1 className="text-2xl font-bold text-gray-800">{t('login.title', 'Only One 平台管理')}</h1>
+            <p className="text-gray-400 text-sm mt-1">{t('login.subtitle', '一站式管理系统')}</p>
           </Link>
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label="账号"
+              label={t('login.username', '账号')}
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="请输入账号"
+              placeholder={t('login.enterUsername', '请输入账号')}
               autoComplete="username"
             />
             <Input
-              label="密码"
+              label={t('login.password', '密码')}
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="请输入密码"
+              placeholder={t('login.enterPassword', '请输入密码')}
               autoComplete="current-password"
             />
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? '登录中...' : '登 录'}
+              {loading ? t('login.logging', '登录中...') : t('login.button', '登 录')}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm text-gray-400 space-y-1">
-            <p>管理员登录进入管理后台</p>
-            <p>员工登录进入点餐界面</p>
-            <p className="text-xs">默认账号：admin / admin</p>
-            <Link to="/" className="text-primary-500 hover:text-primary-600 mt-2 inline-block">← 返回前台</Link>
+            <p>{t('login.adminHint', '管理员登录进入管理后台')}</p>
+            <p>{t('login.employeeHint', '员工登录进入点餐界面')}</p>
+            <p className="text-xs">{t('login.defaultAccount', '默认账号：admin / admin')}</p>
+            <Link to="/" className="text-primary-500 hover:text-primary-600 mt-2 inline-block">← {t('login.backToFrontend', '返回前台')}</Link>
           </div>
         </div>
       </div>
