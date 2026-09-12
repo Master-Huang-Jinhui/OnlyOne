@@ -4,7 +4,7 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// KDS 待制作订单列表（pending + preparing 状态，按时间正序，最早下单的先做）
+// KDS 待制作订单列表（pending + preparing 状态，只显示今天的订单，按时间正序，最早下单的先做）
 router.post('/pending', auth, (req, res) => {
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id, o.table_session,
@@ -12,6 +12,7 @@ router.post('/pending', auth, (req, res) => {
     FROM orders o
     LEFT JOIN tables t ON o.table_id = t.id
     WHERE o.status IN ('pending', 'preparing')
+      AND date(o.created_at) = date('now','localtime')
     ORDER BY 
       CASE o.status WHEN 'pending' THEN 0 ELSE 1 END,
       o.created_at ASC
@@ -20,11 +21,13 @@ router.post('/pending', auth, (req, res) => {
   const result = orders.map(o => {
     let items = [];
     try { items = JSON.parse(o.items); } catch (e) {}
+    const waitMinutes = Math.floor((Date.now() - new Date(o.created_at.replace(' ', 'T')).getTime()) / 60000);
     return {
       ...o,
       items,
       total_quantity: items.reduce((sum, item) => sum + (item.quantity || 0), 0),
-      wait_minutes: Math.floor((Date.now() - new Date(o.created_at.replace(' ', 'T')).getTime()) / 60000)
+      wait_minutes: waitMinutes,
+      is_overdue: waitMinutes > 120
     };
   });
 
