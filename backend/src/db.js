@@ -297,6 +297,15 @@ db.exec(`
     called_at TEXT,
     completed_at TEXT
   );
+  CREATE TABLE IF NOT EXISTS translations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL UNIQUE,
+    page TEXT DEFAULT 'common',
+    description TEXT DEFAULT '',
+    translations TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+  );
 `);
 
 try {
