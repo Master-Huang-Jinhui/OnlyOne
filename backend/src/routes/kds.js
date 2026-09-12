@@ -76,11 +76,11 @@ router.post('/complete/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
-// KDS 统计（待做数量、制作中数量、今日完成数量）
+// KDS 统计（待做数量、制作中数量、今日完成数量，只统计今天的订单）
 router.post('/stats', auth, (req, res) => {
-  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending'").get().cnt;
-  const preparing = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'preparing'").get().cnt;
-  const ready = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'ready'").get().cnt;
+  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending' AND date(created_at) = date('now','localtime')").get().cnt;
+  const preparing = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'preparing' AND date(created_at) = date('now','localtime')").get().cnt;
+  const ready = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'ready' AND date(created_at) = date('now','localtime')").get().cnt;
   const todayCompleted = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'completed' AND date(created_at) = date('now','localtime')").get().cnt;
 
   res.json({ pending, preparing, ready, todayCompleted });
