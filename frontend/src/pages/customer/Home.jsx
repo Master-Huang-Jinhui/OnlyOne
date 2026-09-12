@@ -21,6 +21,14 @@ export default function Home() {
   const [newProducts, setNewProducts] = useState([])
   const [langMenuOpen, setLangMenuOpen] = useState(false)
 
+  const teaSourcing = settings.tea_sourcing || [
+    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
+    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
+    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
+  ]
+  const enabledTeas = teaSourcing.filter(t => t.enabled !== false)
+  const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
+
   const sections = [
     { id: 'new', label: '新品' },
     { id: 'brand', label: '品牌' },
@@ -63,14 +71,6 @@ export default function Home() {
 
   const scrollTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
   const handleAddToCart = (product) => { addItem(product); navigate('/cart') }
-
-  const teaSourcing = settings.tea_sourcing || [
-    { name: '乌龙茶', name_en: 'Oolong Tea', desc: '醇厚回甘', desc_en: 'Rich and smooth' },
-    { name: '绿茶', name_en: 'Green Tea', desc: '清新自然', desc_en: 'Fresh and natural' },
-    { name: '红茶', name_en: 'Black Tea', desc: '香浓顺滑', desc_en: 'Fragrant and smooth' }
-  ]
-  const enabledTeas = teaSourcing.filter(t => t.enabled !== false)
-  const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
 
   const craftPhilosophy = settings.craft_philosophy || [
     { name: '原叶现萃', name_en: 'Fresh Brewed' },
