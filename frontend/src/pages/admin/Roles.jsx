@@ -4,7 +4,7 @@ import { Card, Button, Badge, Dialog, Input, Empty, toast } from '../../componen
 import { useLanguage } from '../../context/LanguageContext'
 
 export default function Roles() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [roles, setRoles] = useState([])
   const [menus, setMenus] = useState([])
   const [loading, setLoading] = useState(false)
@@ -82,7 +82,7 @@ export default function Roles() {
 
   const parentMenus = useMemo(() => menus.filter(m => m.parent_id === 0 || !m.parent_id), [menus])
   const getChildren = (parentId) => menus.filter(m => m.parent_id === parentId)
-  const getMenuName = (menuId) => menus.find(m => m.id === menuId)?.name || `${t('roles.menu', '菜单')}${menuId}`
+  const getMenuName = (menuId) => { const m = menus.find(m => m.id === menuId); return m ? (language === 'en' ? (m.name_en || m.name) : m.name) : `${t('roles.menu', '菜单')}${menuId}` }
 
   const roleTemplates = useMemo(() => [
     { name: t('roles.tplOwner', '老板/店长'), desc: t('roles.tplOwnerDesc', '全部权限'), icon: '👑', match: () => allMenuIds },
@@ -225,11 +225,7 @@ export default function Roles() {
                 <p className="text-xs font-medium text-gray-600 mb-2">⚡ {t('roles.quickTemplates', '快速模板（点击应用，可在此基础上微调）')}</p>
                 <div className="flex flex-wrap gap-2">
                   {roleTemplates.map(tpl => (
-                    <button
-                      key={tpl.name}
-                      onClick={() => applyTemplate(tpl)}
-                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center gap-1.5 shadow-sm"
-                    >
+                    <button key={tpl.name} onClick={() => applyTemplate(tpl)} className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center gap-1.5 shadow-sm">
                       <span>{tpl.icon}</span>
                       <span className="font-medium">{tpl.name}</span>
                       <span className="text-gray-400">（{tpl.desc}）</span>
@@ -268,7 +264,7 @@ export default function Roles() {
                           }
                         }} className="w-4 h-4" />
                         <span className="text-lg">{parent.icon}</span>
-                        <span className={`font-medium flex-1 ${parentSelected ? 'text-primary-700' : 'text-gray-700'}`}>{parent.name}</span>
+                        <span className={`font-medium flex-1 ${parentSelected ? 'text-primary-700' : 'text-gray-700'}`}>{language === 'en' ? (parent.name_en || parent.name) : parent.name}</span>
                         {children.length > 0 && <span className="text-xs text-gray-400">{childIds.filter(id => selectedMenus.includes(id)).length}/{children.length} {t('roles.submenu', '子菜单')}</span>}
                       </label>
                       {children.length > 0 && (
@@ -279,7 +275,7 @@ export default function Roles() {
                               <label key={child.id} className={`flex items-center gap-3 px-4 py-2.5 pl-12 cursor-pointer hover:bg-white transition-colors ${checked ? 'bg-primary-50/50' : ''}`}>
                                 <input type="checkbox" checked={checked} onChange={() => toggleMenu(child.id)} className="w-3.5 h-3.5" />
                                 <span className="text-sm">{child.icon}</span>
-                                <span className={`text-sm flex-1 ${checked ? 'text-primary-700 font-medium' : 'text-gray-600'}`}>{child.name}</span>
+                                <span className={`text-sm flex-1 ${checked ? 'text-primary-700 font-medium' : 'text-gray-600'}`}>{language === 'en' ? (child.name_en || child.name) : child.name}</span>
                               </label>
                             )
                           })}
