@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
 import { Dialog, Input, Button, toast } from '../../components/ui'
+import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function EmployeeHome() {
   const { user, logout } = useAuth()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [attendance, setAttendance] = useState(null)
   const [pwdDialog, setPwdDialog] = useState(false)
@@ -23,7 +26,7 @@ export default function EmployeeHome() {
   const handleClockIn = async () => {
     try {
       const res = await api.clockIn()
-      toast(res.message || '上班打卡成功')
+      toast(res.message || t('employee.clockInSuccess', '上班打卡成功'))
       setAttendance(prev => ({ ...prev, clock_in: res.clock_in }))
     } catch (e) { toast(e.message, 'error') }
   }
@@ -31,17 +34,17 @@ export default function EmployeeHome() {
   const handleClockOut = async () => {
     try {
       const res = await api.clockOut()
-      toast(res.message || '下班打卡成功')
+      toast(res.message || t('employee.clockOutSuccess', '下班打卡成功'))
       setAttendance(prev => ({ ...prev, clock_out: res.clock_out }))
     } catch (e) { toast(e.message, 'error') }
   }
 
   const handleChangePassword = async () => {
-    if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast('请填写完整', 'error'); return }
-    if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast('两次密码不一致', 'error'); return }
+    if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast(t('common.fillAll', '请填写完整'), 'error'); return }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast(t('employee.passwordMismatch', '两次密码不一致'), 'error'); return }
     try {
       await api.changePassword(pwdForm.oldPassword, pwdForm.newPassword)
-      toast('密码修改成功')
+      toast(t('employee.passwordChanged', '密码修改成功'))
       setPwdDialog(false)
       setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
     } catch (e) { toast(e.message, 'error') }
@@ -57,7 +60,6 @@ export default function EmployeeHome() {
     }
   }
 
-  // 选择桌子：占用中跳转到详情页，空闲直接进入点餐
   const selectTable = (table) => {
     setTableDialog(false)
     if (table.status === 'occupied') {
@@ -71,8 +73,9 @@ export default function EmployeeHome() {
     navigate('/employee/order?type=takeout')
   }
 
-  const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
-  const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false })
+  const localeMap = { zh: 'zh-CN', en: 'en-US', es: 'es-ES' }
+  const dateStr = now.toLocaleDateString(localeMap[language] || 'zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+  const timeStr = now.toLocaleTimeString(localeMap[language] || 'zh-CN', { hour12: false })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50 flex flex-col">
@@ -84,11 +87,12 @@ export default function EmployeeHome() {
           <span className="text-xl font-bold text-gray-800 tracking-wide">OnlyOne</span>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <button onClick={() => setPwdDialog(true)} className="text-sm text-gray-500 hover:text-primary-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/60">
-            修改密码
+            {t('employee.changePassword', '修改密码')}
           </button>
           <button onClick={logout} className="text-sm text-gray-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/60">
-            退出
+            {t('admin.logout', '退出')}
           </button>
         </div>
       </header>
@@ -100,19 +104,19 @@ export default function EmployeeHome() {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2 text-center">
-          欢迎回来
+          {t('employee.welcome', '欢迎回来')}
         </h1>
         <p className="text-xl text-gray-500 mb-10">{user?.name || user?.username}</p>
 
         <div className="flex items-center gap-8 mb-10 text-sm bg-white/70 px-6 py-3 rounded-xl shadow-sm">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${attendance?.clock_in ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-            <span className="text-gray-600">最早上班 <span className="font-mono font-medium text-gray-800">{attendance?.clock_in || '--:--:--'}</span></span>
+            <span className="text-gray-600">{t('employee.earliestClockIn', '最早上班')} <span className="font-mono font-medium text-gray-800">{attendance?.clock_in || '--:--:--'}</span></span>
           </div>
           <div className="w-px h-4 bg-gray-200"></div>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${attendance?.clock_out ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-            <span className="text-gray-600">最晚下班 <span className="font-mono font-medium text-gray-800">{attendance?.clock_out || '--:--:--'}</span></span>
+            <span className="text-gray-600">{t('employee.latestClockOut', '最晚下班')} <span className="font-mono font-medium text-gray-800">{attendance?.clock_out || '--:--:--'}</span></span>
           </div>
         </div>
 
@@ -123,24 +127,24 @@ export default function EmployeeHome() {
               className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-primary-200 text-primary-600 font-bold text-lg shadow-md hover:border-primary-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
             >
               <span className="text-3xl">🍽️</span>
-              <span>堂吃点餐</span>
-              <span className="text-xs font-normal text-gray-400">选择桌号后点餐</span>
+              <span>{t('employee.dineInOrder', '堂吃点餐')}</span>
+              <span className="text-xs font-normal text-gray-400">{t('employee.selectTableHint', '选择桌号后点餐')}</span>
             </button>
             <button
               onClick={goTakeout}
               className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-amber-200 text-amber-600 font-bold text-lg shadow-md hover:border-amber-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
             >
               <span className="text-3xl">🥡</span>
-              <span>打包点餐</span>
-              <span className="text-xs font-normal text-gray-400">凭取餐号取餐</span>
+              <span>{t('employee.takeoutOrder', '打包点餐')}</span>
+              <span className="text-xs font-normal text-gray-400">{t('employee.takeoutHint', '凭取餐号取餐')}</span>
             </button>
             <button
               onClick={() => navigate('/employee/orders')}
               className="flex-1 py-7 px-6 rounded-2xl bg-white border-2 border-purple-200 text-purple-600 font-bold text-lg shadow-md hover:border-purple-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
             >
               <span className="text-3xl">📋</span>
-              <span>订单查询</span>
-              <span className="text-xs font-normal text-gray-400">查看确认今日订单</span>
+              <span>{t('employee.orderQuery', '订单查询')}</span>
+              <span className="text-xs font-normal text-gray-400">{t('employee.orderQueryHint', '查看确认今日订单')}</span>
             </button>
           </div>
 
@@ -150,26 +154,26 @@ export default function EmployeeHome() {
               className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-green-400 to-green-500 text-white font-bold text-lg shadow-lg hover:from-green-500 hover:to-green-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
             >
               <span className="text-3xl">⏰</span>
-              <span>上班打卡</span>
+              <span>{t('employee.clockIn', '上班打卡')}</span>
             </button>
             <button
               onClick={handleClockOut}
               className="flex-1 py-6 px-6 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white font-bold text-lg shadow-lg hover:from-orange-500 hover:to-orange-600 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col items-center gap-2"
             >
               <span className="text-3xl">🏃</span>
-              <span>下班打卡</span>
+              <span>{t('employee.clockOut', '下班打卡')}</span>
             </button>
           </div>
         </div>
       </main>
 
       <footer className="text-center py-6 text-xs text-gray-300">
-        Only One BBQ & Tea · 员工工作台
+        Only One BBQ & Tea · {t('employee.terminal', '员工工作台')}
       </footer>
 
-      <Dialog open={tableDialog} onClose={() => setTableDialog(false)} title="选择餐桌" width="max-w-md">
+      <Dialog open={tableDialog} onClose={() => setTableDialog(false)} title={t('employee.selectTable', '选择餐桌')} width="max-w-md">
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-80 overflow-y-auto">
-          {tables.length === 0 && <p className="col-span-full text-center text-gray-400 py-8">暂无餐桌，请先在后台添加</p>}
+          {tables.length === 0 && <p className="col-span-full text-center text-gray-400 py-8">{t('employee.noTables', '暂无餐桌，请先在后台添加')}</p>}
           {tables.map(table => (
             <button
               key={table.id}
@@ -181,20 +185,20 @@ export default function EmployeeHome() {
               }`}
             >
               {table.table_no}
-              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">用餐中 · 点击查看</p>}
+              {table.status === 'occupied' && <p className="text-xs font-normal mt-1">{t('employee.diningAddOrder', '用餐中 · 点击加单')}</p>}
             </button>
           ))}
         </div>
       </Dialog>
 
-      <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title="修改密码" width="max-w-sm">
+      <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} title={t('employee.changePassword', '修改密码')} width="max-w-sm">
         <div className="space-y-4">
-          <Input label="当前密码" type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
-          <Input label="新密码" type="password" value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} />
-          <Input label="确认新密码" type="password" value={pwdForm.confirmPassword} onChange={e => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })} />
+          <Input label={t('employee.currentPassword', '当前密码')} type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
+          <Input label={t('employee.newPassword', '新密码')} type="password" value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} />
+          <Input label={t('employee.confirmPassword', '确认新密码')} type="password" value={pwdForm.confirmPassword} onChange={e => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })} />
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setPwdDialog(false)}>取消</Button>
-            <Button className="flex-1" onClick={handleChangePassword}>确认修改</Button>
+            <Button variant="outline" className="flex-1" onClick={() => setPwdDialog(false)}>{t('common.cancel', '取消')}</Button>
+            <Button className="flex-1" onClick={handleChangePassword}>{t('employee.confirmChange', '确认修改')}</Button>
           </div>
         </div>
       </Dialog>

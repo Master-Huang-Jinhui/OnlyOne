@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
+// ===== Button =====
 export function Button({ children, variant = 'primary', size = 'md', className = '', ...props }) {
   const variants = {
     primary: 'bg-primary-600 hover:bg-primary-700 text-white',
@@ -17,6 +19,7 @@ export function Button({ children, variant = 'primary', size = 'md', className =
   )
 }
 
+// ===== Input =====
 export function Input({ label, error, className = '', ...props }) {
   return (
     <div className="w-full">
@@ -27,6 +30,7 @@ export function Input({ label, error, className = '', ...props }) {
   )
 }
 
+// ===== Textarea =====
 export function Textarea({ label, className = '', ...props }) {
   return (
     <div className="w-full">
@@ -36,30 +40,38 @@ export function Textarea({ label, className = '', ...props }) {
   )
 }
 
+// ===== Select =====
 export function Select({ label, options = [], className = '', ...props }) {
   return (
     <div className="w-full">
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <select className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white ${className}`} {...props}>
-        {options.map((opt, i) => (<option key={i} value={opt.value}>{opt.label}</option>))}
+        {options.map((opt, i) => (
+          <option key={i} value={opt.value}>{opt.label}</option>
+        ))}
       </select>
     </div>
   )
 }
 
+// ===== Card =====
 export function Card({ children, className = '', ...props }) {
   return <div className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`} {...props}>{children}</div>
 }
+
 export function CardHeader({ children, className = '' }) {
   return <div className={`px-5 py-4 border-b border-gray-100 ${className}`}>{children}</div>
 }
+
 export function CardTitle({ children, className = '' }) {
   return <h3 className={`text-lg font-semibold text-gray-800 ${className}`}>{children}</h3>
 }
+
 export function CardContent({ children, className = '' }) {
   return <div className={`p-5 ${className}`}>{children}</div>
 }
 
+// ===== Badge =====
 export function Badge({ children, variant = 'default', className = '' }) {
   const variants = {
     default: 'bg-gray-100 text-gray-700',
@@ -71,6 +83,7 @@ export function Badge({ children, variant = 'default', className = '' }) {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]} ${className}`}>{children}</span>
 }
 
+// ===== Dialog / Modal =====
 export function Dialog({ open, onClose, title, children, footer, width = 'max-w-lg' }) {
   if (!open) return null
   return (
@@ -88,22 +101,28 @@ export function Dialog({ open, onClose, title, children, footer, width = 'max-w-
   )
 }
 
+// ===== Table =====
 export function Table({ columns = [], data = [], actions }) {
+  const { t } = useLanguage()
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50">
-            {columns.map((col, i) => (<th key={i} className="text-left px-4 py-3 font-medium text-gray-600">{col.header}</th>))}
-            {actions && <th className="text-left px-4 py-3 font-medium text-gray-600">操作</th>}
+            {columns.map((col, i) => (
+              <th key={i} className="text-left px-4 py-3 font-medium text-gray-600">{col.header}</th>
+            ))}
+            {actions && <th className="text-left px-4 py-3 font-medium text-gray-600">{t('common.action', '操作')}</th>}
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
-            <tr><td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-8 text-gray-400">暂无数据</td></tr>
+            <tr><td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-8 text-gray-400">{t('common.noData', '暂无数据')}</td></tr>
           ) : data.map((row, i) => (
             <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-              {columns.map((col, j) => (<td key={j} className="px-4 py-3 text-gray-700">{col.render ? col.render(row) : row[col.key]}</td>))}
+              {columns.map((col, j) => (
+                <td key={j} className="px-4 py-3 text-gray-700">{col.render ? col.render(row) : row[col.key]}</td>
+              ))}
               {actions && <td className="px-4 py-3">{actions(row)}</td>}
             </tr>
           ))}
@@ -113,23 +132,29 @@ export function Table({ columns = [], data = [], actions }) {
   )
 }
 
+// ===== Switch =====
 export function Switch({ checked, onChange, label }) {
   return (
     <label className="inline-flex items-center cursor-pointer gap-2">
-      <div className={`relative w-10 rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-300'}`} style={{ height: '22px' }} onClick={() => onChange(!checked)}>
-        <div className={`absolute top-0.5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ width: '18px', height: '18px' }} />
+      <div className={`relative w-10 h-5.5 rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-300'}`} style={{ height: '22px' }}
+        onClick={() => onChange(!checked)}>
+        <div className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ width: '18px', height: '18px' }} />
       </div>
       {label && <span className="text-sm text-gray-700">{label}</span>}
     </label>
   )
 }
 
+// ===== Tabs =====
 export function Tabs({ tabs = [], active, onChange }) {
   return (
     <div className="flex gap-1 border-b border-gray-200 mb-4">
       {tabs.map(tab => (
-        <button key={tab.key} onClick={() => onChange(tab.key)}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${active === tab.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+        <button
+          key={tab.key}
+          onClick={() => onChange(tab.key)}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${active === tab.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
           {tab.label}
         </button>
       ))}
@@ -137,6 +162,7 @@ export function Tabs({ tabs = [], active, onChange }) {
   )
 }
 
+// ===== Toast =====
 let toastFn = null
 export function setToastFn(fn) { toastFn = fn }
 export function toast(message, type = 'success') {
@@ -163,10 +189,13 @@ export function ToastContainer() {
   )
 }
 
-export function Empty({ text = '暂无数据', icon = '📭' }) {
-  return <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-2">{icon}</div><p>{text}</p></div>
+// ===== Empty =====
+export function Empty({ text, icon = '📭' }) {
+  const { t } = useLanguage()
+  return <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-2">{icon}</div><p>{text || t('common.noData', '暂无数据')}</p></div>
 }
 
+// ===== StatCard =====
 export function StatCard({ title, value, icon, color = 'blue' }) {
   const colors = {
     blue: 'bg-blue-50 text-blue-600',

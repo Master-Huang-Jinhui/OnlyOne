@@ -1,25 +1,28 @@
 import { useState } from 'react'
 import './MilkTeaMaker.css'
+import { useLanguage } from '../context/LanguageContext'
 
 const defaultTeaOptions = [
-  { name: '乌龙茶', color: '#a97542' },
-  { name: '绿茶', color: '#9fb555' },
-  { name: '红茶', color: '#b04d2a' },
-  { name: '铁观音', color: '#6b5a44' }
+  { name: '乌龙茶', color: '#a97542', labelKey: 'milkTea.oolong' },
+  { name: '绿茶', color: '#9fb555', labelKey: 'milkTea.greenTea' },
+  { name: '红茶', color: '#b04d2a', labelKey: 'milkTea.blackTea' },
+  { name: '铁观音', color: '#6b5a44', labelKey: 'milkTea.tiGuanYin' }
 ]
 
 const toppingOptions = [
-  { name: '珍珠', emoji: '●', color: '#2b2b2b' },
-  { name: '布丁', emoji: '🍮', color: '#f2c063' },
-  { name: '椰果', emoji: '▢', color: '#c9eec7' }
+  { name: '珍珠', emoji: '●', color: '#2b2b2b', labelKey: 'milkTea.pearl' },
+  { name: '布丁', emoji: '🍮', color: '#f2c063', labelKey: 'milkTea.pudding' },
+  { name: '椰果', emoji: '▢', color: '#c9eec7', labelKey: 'milkTea.coconut' }
 ]
 
 const teaColorPalette = ['#a97542', '#9fb555', '#b04d2a', '#6b5a44', '#7c3aed', '#0891b2', '#be185d', '#65a30d']
 
 export default function MilkTeaMaker({ teas }) {
+  const { t } = useLanguage()
   const teaOptions = teas && teas.length > 0
-    ? teas.map((t, i) => ({ name: t.name || t, color: t.color || teaColorPalette[i % teaColorPalette.length] }))
-    : defaultTeaOptions
+    ? teas.map((tea, i) => ({ name: tea.name || tea, color: tea.color || teaColorPalette[i % teaColorPalette.length], label: tea.name_en || tea.name || tea }))
+    : defaultTeaOptions.map(opt => ({ ...opt, label: t(opt.labelKey, opt.name) }))
+  const renderedToppingOptions = toppingOptions.map(opt => ({ ...opt, label: t(opt.labelKey, opt.name) }))
   const [teaBase, setTeaBase] = useState('')
   const [hasMilk, setHasMilk] = useState(false)
   const [toppings, setToppings] = useState([])
@@ -49,11 +52,20 @@ export default function MilkTeaMaker({ teas }) {
 
   const getFormulaText = () => {
     const parts = []
-    if (teaBase) parts.push(teaBase)
-    if (hasMilk) parts.push('牛奶')
-    if (toppings.length > 0) parts.push(toppings.join('/'))
-    if (hasIce) parts.push('冰')
-    return parts.length ? parts.join(' · ') : '选择茶底开始制作'
+    if (teaBase) {
+      const current = teaOptions.find(o => o.name === teaBase)
+      parts.push(current?.label || teaBase)
+    }
+    if (hasMilk) parts.push(t('milkTea.milk', '牛奶'))
+    if (toppings.length > 0) {
+      const labels = toppings.map(n => {
+        const opt = toppingOptions.find(o => o.name === n)
+        return opt ? t(opt.labelKey, n) : n
+      })
+      parts.push(labels.join('/'))
+    }
+    if (hasIce) parts.push(t('milkTea.ice', '冰'))
+    return parts.length ? parts.join(' · ') : t('milkTea.selectToStart', '选择茶底开始制作')
   }
 
   const currentTea = teaOptions.find(t => t.name === teaBase)
@@ -61,12 +73,13 @@ export default function MilkTeaMaker({ teas }) {
   return (
     <section className="milk-tea-maker">
       <div className="mtm-header">
-        <span className="mtm-tag">互动体验</span>
-        <h2>一杯奶茶的诞生</h2>
-        <p>点击配料，亲手调一杯属于你的奶茶</p>
+        <span className="mtm-tag">{t('milkTea.interactive', '互动体验')}</span>
+        <h2>{t('milkTea.title', '一杯奶茶的诞生')}</h2>
+        <p>{t('milkTea.subtitle', '点击配料，亲手调一杯属于你的奶茶')}</p>
       </div>
 
       <div className="mtm-body">
+        {/* 左侧舞台 */}
         <div className="mtm-stage">
           <div className="mtm-scene">
             {teaBase && (
@@ -120,16 +133,17 @@ export default function MilkTeaMaker({ teas }) {
           </div>
 
           <div className="formula-card">
-            <span className="formula-label">当前配方</span>
+            <span className="formula-label">{t('milkTea.currentFormula', '当前配方')}</span>
             <span className="formula-text">{getFormulaText()}</span>
           </div>
         </div>
 
+        {/* 右侧步骤面板 */}
         <div className="mtm-panel">
           <div className="step-card">
             <div className="step-title">
               <span className="step-num">1</span>
-              <span>选择茶底</span>
+              <span>{t('milkTea.step1', '选择茶底')}</span>
             </div>
             <div className="button-row">
               {teaOptions.map(item => (
@@ -143,7 +157,7 @@ export default function MilkTeaMaker({ teas }) {
                   }}
                   onClick={() => setTeaBase(item.name)}
                 >
-                  {item.name}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -152,30 +166,30 @@ export default function MilkTeaMaker({ teas }) {
           <div className="step-card">
             <div className="step-title">
               <span className="step-num">2</span>
-              <span>加牛奶</span>
+              <span>{t('milkTea.step2', '加牛奶')}</span>
             </div>
             <button
               className={`pill-btn milk-btn ${hasMilk ? 'active' : ''}`}
               onClick={() => setHasMilk(!hasMilk)}
             >
-              {hasMilk ? '✓ 已加牛奶' : '+ 加牛奶'}
+              {hasMilk ? t('milkTea.milkAdded', '✓ 已加牛奶') : t('milkTea.addMilk', '+ 加牛奶')}
             </button>
           </div>
 
           <div className="step-card">
             <div className="step-title">
               <span className="step-num">3</span>
-              <span>加小料</span>
+              <span>{t('milkTea.step3', '加小料')}</span>
             </div>
             <div className="button-row">
-              {toppingOptions.map(item => (
+              {renderedToppingOptions.map(item => (
                 <button
                   key={item.name}
                   className={`pill-btn topping-btn ${toppings.includes(item.name) ? 'active' : ''}`}
                   onClick={() => toggleTopping(item.name)}
                 >
                   <span className="btn-icon" style={{ color: item.color }}>{item.emoji}</span>
-                  {item.name}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -184,19 +198,19 @@ export default function MilkTeaMaker({ teas }) {
           <div className="step-card">
             <div className="step-title">
               <span className="step-num">4</span>
-              <span>加冰块</span>
+              <span>{t('milkTea.step4', '加冰块')}</span>
             </div>
             <button
               className={`pill-btn ice-btn ${hasIce ? 'active' : ''}`}
               onClick={() => setHasIce(!hasIce)}
             >
-              {hasIce ? '✓ 已加冰块' : '+ 加冰块'}
+              {hasIce ? t('milkTea.iceAdded', '✓ 已加冰块') : t('milkTea.addIce', '+ 加冰块')}
             </button>
           </div>
 
           <div className="action-row">
-            <button className="primary-btn" onClick={finish}>封顶完成</button>
-            <button className="ghost-btn" onClick={resetAll}>重新制作</button>
+            <button className="primary-btn" onClick={finish}>{t('milkTea.finish', '封顶完成')}</button>
+            <button className="ghost-btn" onClick={resetAll}>{t('milkTea.reset', '重新制作')}</button>
           </div>
         </div>
       </div>

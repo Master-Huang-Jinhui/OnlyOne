@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { Dialog, Button, toast } from '../../components/ui'
 import { getStatusLabel, getStatusVariant, getDiningLabel } from '../../lib/orderStatus'
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function EmployeeTableDetail() {
   const { user, logout } = useAuth()
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tableId = searchParams.get('tableId')
@@ -55,8 +57,8 @@ export default function EmployeeTableDetail() {
   }
 
   const handleCheckout = () => {
-    if (!tableId) { toast('无法获取桌子信息', 'error'); return }
-    if (orders.length === 0) { toast('没有进行中的订单', 'error'); return }
+    if (!tableId) { toast(t('employee.noTableInfo', '无法获取桌子信息'), 'error'); return }
+    if (orders.length === 0) { toast(t('employee.noActiveOrders', '没有进行中的订单'), 'error'); return }
     const checkoutTotal = orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0)
     setCheckoutData({ orders, total: checkoutTotal, count: orders.length })
     setCheckoutDialog(true)
@@ -66,12 +68,9 @@ export default function EmployeeTableDetail() {
     if (!tableId || checkoutData.orders.length === 0) return
     setCheckingOut(true)
     try {
-      // 逐个订单结账
       for (const order of checkoutData.orders) {
         await api.checkoutOrder(order.id, paymentMethod)
       }
-      
-      // 现金结账自动打开钱箱
       if (paymentMethod === 'cash') {
         try {
           const result = await api.openCashDrawer()
@@ -89,8 +88,8 @@ export default function EmployeeTableDetail() {
           console.log('钱箱打开失败（需连接打印机）:', e.message)
         }
       }
-      
-      toast(`结账成功（${paymentMethod === 'cash' ? '现金' : paymentMethod === 'card' ? '刷卡' : paymentMethod === 'apple_pay' ? 'Apple Pay' : '外卖平台'}），共 $${parseFloat(checkoutData.total).toFixed(2)}`)
+      const pmLabel = paymentMethod === 'cash' ? t('payment.cash', '现金') : paymentMethod === 'card' ? t('payment.card', '刷卡') : paymentMethod === 'apple_pay' ? t('payment.applePay', 'Apple Pay') : t('payment.platform', '外卖平台')
+      toast(`${t('employee.checkoutSuccess', '结账成功')}（${pmLabel}），共 $${parseFloat(checkoutData.total).toFixed(2)}`)
       setCheckoutDialog(false)
       setPaymentMethod('cash')
       navigate('/employee')
@@ -110,60 +109,59 @@ export default function EmployeeTableDetail() {
             <span className="text-2xl">🍵</span>
           </button>
           <div>
-            <h1 className="text-base font-bold text-gray-800">{tableNo}桌 · 订单详情</h1>
+            <h1 className="text-base font-bold text-gray-800">{tableNo}{t('employee.table', '桌')} · {t('employee.orderDetail', '订单详情')}</h1>
             <p className="text-xs text-gray-400">{user?.name || user?.username}</p>
           </div>
           {orders.length > 0 && (
             <span className="ml-2 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-              {orders.length} 单进行中
+              {orders.length} {t('unit.orders', '单')} {t('employee.inProgress', '进行中')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/employee')} className="text-sm text-gray-500 hover:text-red-500 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
-            退出
+            {t('admin.logout', '退出')}
           </button>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4">
         {orders.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <p className="text-4xl mb-3">🍽️</p>
-            <p className="text-lg font-medium">暂无进行中的订单</p>
-            <p className="text-sm mt-1">点击下方「编辑 / 加单」开始点餐</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <span className="text-5xl mb-3">📋</span>
+            <p className="text-lg">{t('employee.noTableActiveOrders', '该桌暂无进行中的订单')}</p>
+            <p className="text-sm mt-1">{t('employee.clickToOrderHint', '点击下方按钮开始点餐')}</p>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto space-y-4">
-            {orders.map(order => (
-              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {orders.map((order, oIdx) => (
+              <div key={order.id} className={`bg-white rounded-xl shadow-sm overflow-hidden ${oIdx > 0 ? 'mt-4' : ''}`}>
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-primary-600 font-bold">{order.order_no}</span>
-                    <span className="text-xs text-gray-400">{formatDateTime(order.created_at)}</span>
+                    <span className="font-mono text-sm font-bold text-primary-600">{order.order_no}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusVariant(order.dining_type, order.status) === 'success' ? 'bg-green-100 text-green-700' : getStatusVariant(order.dining_type, order.status) === 'danger' ? 'bg-red-100 text-red-700' : getStatusVariant(order.dining_type, order.status) === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {getStatusLabel(order.dining_type, order.status)}
+                    </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${getStatusVariant(order.status)}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
+                  <span className="text-xs text-gray-400">{formatDateTime(order.created_at)}</span>
                 </div>
-                <div className="p-4 space-y-2">
-                  {(order.items || []).map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-sm">
+                <div className="divide-y divide-gray-50">
+                  {(typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || [])).map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <span className="text-gray-700 font-medium">{item.name}</span>
-                        {item.note && <span className="text-xs text-gray-400 ml-1">({item.note})</span>}
+                        <p className="font-medium text-sm text-gray-800">{item.name}</p>
+                        {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
                       </div>
-                      <div className="flex items-center gap-3 text-gray-500">
-                        <span className="text-xs">${parseFloat(item.price).toFixed(2)}</span>
-                        <span className="text-xs">x{item.quantity}</span>
-                        <span className="text-xs font-medium text-gray-700 w-14 text-right">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
+                      <div className="flex items-center gap-4 ml-4">
+                        <span className="text-sm text-gray-500">${parseFloat(item.price).toFixed(2)}</span>
+                        <span className="text-sm text-gray-500 w-8 text-center">x{item.quantity}</span>
+                        <span className="text-sm font-medium text-gray-700 w-16 text-right">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="px-4 py-2 bg-gray-50 border-t flex justify-between items-center">
-                  <span className="text-xs text-gray-400">小计</span>
-                  <span className="font-bold text-primary-600">${parseFloat(order.total).toFixed(2)}</span>
+                <div className="flex justify-end px-4 py-2 bg-gray-50 border-t">
+                  <span className="text-sm text-gray-500">{t('common.subtotal', '小计')}：<span className="font-medium text-gray-700">${parseFloat(order.total).toFixed(2)}</span></span>
                 </div>
               </div>
             ))}
@@ -175,51 +173,49 @@ export default function EmployeeTableDetail() {
         <div className="max-w-3xl mx-auto">
           <div className="space-y-1.5 mb-4">
             <div className="flex justify-between text-sm text-gray-500">
-              <span>商品小计</span>
+              <span>{t('employee.itemsSubtotal', '商品小计')}</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-500">
-              <span>税费</span>
+              <span>{t('common.tax', '税费')}</span>
               <span>${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
-              <span>合计</span>
+              <span>{t('common.total', '合计')}</span>
               <span className="text-primary-600">${totalWithTax.toFixed(2)}</span>
             </div>
           </div>
           <div className="flex gap-3">
             <Button onClick={goEdit} className="flex-1 py-3 text-base font-bold">
-              ✏️ 编辑 / 加单
+              ✏️ {t('employee.editAppend', '编辑 / 加单')}
             </Button>
             <Button onClick={handleCheckout} variant="outline" className="flex-1 py-3 text-base font-bold border-primary-300 text-primary-600 hover:bg-primary-50" disabled={orders.length === 0}>
-              💰 结账
+              💰 {t('employee.checkout', '结账')}
             </Button>
           </div>
         </div>
       </div>
 
-      <Dialog open={checkoutDialog} onClose={() => setCheckoutDialog(false)} title={`结账 · ${tableNo}桌`} width="max-w-md">
+      <Dialog open={checkoutDialog} onClose={() => setCheckoutDialog(false)} title={`${t('employee.checkout', '结账')} · ${tableNo}${t('employee.table', '桌')}`} width="max-w-md">
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex justify-between text-sm text-gray-500 mb-2">
-              <span>订单数</span>
-              <span className="font-medium">{checkoutData.count} 单</span>
+              <span>{t('employee.orderCount', '订单数')}</span>
+              <span className="font-medium">{checkoutData.count} {t('unit.orders', '单')}</span>
             </div>
             <div className="flex justify-between font-bold text-xl pt-2 border-t">
-              <span>应付总额</span>
+              <span>{t('employee.totalDue', '应付总额')}</span>
               <span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span>
             </div>
           </div>
-          
-          {/* 付款方式选择 */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">选择付款方式</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">{t('employee.selectPaymentMethod', '选择付款方式')}</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { value: 'cash', label: '💵 现金', desc: '自动弹钱箱' },
-                { value: 'card', label: '💳 刷卡', desc: 'Tap to Pay' },
-                { value: 'apple_pay', label: '🍎 Apple Pay', desc: '非接触支付' },
-                { value: 'platform', label: '📱 外卖平台', desc: 'Uber/DoorDash等' },
+                { value: 'cash', label: `💵 ${t('payment.cash', '现金')}`, desc: t('payment.cashDesc', '自动弹钱箱') },
+                { value: 'card', label: `💳 ${t('payment.card', '刷卡')}`, desc: t('payment.cardDesc', 'Tap to Pay') },
+                { value: 'apple_pay', label: `🍎 ${t('payment.applePay', 'Apple Pay')}`, desc: t('payment.applePayDesc', '非接触支付') },
+                { value: 'platform', label: `📱 ${t('payment.platform', '外卖平台')}`, desc: t('payment.platformDesc', 'Uber/DoorDash等') },
               ].map(method => (
                 <button
                   key={method.value}
@@ -267,9 +263,9 @@ export default function EmployeeTableDetail() {
             </div>
           )}
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)} disabled={checkingOut}>取消</Button>
+            <Button variant="outline" className="flex-1" onClick={() => setCheckoutDialog(false)} disabled={checkingOut}>{t('common.cancel', '取消')}</Button>
             <Button className="flex-1" onClick={confirmCheckout} disabled={checkingOut || checkoutData.orders.length === 0}>
-              {checkingOut ? '结账中...' : paymentMethod === 'cash' ? '现金结账并弹钱箱' : '确认结账'}
+              {checkingOut ? t('employee.checkingOut', '结账中...') : paymentMethod === 'cash' ? t('employee.cashCheckoutDrawer', '现金结账并弹钱箱') : t('employee.confirmCheckout', '确认结账')}
             </Button>
           </div>
         </div>

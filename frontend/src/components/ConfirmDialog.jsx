@@ -1,15 +1,17 @@
 import { useState, useCallback, createContext, useContext } from 'react'
 import { Button } from './ui'
+import { useLanguage } from '../context/LanguageContext'
 
 const ConfirmContext = createContext(null)
 
 export function ConfirmProvider({ children }) {
+  const { t } = useLanguage()
   const [state, setState] = useState({
     open: false,
-    title: '确认操作',
+    title: t('confirm.title', '确认操作'),
     message: '',
-    confirmText: '确定',
-    cancelText: '取消',
+    confirmText: t('common.confirm', '确定'),
+    cancelText: t('common.cancel', '取消'),
     variant: 'primary',
     resolve: null
   })
@@ -18,15 +20,15 @@ export function ConfirmProvider({ children }) {
     return new Promise((resolve) => {
       setState({
         open: true,
-        title: typeof options === 'string' ? '确认操作' : options.title || '确认操作',
+        title: typeof options === 'string' ? t('confirm.title', '确认操作') : options.title || t('confirm.title', '确认操作'),
         message: typeof options === 'string' ? options : options.message || '',
-        confirmText: typeof options === 'string' ? '确定' : options.confirmText || '确定',
-        cancelText: typeof options === 'string' ? '取消' : options.cancelText || '取消',
+        confirmText: typeof options === 'string' ? t('common.confirm', '确定') : options.confirmText || t('common.confirm', '确定'),
+        cancelText: typeof options === 'string' ? t('common.cancel', '取消') : options.cancelText || t('common.cancel', '取消'),
         variant: typeof options === 'string' ? 'primary' : options.variant || 'primary',
         resolve
       })
     })
-  }, [])
+  }, [t])
 
   const handleConfirm = useCallback(() => {
     state.resolve?.(true)
@@ -41,8 +43,7 @@ export function ConfirmProvider({ children }) {
   const variantColors = {
     primary: 'bg-primary-600 hover:bg-primary-700',
     danger: 'bg-red-500 hover:bg-red-600',
-    success: 'bg-green-500 hover:bg-green-600',
-    warning: 'bg-yellow-500 hover:bg-yellow-600'
+    success: 'bg-green-500 hover:bg-green-600'
   }
 
   return (
@@ -54,8 +55,8 @@ export function ConfirmProvider({ children }) {
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in">
             <div className="p-6">
               <div className="flex items-start gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${state.variant === 'danger' ? 'bg-red-100' : state.variant === 'warning' ? 'bg-yellow-100' : state.variant === 'success' ? 'bg-green-100' : 'bg-primary-100'}`}>
-                  <span className="text-xl">{state.variant === 'danger' ? '⚠️' : state.variant === 'warning' ? '⚡' : state.variant === 'success' ? '✅' : '❓'}</span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${state.variant === 'danger' ? 'bg-red-100' : 'bg-primary-100'}`}>
+                  <span className="text-xl">{state.variant === 'danger' ? '⚠️' : '❓'}</span>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-800 mb-1">{state.title}</h3>

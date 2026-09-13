@@ -57,20 +57,48 @@ export default function Home() {
 
   useEffect(() => {
     const sectionObserver = new IntersectionObserver(
-      (entries) => { entries.forEach(entry => { if (entry.isIntersecting) setActiveSection(entry.target.id) }) },
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        })
+      },
       { threshold: 0.3 }
     )
-    sections.forEach(s => { const el = document.getElementById(s.id); if (el) sectionObserver.observe(el) })
+    sections.forEach(s => {
+      const el = document.getElementById(s.id)
+      if (el) sectionObserver.observe(el)
+    })
+
     const revealObserver = new IntersectionObserver(
-      (entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); else entry.target.classList.remove('visible') }) },
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+          } else {
+            entry.target.classList.remove('visible')
+          }
+        })
+      },
       { threshold: 0.15 }
     )
     document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el))
-    return () => { sectionObserver.disconnect(); revealObserver.disconnect() }
+
+    return () => {
+      sectionObserver.disconnect()
+      revealObserver.disconnect()
+    }
   }, [products])
 
-  const scrollTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }) }
-  const handleAddToCart = (product) => { addItem(product); navigate('/cart') }
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleAddToCart = (product) => {
+    addItem(product)
+    navigate('/cart')
+  }
 
   const craftPhilosophy = settings.craft_philosophy || [
     { name: '原叶现萃', name_en: 'Fresh Brewed' },
@@ -89,13 +117,15 @@ export default function Home() {
             <span className="text-xs text-gray-400 hidden sm:block">BBQ & Tea</span>
           </Link>
           <div className="hidden md:flex items-center gap-6 text-sm">
-            {sections.map(s => (<button key={s.id} onClick={() => scrollTo(s.id)} className="text-gray-600 hover:text-primary-600 transition-colors">{s.label}</button>))}
+            {sections.map(s => (
+              <button key={s.id} onClick={() => scrollTo(s.id)} className="text-gray-600 hover:text-primary-600 transition-colors">{s.label}</button>
+            ))}
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
               <button onClick={() => setLangMenuOpen(!langMenuOpen)} className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600 font-medium px-2 py-1 rounded hover:bg-gray-100">
                 <span>{supportedLanguages.find(l => l.code === language)?.flag || '🌐'}</span>
-                <span className="hidden sm:inline">{supportedLanguages.find(l => l.code === language)?.name || '语言'}</span>
+                <span className="hidden sm:inline">{supportedLanguages.find(l => l.code === language)?.name || t('home.language', '语言')}</span>
                 <span className="text-xs">▾</span>
               </button>
               {langMenuOpen && (
@@ -135,12 +165,14 @@ export default function Home() {
         <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden bg-gradient-to-br from-primary-100 via-blue-50 to-white">
           {carousel.length > 0 ? carousel.map((item, i) => (
             <div key={i} onClick={() => item.link && window.open(`/go?carousel=${item.id}`, '_blank')} className={`absolute inset-0 transition-opacity duration-1000 ${i === currentSlide ? 'opacity-100' : 'opacity-0'} ${item.link ? 'cursor-pointer' : ''}`}>
-              {item.image ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" /> : (
+              {item.image ? (
+                <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+              ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-6xl mb-4">🍵🔥</div>
                     <h2 className="text-3xl md:text-5xl font-bold text-primary-800 mb-3">{item.title || 'Only One BBQ & Tea'}</h2>
-                    <p className="text-lg text-primary-600">烧烤 + 新式茶饮 · 法拉盛</p>
+                    <p className="text-lg text-primary-600">{t('home.tagline', '烧烤 + 新式茶饮 · 法拉盛')}</p>
                   </div>
                 </div>
               )}
@@ -150,12 +182,14 @@ export default function Home() {
               <div className="text-center">
                 <div className="text-6xl mb-4">🍵🔥</div>
                 <h2 className="text-3xl md:text-5xl font-bold text-primary-800 mb-3">Only One BBQ & Tea</h2>
-                <p className="text-lg text-primary-600">烧烤 + 新式茶饮 · 法拉盛</p>
+                <p className="text-lg text-primary-600">{t('home.tagline', '烧烤 + 新式茶饮 · 法拉盛')}</p>
               </div>
             </div>
           )}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-            {carousel.map((_, i) => (<button key={i} onClick={() => setCurrentSlide(i)} className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentSlide ? 'bg-primary-600 w-8' : 'bg-white/60'}`} />))}
+            {carousel.map((_, i) => (
+              <button key={i} onClick={() => setCurrentSlide(i)} className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentSlide ? 'bg-primary-600 w-8' : 'bg-white/60'}`} />
+            ))}
           </div>
         </div>
       </section>
@@ -172,7 +206,7 @@ export default function Home() {
                 <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all reveal group" style={{ transitionDelay: `${i * 80}ms` }}>
                   <div className="h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center relative overflow-hidden">
                     {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <span className="text-6xl">🆕</span>}
-                    <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">NEW</span>
+                    <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">{t('home.newBadge', 'NEW')}</span>
                   </div>
                   <div className="p-5">
                     <h3 className="text-lg font-bold text-gray-800 mb-1">{p.name}</h3>
@@ -195,8 +229,8 @@ export default function Home() {
       <section id="brand" className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">{t('nav.brand')}</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">{settings.brand_story ? settings.brand_story.split('，')[0] : '法拉盛门店'}</h2>
-          <p className="text-lg text-gray-600 leading-relaxed">{settings.brand_story || '法拉盛门店，烧烤 + 新式茶饮定位'}</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">{settings.brand_story ? settings.brand_story.split('，')[0] : t('home.flushingStore', '法拉盛门店')}</h2>
+          <p className="text-lg text-gray-600 leading-relaxed">{settings.brand_story || t('home.flushingStoreDesc', '法拉盛门店，烧烤 + 新式茶饮定位')}</p>
           {settings.brand_story_en && <p className="text-md text-gray-400 mt-3 italic">{settings.brand_story_en}</p>}
         </div>
       </section>
@@ -259,7 +293,9 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">{t('nav.about')}</Badge>
           <h2 className="text-3xl font-bold text-gray-800 mb-6">{settings.about_text || t('nav.about')}</h2>
-          <p className="text-gray-600 leading-relaxed">Only One BBQ & Tea 致力于为顾客提供最优质的烧烤和新式茶饮体验。我们坚持选用新鲜食材，现点现做，让每一位顾客都能品尝到最地道的美味。</p>
+          <p className="text-gray-600 leading-relaxed">
+            {t('home.aboutParagraph', 'Only One BBQ & Tea 致力于为顾客提供最优质的烧烤和新式茶饮体验。我们坚持选用新鲜食材，现点现做，让每一位顾客都能品尝到最地道的美味。')}
+          </p>
         </div>
       </section>
 
@@ -270,12 +306,37 @@ export default function Home() {
               {section.image ? (
                 <div className="w-full md:w-1/2 relative group">
                   <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
-                    <img src={section.image} alt={section.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </div>
+                  <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                    <div className="relative w-32 h-40">
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
+                        <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
+                        <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
+                        <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
+                        <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
+                      </div>
+                      <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
+                      <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
+                        <span className="steam-1">💨</span>
+                        <span className="steam-2">💨</span>
+                        <span className="steam-3">💨</span>
+                      </div>
+                      <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
+                      <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
+                      <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
+                      <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
+                      <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="w-full md:w-1/2 flex items-center justify-center"><div className="text-8xl">{section.icon || '📌'}</div></div>
+                <div className="w-full md:w-1/2 flex items-center justify-center">
+                  <div className="text-8xl">{section.icon || '📌'}</div>
+                </div>
               )}
               <div className="w-full md:w-1/2 text-center md:text-left reveal">
                 {section.icon && !section.image && <div className="text-4xl mb-4">{section.icon}</div>}
@@ -294,13 +355,19 @@ export default function Home() {
           <div className="text-center mb-12 reveal">
             <Badge variant="primary" className="mb-4">{t('nav.menu')}</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">{t('home.deliciousNow')}</h2>
-            <Link to="/menu"><Button variant="outline">{t('home.viewFullMenu')}</Button></Link>
+            <Link to="/menu">
+              <Button variant="outline">{t('home.viewFullMenu')}</Button>
+            </Link>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.slice(0, 6).map((product, i) => (
               <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all reveal group" style={{ transitionDelay: `${i * 80}ms` }}>
                 <div className="h-44 bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center relative overflow-hidden">
-                  {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <span className="text-5xl">🍜</span>}
+                  {product.image ? (
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <span className="text-5xl">🍜</span>
+                  )}
                   {product.is_recommend && <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">{t('home.recommend')}</span>}
                 </div>
                 <div className="p-5">
@@ -352,7 +419,7 @@ export default function Home() {
             <span className="text-lg font-bold text-white">Only One BBQ & Tea</span>
           </div>
           <p className="text-sm">© 2024 Only One BBQ & Tea. All rights reserved.</p>
-          <p className="text-xs mt-2 text-gray-500">一站式管理系统</p>
+          <p className="text-xs mt-2 text-gray-500">{t('home.managementSystem', '一站式管理系统')}</p>
         </div>
       </footer>
     </div>

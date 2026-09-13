@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../../lib/api'
+import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Table, Badge, Select, Empty, Input, toast } from '../../components/ui'
 
 export default function ProductStats() {
+  const { t } = useLanguage()
   const [list, setList] = useState([])
   const [activeTab, setActiveTab] = useState('hot')
   const [threshold, setThreshold] = useState(15)
@@ -21,9 +23,9 @@ export default function ProductStats() {
   const [searchLoading, setSearchLoading] = useState(false)
   const searchTimer = useRef(null)
 
-  const load = (t = threshold) => {
+  const load = (thresh = threshold) => {
     setLoading(true)
-    api.getProductStats(t).then(data => { setList(Array.isArray(data) ? data : []) }).catch(() => {}).finally(() => setLoading(false))
+    api.getProductStats(thresh).then(data => { setList(Array.isArray(data) ? data : []) }).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
@@ -89,7 +91,7 @@ export default function ProductStats() {
       const history = await api.getProfitHistoryLatest(item.product_id, item.name)
       if (history) {
         setProfitForm(f => ({ ...f, productId: history.productId || item.product_id || '', purchasePrice: history.purchasePrice, purchaseQty: history.purchaseQty, unit: history.unit || '磅', portionPerUnit: history.portionPerUnit, sellPrice: history.sellPrice }))
-        toast('已自动填充最新记录')
+        toast(t('productStats.autoFilled', '已自动填充最新记录'))
       } else {
         const p = list.find(i => String(i.product_id) === String(item.product_id))
         if (p) setProfitForm(f => ({ ...f, sellPrice: p.price }))
@@ -98,15 +100,15 @@ export default function ProductStats() {
   }
 
   const handleSaveRecord = async () => {
-    if (!profitCalc) { toast('请先填写完整成本数据', 'error'); return }
+    if (!profitCalc) { toast(t('productStats.dataRequired', '请先填写完整成本数据'), 'error'); return }
     try {
-      await api.saveProfitRecord({ productId: profitForm.productId || null, name: searchKeyword || '手动计算', purchasePrice: parseFloat(profitForm.purchasePrice), purchaseQty: parseFloat(profitForm.purchaseQty), unit: profitForm.unit, portionPerUnit: parseFloat(profitForm.portionPerUnit), sellPrice: parseFloat(profitForm.sellPrice) })
-      toast('记录已保存')
+      await api.saveProfitRecord({ productId: profitForm.productId || null, name: searchKeyword || t('productStats.manualCalc', '手动计算'), purchasePrice: parseFloat(profitForm.purchasePrice), purchaseQty: parseFloat(profitForm.purchaseQty), unit: profitForm.unit, portionPerUnit: parseFloat(profitForm.portionPerUnit), sellPrice: parseFloat(profitForm.sellPrice) })
+      toast(t('productStats.recordSaved', '记录已保存'))
     } catch (e) { toast(e.message, 'error') }
   }
 
   const handleDownloadTemplate = async () => {
-    try { await api.downloadProfitTemplate(); toast('模板已下载') } catch (e) { toast(e.message, 'error') }
+    try { await api.downloadProfitTemplate(); toast(t('productStats.templateDownloaded', '模板已下载')) } catch (e) { toast(e.message, 'error') }
   }
   const handleImportClick = () => fileInputRef.current?.click()
   const handleFileChange = async (e) => {
@@ -117,45 +119,45 @@ export default function ProductStats() {
       const data = await api.importProfitExcel(file)
       setImportResults(data.results || [])
       setImportInfo({ filename: data.filename, total: data.total, errors: data.errors || [] })
-      toast('导入成功')
+      toast(t('productStats.imported', '导入成功'))
     } catch (e) { toast(e.message, 'error') }
     finally { setImportLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
   const handleExportResult = async () => {
-    if (importResults.length === 0) { toast('没有可导出的数据', 'error'); return }
-    try { await api.exportProfitResult(importResults); toast('结果已导出') } catch (e) { toast(e.message, 'error') }
+    if (importResults.length === 0) { toast(t('productStats.noExport', '没有可导出的数据'), 'error'); return }
+    try { await api.exportProfitResult(importResults); toast(t('productStats.exported', '结果已导出')) } catch (e) { toast(e.message, 'error') }
   }
 
   const columns = [
-    { header: 'ID', render: o => <span className="text-xs text-gray-400 font-mono">{o.product_id}</span> },
-    { header: '菜品名称', render: o => <span className="font-medium text-gray-800">{o.name}</span> },
-    { header: '订单次数', render: o => <span className="font-bold text-primary-600">{o.order_count}</span> },
-    { header: '总售出', render: o => <span className="text-gray-700">{o.total_sold}</span> },
-    { header: '单价', render: o => <span className="text-gray-500">${parseFloat(o.price).toFixed(2)}</span> },
-    { header: '状态', render: o => <span className={`text-xs ${o.available ? 'text-green-600' : 'text-gray-400'}`}>{o.available ? '上架中' : '已下架'}</span> },
-    { header: '标签', render: o => <Badge variant={o.tag === 'hot' ? 'danger' : o.tag === 'normal' ? 'primary' : 'default'}>{o.tagText}</Badge> }
+    { header: t('productStats.colId', 'ID'), render: o => <span className="text-xs text-gray-400 font-mono">{o.product_id}</span> },
+    { header: t('productStats.dishName', '菜品名称'), render: o => <span className="font-medium text-gray-800">{o.name}</span> },
+    { header: t('productStats.orderCount', '订单次数'), render: o => <span className="font-bold text-primary-600">{o.order_count}</span> },
+    { header: t('productStats.totalSold', '总售出'), render: o => <span className="text-gray-700">{o.total_sold}</span> },
+    { header: t('productStats.unitPrice', '单价'), render: o => <span className="text-gray-500">${parseFloat(o.price).toFixed(2)}</span> },
+    { header: t('common.status', '状态'), render: o => <span className={`text-xs ${o.available ? 'text-green-600' : 'text-gray-400'}`}>{o.available ? t('productStats.onShelf', '上架中') : t('productStats.offShelf', '已下架')}</span> },
+    { header: t('productStats.tag', '标签'), render: o => <Badge variant={o.tag === 'hot' ? 'danger' : o.tag === 'normal' ? 'primary' : 'default'}>{o.tagText}</Badge> }
   ]
 
   const tabConfig = [
-    { key: 'hot', label: '🔥 热销商品', count: hotList.length, color: 'bg-red-500 text-white' },
-    { key: 'normal', label: '📈 平销商品', count: normalList.length, color: 'bg-blue-500 text-white' },
-    { key: 'cold', label: '🪫 零销量商品', count: coldList.length, color: 'bg-gray-400 text-white' },
-    { key: 'profit', label: '💰 利润计算器', count: null, color: 'bg-green-500 text-white' }
+    { key: 'hot', label: t('productStats.hotTab', '🔥 热销商品'), count: hotList.length, color: 'bg-red-500 text-white' },
+    { key: 'normal', label: t('productStats.normalTab', '📈 平销商品'), count: normalList.length, color: 'bg-blue-500 text-white' },
+    { key: 'cold', label: t('productStats.coldTab', '🪫 零销量商品'), count: coldList.length, color: 'bg-gray-400 text-white' },
+    { key: 'profit', label: t('productStats.profitTab', '💰 利润计算器'), count: null, color: 'bg-green-500 text-white' }
   ]
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">菜品销售统计</h2>
-          <p className="text-sm text-gray-400 mt-1">统计各菜品订单出现次数与总销量</p>
+          <h2 className="text-xl font-bold text-gray-800">{t('productStats.title', '菜品销售统计')}</h2>
+          <p className="text-sm text-gray-400 mt-1">{t('productStats.subtitle', '统计各菜品订单出现次数与总销量')}</p>
         </div>
         {activeTab !== 'profit' && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">热销阈值：订单≥</span>
+            <span className="text-sm text-gray-500">{t('productStats.thresholdLabel', '热销阈值：订单≥')}</span>
             <Input type="number" value={threshold} onChange={e => setThreshold(parseInt(e.target.value) || 15)} className="w-20" />
-            <span className="text-sm text-gray-500">次</span>
-            <Button onClick={() => load()}>应用</Button>
+            <span className="text-sm text-gray-500">{t('productStats.timesUnit', '次')}</span>
+            <Button onClick={() => load()}>{t('productStats.apply', '应用')}</Button>
           </div>
         )}
       </div>
@@ -171,73 +173,73 @@ export default function ProductStats() {
       {activeTab === 'profit' ? (
         <div className="space-y-6">
           <div className="flex items-center gap-3 flex-wrap">
-            <Button onClick={handleDownloadTemplate}>📥 下载 Excel 模板</Button>
-            <Button variant="outline" onClick={handleImportClick} disabled={importLoading}>{importLoading ? '导入中...' : '📤 导入 Excel 批量计算'}</Button>
-            {importResults.length > 0 && <Button variant="success" onClick={handleExportResult}>💾 导出计算结果</Button>}
+            <Button onClick={handleDownloadTemplate}>{t('productStats.downloadTpl', '📥 下载 Excel 模板')}</Button>
+            <Button variant="outline" onClick={handleImportClick} disabled={importLoading}>{importLoading ? t('productStats.importing', '导入中...') : t('productStats.importBtn', '📤 导入 Excel 批量计算')}</Button>
+            {importResults.length > 0 && <Button variant="success" onClick={handleExportResult}>{t('productStats.exportResult', '💾 导出计算结果')}</Button>}
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
-            {importInfo && <span className="text-xs text-gray-400">已导入：{importInfo.filename}（{importInfo.total} 条）</span>}
+            {importInfo && <span className="text-xs text-gray-400">{t('productStats.importedInfoPrefix', '已导入：')}{importInfo.filename}（{importInfo.total} {t('productStats.importedInfoSuffix', '条')}）</span>}
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
             <Card>
-              <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">📝 成本输入</h3></div>
+              <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">{t('productStats.costInput', '📝 成本输入')}</h3></div>
               <div className="p-5 space-y-4">
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">关联菜品（搜索自动填充）</label>
-                  <Input type="text" value={searchKeyword} onChange={handleSearchChange} onFocus={() => setShowSearchDropdown(true)} onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)} placeholder="输入菜品名称搜索..." className="w-full" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.linkDish', '关联菜品（搜索自动填充）')}</label>
+                  <Input type="text" value={searchKeyword} onChange={handleSearchChange} onFocus={() => setShowSearchDropdown(true)} onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)} placeholder={t('productStats.searchPh', '输入菜品名称搜索...')} className="w-full" />
                   {showSearchDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {searchLoading ? <div className="px-3 py-2 text-sm text-gray-400">搜索中...</div> : searchResults.length === 0 ? <div className="px-3 py-2 text-sm text-gray-400">{searchKeyword ? '无匹配，可手动输入' : '输入关键词搜索'}</div> : searchResults.map((item, i) => (
+                      {searchLoading ? <div className="px-3 py-2 text-sm text-gray-400">{t('productStats.searching', '搜索中...')}</div> : searchResults.length === 0 ? <div className="px-3 py-2 text-sm text-gray-400">{searchKeyword ? t('productStats.noMatch', '无匹配，可手动输入') : t('productStats.enterKeyword', '输入关键词搜索')}</div> : searchResults.map((item, i) => (
                         <div key={i} onMouseDown={() => handleSelectSearchResult(item)} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between">
                           <span className="text-sm text-gray-800">{item.name}</span>
-                          {item.last_used && <span className="text-xs text-green-500">🕐 有记录</span>}
+                          {item.last_used && <span className="text-xs text-green-500">{t('productStats.hasRecord', '🕐 有记录')}</span>}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">采购总价 ($)</label><Input type="number" step="0.01" value={profitForm.purchasePrice} onChange={e => setProfitForm(f => ({ ...f, purchasePrice: e.target.value }))} placeholder="50.00" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">采购总量</label><Input type="number" step="0.01" value={profitForm.purchaseQty} onChange={e => setProfitForm(f => ({ ...f, purchaseQty: e.target.value }))} placeholder="5" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.purchaseTotal', '采购总价 ($)')}</label><Input type="number" step="0.01" value={profitForm.purchasePrice} onChange={e => setProfitForm(f => ({ ...f, purchasePrice: e.target.value }))} placeholder="50.00" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.purchaseQty', '采购总量')}</label><Input type="number" step="0.01" value={profitForm.purchaseQty} onChange={e => setProfitForm(f => ({ ...f, purchaseQty: e.target.value }))} placeholder="5" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">采购单位</label><Select value={profitForm.unit} onChange={e => setProfitForm(f => ({ ...f, unit: e.target.value }))} options={[{ value: '磅', label: '磅 (lb)' }, { value: '个', label: '个' }, { value: '包', label: '包' }, { value: '箱', label: '箱' }]} /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">每{profitForm.unit || '单位'}出几份</label><Input type="number" step="0.01" value={profitForm.portionPerUnit} onChange={e => setProfitForm(f => ({ ...f, portionPerUnit: e.target.value }))} placeholder="4" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.purchaseUnit', '采购单位')}</label><Select value={profitForm.unit} onChange={e => setProfitForm(f => ({ ...f, unit: e.target.value }))} options={[{ value: '磅', label: t('productStats.unitLb', '磅 (lb)') }, { value: '个', label: t('productStats.unitPc', '个') }, { value: '包', label: t('productStats.unitPack', '包') }, { value: '箱', label: t('productStats.unitBox', '箱') }]} /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.portionsPrefix', '每')}{profitForm.unit || t('productStats.unit', '单位')}{t('productStats.portionsSuffix', '出几份')}</label><Input type="number" step="0.01" value={profitForm.portionPerUnit} onChange={e => setProfitForm(f => ({ ...f, portionPerUnit: e.target.value }))} placeholder="4" /></div>
                 </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">每份售价 ($)</label><Input type="number" step="0.01" value={profitForm.sellPrice} onChange={e => setProfitForm(f => ({ ...f, sellPrice: e.target.value }))} placeholder="3.99" /></div>
-                <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">💡 示例：羊肉 $50 买 5 磅，一磅出 4 串，每串卖 $3.99</div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('productStats.sellPrice', '每份售价 ($)')}</label><Input type="number" step="0.01" value={profitForm.sellPrice} onChange={e => setProfitForm(f => ({ ...f, sellPrice: e.target.value }))} placeholder="3.99" /></div>
+                <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">{t('productStats.example', '💡 示例：羊肉 $50 买 5 磅，一磅出 4 串，每串卖 $3.99')}</div>
               </div>
             </Card>
 
             <Card>
-              <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">📊 利润分析</h3></div>
+              <div className="px-5 py-4 border-b"><h3 className="font-semibold text-gray-800">{t('productStats.profitAnalysis', '📊 利润分析')}</h3></div>
               <div className="p-5">
-                {!profitCalc ? <Empty text="填写左侧字段后自动计算" icon="🧮" /> : (
+                {!profitCalc ? <Empty text={t('productStats.fillHint', '填写左侧字段后自动计算')} icon="🧮" /> : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-400">每单位成本</p><p className="text-xl font-bold text-blue-600 mt-1">${profitCalc.unitCost.toFixed(2)}</p></div>
-                      <div className="bg-orange-50 rounded-lg p-3"><p className="text-xs text-orange-400">每份成本</p><p className="text-xl font-bold text-orange-600 mt-1">${profitCalc.portionCost.toFixed(3)}</p></div>
-                      <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-400">每份利润</p><p className="text-xl font-bold text-green-600 mt-1">${profitCalc.portionProfit.toFixed(2)}</p></div>
-                      <div className={`rounded-lg p-3 ${profitCalc.profitRate >= 50 ? 'bg-green-50' : profitCalc.profitRate >= 30 ? 'bg-yellow-50' : 'bg-red-50'}`}><p className={`text-xs ${profitCalc.profitRate >= 50 ? 'text-green-400' : profitCalc.profitRate >= 30 ? 'text-yellow-400' : 'text-red-400'}`}>利润率</p><p className={`text-xl font-bold mt-1 ${profitCalc.profitRate >= 50 ? 'text-green-600' : profitCalc.profitRate >= 30 ? 'text-yellow-600' : 'text-red-600'}`}>{profitCalc.profitRate.toFixed(1)}%</p></div>
+                      <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-400">{t('productStats.unitCost', '每单位成本')}</p><p className="text-xl font-bold text-blue-600 mt-1">${profitCalc.unitCost.toFixed(2)}</p></div>
+                      <div className="bg-orange-50 rounded-lg p-3"><p className="text-xs text-orange-400">{t('productStats.portionCost', '每份成本')}</p><p className="text-xl font-bold text-orange-600 mt-1">${profitCalc.portionCost.toFixed(3)}</p></div>
+                      <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-400">{t('productStats.portionProfit', '每份利润')}</p><p className="text-xl font-bold text-green-600 mt-1">${profitCalc.portionProfit.toFixed(2)}</p></div>
+                      <div className={`rounded-lg p-3 ${profitCalc.profitRate >= 50 ? 'bg-green-50' : profitCalc.profitRate >= 30 ? 'bg-yellow-50' : 'bg-red-50'}`}><p className={`text-xs ${profitCalc.profitRate >= 50 ? 'text-green-400' : profitCalc.profitRate >= 30 ? 'text-yellow-400' : 'text-red-400'}`}>{t('productStats.profitRate', '利润率')}</p><p className={`text-xl font-bold mt-1 ${profitCalc.profitRate >= 50 ? 'text-green-600' : profitCalc.profitRate >= 30 ? 'text-yellow-600' : 'text-red-600'}`}>{profitCalc.profitRate.toFixed(1)}%</p></div>
                     </div>
                     <div className="border-t pt-4 space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-gray-500">总可出份数</span><span className="font-medium">{profitCalc.totalPortions.toFixed(1)} 份</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">全部卖完营收</span><span className="font-medium">${profitCalc.totalRevenue.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">采购成本</span><span className="font-medium">-${parseFloat(profitForm.purchasePrice).toFixed(2)}</span></div>
-                      <div className="flex justify-between pt-2 border-t"><span className="font-bold">全部卖完利润</span><span className="font-bold text-green-600 text-lg">${profitCalc.totalProfit.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">{t('productStats.totalPortions', '总可出份数')}</span><span className="font-medium">{profitCalc.totalPortions.toFixed(1)} {t('productStats.portionsUnit', '份')}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">{t('productStats.totalRevenue', '全部卖完营收')}</span><span className="font-medium">${profitCalc.totalRevenue.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">{t('productStats.purchaseCost', '采购成本')}</span><span className="font-medium">-${parseFloat(profitForm.purchasePrice).toFixed(2)}</span></div>
+                      <div className="flex justify-between pt-2 border-t"><span className="font-bold">{t('productStats.totalProfit', '全部卖完利润')}</span><span className="font-bold text-green-600 text-lg">${profitCalc.totalProfit.toFixed(2)}</span></div>
                     </div>
                     {profitCalc.soldProfit && (
                       <div className="border-t pt-4 bg-green-50 rounded-lg p-3">
-                        <p className="text-sm font-semibold text-green-700 mb-2">✅ 已售利润</p>
+                        <p className="text-sm font-semibold text-green-700 mb-2">{t('productStats.soldProfitTitle', '✅ 已售利润')}</p>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div><span className="text-gray-500">已售出：</span><span className="font-medium">{profitCalc.soldProfit.sold} 份</span></div>
-                          <div><span className="text-gray-500">已营收：</span><span className="font-medium">${profitCalc.soldProfit.revenue.toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">已耗成本：</span><span className="font-medium">${profitCalc.soldProfit.cost.toFixed(2)}</span></div>
-                          <div><span className="text-gray-500">已赚利润：</span><span className="font-bold text-green-600">${profitCalc.soldProfit.profit.toFixed(2)}</span></div>
+                          <div><span className="text-gray-500">{t('productStats.soldQty', '已售出：')}</span><span className="font-medium">{profitCalc.soldProfit.sold} {t('productStats.portionsUnit', '份')}</span></div>
+                          <div><span className="text-gray-500">{t('productStats.soldRevenue', '已营收：')}</span><span className="font-medium">${profitCalc.soldProfit.revenue.toFixed(2)}</span></div>
+                          <div><span className="text-gray-500">{t('productStats.soldCost', '已耗成本：')}</span><span className="font-medium">${profitCalc.soldProfit.cost.toFixed(2)}</span></div>
+                          <div><span className="text-gray-500">{t('productStats.soldProfit', '已赚利润：')}</span><span className="font-bold text-green-600">${profitCalc.soldProfit.profit.toFixed(2)}</span></div>
                         </div>
                       </div>
                     )}
-                    <div className="pt-2 border-t"><Button size="sm" variant="outline" className="w-full" onClick={handleSaveRecord}>💾 保存此成本记录</Button></div>
+                    <div className="pt-2 border-t"><Button size="sm" variant="outline" className="w-full" onClick={handleSaveRecord}>{t('productStats.saveRecord', '💾 保存此成本记录')}</Button></div>
                   </div>
                 )}
               </div>
@@ -246,10 +248,10 @@ export default function ProductStats() {
 
           {importResults.length > 0 && (
             <Card>
-              <div className="px-5 py-4 border-b flex items-center justify-between"><h3 className="font-semibold text-gray-800">📊 批量计算结果（{importResults.length} 条）</h3><Button size="sm" onClick={handleExportResult}>💾 导出 Excel</Button></div>
+              <div className="px-5 py-4 border-b flex items-center justify-between"><h3 className="font-semibold text-gray-800">{t('productStats.batchResult', '📊 批量计算结果')}（{importResults.length} {t('productStats.importedInfoSuffix', '条')}）</h3><Button size="sm" onClick={handleExportResult}>{t('productStats.exportExcel', '💾 导出 Excel')}</Button></div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50 text-gray-500 text-xs"><th className="px-3 py-2 text-left">菜品</th><th className="px-3 py-2 text-right">采购价</th><th className="px-3 py-2 text-right">采购量</th><th className="px-3 py-2 text-center">单位</th><th className="px-3 py-2 text-right">出份</th><th className="px-3 py-2 text-right">售价</th><th className="px-3 py-2 text-right">份成本</th><th className="px-3 py-2 text-right">份利润</th><th className="px-3 py-2 text-right">利润率</th><th className="px-3 py-2 text-right">总利润</th></tr></thead>
+                  <thead><tr className="bg-gray-50 text-gray-500 text-xs"><th className="px-3 py-2 text-left">{t('productStats.rDish', '菜品')}</th><th className="px-3 py-2 text-right">{t('productStats.rPurchasePrice', '采购价')}</th><th className="px-3 py-2 text-right">{t('productStats.rPurchaseQty', '采购量')}</th><th className="px-3 py-2 text-center">{t('productStats.rUnit', '单位')}</th><th className="px-3 py-2 text-right">{t('productStats.rPortions', '出份')}</th><th className="px-3 py-2 text-right">{t('productStats.rSellPrice', '售价')}</th><th className="px-3 py-2 text-right">{t('productStats.rPortionCost', '份成本')}</th><th className="px-3 py-2 text-right">{t('productStats.rPortionProfit', '份利润')}</th><th className="px-3 py-2 text-right">{t('productStats.rProfitRate', '利润率')}</th><th className="px-3 py-2 text-right">{t('productStats.rTotalProfit', '总利润')}</th></tr></thead>
                   <tbody>{importResults.map((r, i) => (
                     <tr key={i} className="border-t hover:bg-gray-50">
                       <td className="px-3 py-2 font-medium">{r.name}</td>
@@ -272,22 +274,22 @@ export default function ProductStats() {
       ) : (
         <Card>
           <div className="flex items-center justify-between mb-4 px-5 pt-5">
-            <div className="flex items-center gap-2"><span className="text-sm text-gray-500">搜索：</span><Input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }} placeholder="菜品名称..." className="w-64" /></div>
-            <span className="text-sm text-gray-400">共 {filteredList.length} 条</span>
+            <div className="flex items-center gap-2"><span className="text-sm text-gray-500">{t('productStats.searchLabel', '搜索：')}</span><Input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }} placeholder={t('productStats.dishPh', '菜品名称...')} className="w-64" /></div>
+            <span className="text-sm text-gray-400">{t('productStats.totalPrefix', '共')} {filteredList.length} {t('productStats.totalSuffix', '条')}</span>
           </div>
-          {filteredList.length === 0 ? <Empty text={searchQuery ? '未找到' : '暂无数据'} icon="📊" /> : (
+          {filteredList.length === 0 ? <Empty text={searchQuery ? t('productStats.notFound', '未找到') : t('productStats.noData', '暂无数据')} icon="📊" /> : (
             <>
               <Table columns={columns} data={paginatedList} />
               <div className="flex items-center justify-between px-5 py-3 border-t">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>每页</span>
+                  <span>{t('productStats.perPage', '每页')}</span>
                   <select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setCurrentPage(1) }} className="px-2 py-1 border rounded text-sm"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select>
-                  <span>条</span>
+                  <span>{t('productStats.itemsUnit', '条')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>上一页</Button>
-                  <span className="text-sm text-gray-600">第 {currentPage} / {totalPages} 页</span>
-                  <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>下一页</Button>
+                  <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>{t('members.prevPage', '上一页')}</Button>
+                  <span className="text-sm text-gray-600">{t('productStats.pageLabel', '第')} {currentPage} / {totalPages} {t('productStats.pageEnd', '页')}</span>
+                  <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>{t('members.nextPage', '下一页')}</Button>
                 </div>
               </div>
             </>
@@ -297,16 +299,16 @@ export default function ProductStats() {
 
       {activeTab !== 'profit' && (
         <Card className="p-5">
-          <h3 className="font-semibold text-gray-800 mb-3">📋 统计总结</h3>
+          <h3 className="font-semibold text-gray-800 mb-3">{t('productStats.summary', '📋 统计总结')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400">商品总数</p><p className="text-2xl font-bold text-gray-800 mt-1">{list.length}</p></div>
-            <div className="bg-red-50 rounded-lg p-3"><p className="text-xs text-red-400">🔥 热销</p><p className="text-2xl font-bold text-red-600 mt-1">{hotList.length}</p></div>
-            <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-400">📈 平销</p><p className="text-2xl font-bold text-blue-600 mt-1">{normalList.length}</p></div>
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400">🪫 滞销</p><p className="text-2xl font-bold text-gray-500 mt-1">{coldList.length}</p></div>
+            <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400">{t('productStats.totalProducts', '商品总数')}</p><p className="text-2xl font-bold text-gray-800 mt-1">{list.length}</p></div>
+            <div className="bg-red-50 rounded-lg p-3"><p className="text-xs text-red-400">{t('productStats.hot', '🔥 热销')}</p><p className="text-2xl font-bold text-red-600 mt-1">{hotList.length}</p></div>
+            <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-400">{t('productStats.normal', '📈 平销')}</p><p className="text-2xl font-bold text-blue-600 mt-1">{normalList.length}</p></div>
+            <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400">{t('productStats.cold', '🪫 滞销')}</p><p className="text-2xl font-bold text-gray-500 mt-1">{coldList.length}</p></div>
           </div>
           <div className="text-sm text-gray-600 space-y-1">
-            <p>💡 <strong>备货建议：</strong>{hotList.length > 0 ? '热销品 ' + hotList.slice(0, 3).map(i => i.name).join('、') + ' 等，请保证库存。' : '暂无热销品。'}</p>
-            <p>📊 <strong>热销占比：</strong>{list.length > 0 ? ((hotList.length / list.length) * 100).toFixed(1) : 0}%</p>
+            <p>{t('productStats.stockAdvice', '💡 备货建议：')}<strong>{hotList.length > 0 ? t('productStats.adviceHotStart', '热销品 ') + hotList.slice(0, 3).map(i => i.name).join(t('productStats.joiner', '、')) + t('productStats.adviceHotEnd', ' 等，请保证库存。') : t('productStats.noHot', '暂无热销品。')}</strong></p>
+            <p>{t('productStats.hotRatio', '📊 热销占比：')}<strong>{list.length > 0 ? ((hotList.length / list.length) * 100).toFixed(1) : 0}%</strong></p>
           </div>
         </Card>
       )}

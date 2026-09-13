@@ -45,6 +45,7 @@
   align-items: center;
 }
 
+/* 左侧舞台 */
 .mtm-stage {
   background: linear-gradient(180deg, #f0f9ff 0%, #fef3f2 100%);
   border-radius: 24px;
@@ -63,6 +64,7 @@
   justify-content: center;
 }
 
+/* 液体倒入动画 */
 .liquid-stream {
   position: absolute;
   top: -20px;
@@ -89,6 +91,7 @@
   100% { height: 90px; opacity: 0; }
 }
 
+/* 杯子区域 */
 .cup-area {
   position: relative;
   z-index: 2;
@@ -141,6 +144,7 @@
   mix-blend-mode: multiply;
 }
 
+/* 冰块 */
 .ice-group {
   position: absolute;
   bottom: 30%;
@@ -165,6 +169,7 @@
   50% { transform: translateY(-6px); }
 }
 
+/* 小料 */
 .topping-layer {
   position: absolute;
   bottom: 8px;
@@ -202,6 +207,7 @@
   100% { transform: translateY(0); opacity: 1; }
 }
 
+/* 杯盖 */
 .cup-lid {
   position: absolute;
   top: -10px;
@@ -220,6 +226,7 @@
   transform: translateX(-50%) translateY(0);
 }
 
+/* 吸管 */
 .straw {
   position: absolute;
   top: -120px;
@@ -237,6 +244,7 @@
   top: -40px;
 }
 
+/* 蒸汽 */
 .steam-group {
   position: absolute;
   top: 40px;
@@ -264,6 +272,7 @@
   100% { transform: translateY(-40px) scale(1.4); opacity: 0; }
 }
 
+/* 配方卡片 */
 .formula-card {
   margin-top: 24px;
   padding: 14px 18px;
@@ -286,6 +295,7 @@
   color: #0f172a;
 }
 
+/* 右侧面板 */
 .mtm-panel {
   display: flex;
   flex-direction: column;
@@ -395,6 +405,7 @@
   background: #f8fafc;
 }
 
+/* 响应式 */
 @media (max-width: 820px) {
   .mtm-body {
     grid-template-columns: 1fr;
