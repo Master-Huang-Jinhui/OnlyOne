@@ -68,12 +68,9 @@ export default function EmployeeTableDetail() {
     if (!tableId || checkoutData.orders.length === 0) return
     setCheckingOut(true)
     try {
-      // 逐个订单结账
       for (const order of checkoutData.orders) {
         await api.checkoutOrder(order.id, paymentMethod)
       }
-      
-      // 现金结账自动打开钱箱
       if (paymentMethod === 'cash') {
         try {
           const result = await api.openCashDrawer()
@@ -91,7 +88,6 @@ export default function EmployeeTableDetail() {
           console.log('钱箱打开失败（需连接打印机）:', e.message)
         }
       }
-      
       const pmLabel = paymentMethod === 'cash' ? t('payment.cash', '现金') : paymentMethod === 'card' ? t('payment.card', '刷卡') : paymentMethod === 'apple_pay' ? t('payment.applePay', 'Apple Pay') : t('payment.platform', '外卖平台')
       toast(`${t('employee.checkoutSuccess', '结账成功')}（${pmLabel}），共 $${parseFloat(checkoutData.total).toFixed(2)}`)
       setCheckoutDialog(false)
@@ -212,8 +208,6 @@ export default function EmployeeTableDetail() {
               <span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span>
             </div>
           </div>
-          
-          {/* 付款方式选择 */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">{t('employee.selectPaymentMethod', '选择付款方式')}</p>
             <div className="grid grid-cols-2 gap-2">
