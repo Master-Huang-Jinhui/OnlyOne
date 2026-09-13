@@ -1,433 +1,372 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
-import { Card, Button, Table, Badge, Dialog, Input, Textarea, Switch, Tabs, Empty, toast } from '../../components/ui'
-import { useConfirm } from '../../components/ConfirmDialog'
 import { useLanguage } from '../../context/LanguageContext'
+import { Card, Button, Badge, Table, Dialog, Input, Textarea, Empty, toast } from '../../components/ui'
 
 export default function Content() {
   const { t } = useLanguage()
-  const confirm = useConfirm()
-  const [tab, setTab] = useState('carousel')
+  const [activeTab, setActiveTab] = useState('new')
+  const [newProducts, setNewProducts] = useState([])
   const [carousel, setCarousel] = useState([])
   const [settings, setSettings] = useState({})
-  const [dialog, setDialog] = useState(false)
+  const [contentSections, setContentSections] = useState([])
+  const [editDialog, setEditDialog] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ image: '', title: '', link: '', sort_order: 0, enabled: true })
+  const [form, setForm] = useState({})
   const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef(null)
-  const sectionFileInputRef = useRef(null)
-  const teaFileInputRef = useRef(null)
-  const [teaImageIndex, setTeaImageIndex] = useState(null)
 
-  // 自定义板块
-  const [sections, setSections] = useState([])
-  const [sectionDialog, setSectionDialog] = useState(false)
-  const [sectionEditing, setSectionEditing] = useState(null)
-  const [sectionForm, setSectionForm] = useState({ title: '', title_en: '', content: '', content_en: '', icon: '📌', image: '', layout: 'left', sort_order: 0, enabled: true })
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  const [newProducts, setNewProducts] = useState([])
-  const [newProductDialog, setNewProductDialog] = useState(false)
-  const [newProductEditing, setNewProductEditing] = useState(null)
-  const [newProductForm, setNewProductForm] = useState({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: 0, enabled: true })
-  const newProductFileRef = useRef(null)
-
-  useEffect(() => { load() }, [])
-
-  const load = () => {
-    api.getAllCarousel().then(data => setCarousel(Array.isArray(data) ? data : [])).catch(() => {})
-    api.getSettings().then(data => setSettings(data || {})).catch(() => {})
-    api.getAllContentSections().then(data => setSections(Array.isArray(data) ? data : [])).catch(() => {})
-    api.getAllNewProducts().then(data => setNewProducts(Array.isArray(data) ? data : [])).catch(() => {})
+  const loadData = () => {
+    api.getNewProducts().then(d => setNewProducts(Array.isArray(d) ? d : [])).catch(() => {})
+    api.getCarousel().then(d => setCarousel(Array.isArray(d) ? d : [])).catch(() => {})
+    api.getSettings().then(d => setSettings(d || {})).catch(() => {})
+    api.getContentSections().then(d => setContentSections(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
-  // 图片上传
-  const handleFileSelect = (e, target) => {
+  const tabs = [
+    { id: 'new', label: t('content.newTab', '新品上市') },
+    { id: 'carousel', label: t('content.carouselTab', '轮播图') },
+    { id: 'brand', label: t('content.brandTab', '品牌故事') },
+    { id: 'tea', label: t('content.teaTab', '茶品溯源') },
+    { id: 'craft', label: t('content.craftTab', '工艺理念') },
+    { id: 'about', label: t('content.aboutTab', '关于我们') },
+    { id: 'sections', label: t('content.sectionsTab', '自定义区块') },
+  ]
+
+  const handleUpload = async (e, field = 'image') => {
     const file = e.target.files?.[0]
     if (!file) return
-    handleUpload(file, target)
-    e.target.value = '' // 重置，允许重复选择同一文件
-  }
-
-  const handleUpload = async (file, target) => {
-    if (file.size > 10 * 1024 * 1024) {
-      toast(t('content.imgTooLarge', '图片不能超过 10MB'), 'error')
-      return
-    }
     setUploading(true)
     try {
       const res = await api.uploadImage(file)
-      if (target === 'carousel') {
-        setForm(prev => ({ ...prev, image: res.url }))
-      } else if (target === 'section') {
-        setSectionForm(prev => ({ ...prev, image: res.url }))
-      } else if (target === 'tea' && teaImageIndex !== null) {
-        setTeaSourcing(prev => prev.map((tea, j) => j === teaImageIndex ? { ...tea, image: res.url } : tea))
-      }
-      toast(t('content.imgUploaded', '图片上传成功'))
-    } catch (err) {
-      toast(err.message, 'error')
+      setForm(prev => ({ ...prev, [field]: res.url }))
+      toast(t('content.uploadSuccess', '上传成功'), 'success')
+    } catch {
+      toast(t('content.uploadFailed', '上传失败'), 'error')
     } finally {
       setUploading(false)
     }
   }
 
-  // 轮播图
-  const openAdd = () => { setEditing(null); setForm({ image: '', title: '', link: '', sort_order: 0, enabled: true }); setDialog(true) }
-  const openEdit = (c) => { setEditing(c); setForm({ ...c, enabled: !!c.enabled }); setDialog(true) }
+  const openAdd = (type) => {
+    setEditing(null)
+    if (type === 'new') setForm({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: newProducts.length + 1, enabled: 1 })
+    else if (type === 'carousel') setForm({ title: '', image: '', link: '', sort_order: carousel.length + 1, enabled: 1 })
+    else if (type === 'section') setForm({ title: '', title_en: '', content: '', content_en: '', icon: '', image: '', layout: 'left', sort_order: contentSections.length + 1, enabled: 1 })
+    setEditDialog(true)
+  }
 
-  const saveCarousel = async () => {
+  const openEdit = (item, type) => {
+    setEditing({ item, type })
+    setForm({ ...item })
+    setEditDialog(true)
+  }
+
+  const save = async () => {
     try {
-      if (editing) { await api.updateCarousel(editing.id, form); toast(t('content.updated', '更新成功')) }
-      else { await api.createCarousel(form); toast(t('content.added', '添加成功')) }
-      setDialog(false); load()
-    } catch (e) { toast(e.message, 'error') }
+      if (activeTab === 'new') {
+        if (editing) await api.updateNewProduct(editing.item.id, form)
+        else await api.createNewProduct(form)
+      } else if (activeTab === 'carousel') {
+        if (editing) await api.updateCarousel(editing.item.id, form)
+        else await api.createCarousel(form)
+      } else if (activeTab === 'sections') {
+        if (editing) await api.updateContentSection(editing.item.id, form)
+        else await api.createContentSection(form)
+      }
+      toast(t('content.saveSuccess', '保存成功'), 'success')
+      setEditDialog(false)
+      loadData()
+    } catch (e) {
+      toast(e.message || t('content.saveFailed', '保存失败'), 'error')
+    }
   }
 
-  const removeCarousel = async (id) => {
-    if (!await confirm({ title: t('content.confirmDeleteTitle', '删除确认'), message: t('content.confirmDeleteMsg', '确定删除？'), variant: 'danger' })) return
-    await api.deleteCarousel(id); toast(t('content.deleted', '已删除')); load()
+  const remove = async (id, type) => {
+    if (!confirm(t('content.confirmDelete', '确定删除？'))) return
+    try {
+      if (type === 'new') await api.deleteNewProduct(id)
+      else if (type === 'carousel') await api.deleteCarousel(id)
+      else if (type === 'section') await api.deleteContentSection(id)
+      toast(t('content.deleteSuccess', '删除成功'), 'success')
+      loadData()
+    } catch (e) {
+      toast(e.message || t('content.deleteFailed', '删除失败'), 'error')
+    }
   }
 
-  // 保存文本设置
-  const saveText = async (key, value) => {
+  const saveSettings = async (key, value) => {
     try {
       await api.updateSettings({ [key]: value })
       setSettings(prev => ({ ...prev, [key]: value }))
-      toast(t('content.saved', '保存成功'))
-    } catch (e) { toast(e.message, 'error') }
+      toast(t('content.saveSuccess', '保存成功'), 'success')
+    } catch (e) {
+      toast(e.message || t('content.saveFailed', '保存失败'), 'error')
+    }
   }
 
-  // 自定义板块
-  const openSectionAdd = () => { setSectionEditing(null); setSectionForm({ title: '', title_en: '', content: '', content_en: '', icon: '📌', sort_order: 0, enabled: true }); setSectionDialog(true) }
-  const openSectionEdit = (s) => { setSectionEditing(s); setSectionForm({ ...s, enabled: !!s.enabled }); setSectionDialog(true) }
+  const teaSourcing = settings.tea_sourcing || []
+  const craftPhilosophy = settings.craft_philosophy || []
 
-  const saveSection = async () => {
-    try {
-      if (!sectionForm.title.trim()) { toast(t('content.sectionTitleRequired', '请填写板块标题'), 'error'); return }
-      if (sectionEditing) { await api.updateContentSection(sectionEditing.id, sectionForm); toast(t('content.updated', '更新成功')) }
-      else { await api.createContentSection(sectionForm); toast(t('content.added', '添加成功')) }
-      setSectionDialog(false); load()
-    } catch (e) { toast(e.message, 'error') }
+  const updateTea = (index, field, value) => {
+    const updated = [...teaSourcing]
+    updated[index] = { ...updated[index], [field]: value }
+    saveSettings('tea_sourcing', updated)
   }
 
-  const removeSection = async (id) => {
-    if (!await confirm({ title: t('content.confirmDeleteSectionTitle', '删除板块'), message: t('content.confirmDeleteSectionMsg', '确定删除该板块？'), variant: 'danger' })) return
-    await api.deleteContentSection(id); toast(t('content.deleted', '已删除')); load()
+  const addTea = () => {
+    const updated = [...teaSourcing, { name: '', name_en: '', desc: '', desc_en: '', image: '', enabled: true }]
+    saveSettings('tea_sourcing', updated)
   }
 
-  const openNewProductAdd = () => { setNewProductEditing(null); setNewProductForm({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: 0, enabled: true }); setNewProductDialog(true) }
-  const openNewProductEdit = (p) => { setNewProductEditing(p); setNewProductForm({ ...p, enabled: !!p.enabled }); setNewProductDialog(true) }
-  const saveNewProduct = async () => {
-    try {
-      if (!newProductForm.name.trim()) { toast(t('content.newProductNameRequired', '请填写新品名称'), 'error'); return }
-      if (newProductEditing) { await api.updateNewProduct(newProductEditing.id, newProductForm); toast(t('content.updated', '更新成功')) }
-      else { await api.createNewProduct(newProductForm); toast(t('content.added', '添加成功')) }
-      setNewProductDialog(false); load()
-    } catch (e) { toast(e.message, 'error') }
+  const removeTea = (index) => {
+    const updated = teaSourcing.filter((_, i) => i !== index)
+    saveSettings('tea_sourcing', updated)
   }
-  const removeNewProduct = async (id) => { if (!await confirm({ title: t('content.confirmDeleteNewTitle', '删除新品'), message: t('content.confirmDeleteNewMsg', '确定删除该新品？'), variant: 'danger' })) return; await api.deleteNewProduct(id); toast(t('content.deleted', '已删除')); load() }
 
-  // 茶品溯源编辑
-  const [teaSourcing, setTeaSourcing] = useState([])
-  useEffect(() => {
-    if (settings.tea_sourcing) setTeaSourcing(settings.tea_sourcing)
-  }, [settings.tea_sourcing])
-
-  const saveTeaSourcing = () => {
-    saveText('tea_sourcing', teaSourcing)
+  const updateCraft = (index, field, value) => {
+    const updated = [...craftPhilosophy]
+    updated[index] = { ...updated[index], [field]: value }
+    saveSettings('craft_philosophy', updated)
   }
-  const addTea = () => setTeaSourcing(prev => [...prev, { name: '', name_en: '', desc: '', desc_en: '', enabled: true }])
-  const removeTea = (i) => setTeaSourcing(prev => prev.filter((_, j) => j !== i))
 
-  // 工艺理念编辑
-  const [craftPhilosophy, setCraftPhilosophy] = useState([])
-  useEffect(() => {
-    if (settings.craft_philosophy) setCraftPhilosophy(settings.craft_philosophy)
-  }, [settings.craft_philosophy])
+  const addCraft = () => {
+    const updated = [...craftPhilosophy, { name: '', name_en: '' }]
+    saveSettings('craft_philosophy', updated)
+  }
 
-  const saveCraft = () => {
-    saveText('craft_philosophy', craftPhilosophy)
+  const removeCraft = (index) => {
+    const updated = craftPhilosophy.filter((_, i) => i !== index)
+    saveSettings('craft_philosophy', updated)
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-800">{t('admin.content', '内容管理')}</h2>
-        <p className="text-sm text-gray-400 mt-1">{t('content.desc', '管理前台页面的轮播图、品牌故事、茶品溯源等内容，中英双语')}</p>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">{t('content.title', '内容管理')}</h1>
       </div>
 
-      <Tabs tabs={[
-        { key: 'new', label: t('content.tabNew', '新品上市') },
-        { key: 'carousel', label: t('content.tabCarousel', '轮播图') },
-        { key: 'brand', label: t('content.tabBrand', '品牌故事') },
-        { key: 'tea', label: t('content.tabTea', '茶品溯源') },
-        { key: 'craft', label: t('content.tabCraft', '奶茶工艺') },
-        { key: 'about', label: t('content.tabAbout', '关于区块') },
-        { key: 'sections', label: t('content.tabSections', '自定义板块') }
-      ]} active={tab} onChange={setTab} />
+      <div className="flex gap-2 mb-6 border-b overflow-x-auto">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* 新品上市 */}
-      {tab === 'new' && (
+      {activeTab === 'new' && (
         <Card>
-          <div className="p-4 border-b flex justify-between items-center">
-            <p className="text-sm text-gray-500">{t('content.newHint', '前台首页品牌故事上方展示，无新品时显示"新品研发中"')}</p>
-            <Button onClick={openNewProductAdd}>+ {t('content.addNewProduct', '添加新品')}</Button>
+          <div className="p-4 border-b flex justify-end">
+            <Button onClick={() => openAdd('new')}>+ {t('content.addNew', '添加新品')}</Button>
           </div>
           <Table columns={[
             { header: t('content.imgCol', '图片'), render: p => p.image ? <img src={p.image} alt={p.name} className="w-12 h-12 rounded-lg object-cover" /> : <span className="text-2xl">🆕</span> },
-            { header: t('content.nameCol', '名称'), render: p => <div><p className="font-medium text-gray-800">{p.name}</p>{p.name_en && <p className="text-xs text-gray-400">{p.name_en}</p>}</div> },
-            { header: t('content.descCol', '描述'), render: p => <p className="text-sm text-gray-500 line-clamp-2 max-w-[250px]">{p.description || '-'}</p> },
+            { header: t('content.nameCol', '名称'), key: 'name' },
+            { header: t('content.nameEnCol', '英文名'), key: 'name_en' },
+            { header: t('content.descCol', '描述'), render: p => <span className="text-sm text-gray-500 line-clamp-1">{p.description}</span> },
             { header: t('content.sortCol', '排序'), key: 'sort_order' },
             { header: t('common.status', '状态'), render: p => <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? t('content.show', '显示') : t('content.hide', '隐藏')}</Badge> }
           ]} data={newProducts} actions={p => (
             <div className="flex gap-2">
-              <button onClick={() => openNewProductEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
-              <button onClick={() => removeNewProduct(p.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
+              <button onClick={() => openEdit(p, 'new')} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
+              <button onClick={() => remove(p.id, 'new')} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
             </div>
           )} />
         </Card>
       )}
 
-      {/* 轮播图 */}
-      {tab === 'carousel' && (
+      {activeTab === 'carousel' && (
         <Card>
           <div className="p-4 border-b flex justify-end">
-            <Button onClick={openAdd}>+ {t('content.addCarousel', '添加轮播')}</Button>
+            <Button onClick={() => openAdd('carousel')}>+ {t('content.addCarousel', '添加轮播')}</Button>
           </div>
           <Table columns={[
-            { header: t('content.previewCol', '预览'), render: c => c.image ? <img src={c.image} alt="" className="w-20 h-12 object-cover rounded" /> : <div className="w-20 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-300">{t('content.noImg', '无图')}</div> },
+            { header: t('content.previewCol', '预览'), render: c => c.image ? <img src={c.image} alt="" className="w-20 h-12 object-cover rounded" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} /><div className="w-20 h-12 bg-gray-100 rounded items-center justify-center text-gray-300 hidden">{t('content.noImg', '无图')}</div> : <div className="w-20 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-300">{t('content.noImg', '无图')}</div> },
             { header: t('content.titleCol', '标题'), key: 'title' },
             { header: t('content.linkCol', '链接'), render: c => c.link ? <a href={`/go?carousel=${c.id}`} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline truncate block max-w-[200px]">{c.link}</a> : <span className="text-gray-300">-</span> },
             { header: t('content.sortCol', '排序'), key: 'sort_order' },
             { header: t('common.status', '状态'), render: c => <Badge variant={c.enabled ? 'success' : 'default'}>{c.enabled ? t('content.show', '显示') : t('content.hide', '隐藏')}</Badge> }
           ]} data={carousel} actions={c => (
             <div className="flex gap-2">
-              <button onClick={() => openEdit(c)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
-              <button onClick={() => removeCarousel(c.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
+              <button onClick={() => openEdit(c, 'carousel')} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
+              <button onClick={() => remove(c.id, 'carousel')} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
             </div>
           )} />
         </Card>
       )}
 
-      {/* 品牌故事 */}
-      {tab === 'brand' && (
-        <Card className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.brandStoryZh', '品牌故事（中文）')}</label>
-            <Textarea rows={4} value={settings.brand_story || ''} onChange={e => setSettings(prev => ({ ...prev, brand_story: e.target.value }))} />
+      {activeTab === 'brand' && (
+        <Card>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.brandStory', '品牌故事（中文）')}</label>
+              <Textarea value={settings.brand_story || ''} onChange={e => setSettings(prev => ({ ...prev, brand_story: e.target.value }))} rows={3} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.brandStoryEn', '品牌故事（英文）')}</label>
+              <Textarea value={settings.brand_story_en || ''} onChange={e => setSettings(prev => ({ ...prev, brand_story_en: e.target.value }))} rows={3} />
+            </div>
+            <Button onClick={() => saveSettings('brand_story', settings.brand_story) || saveSettings('brand_story_en', settings.brand_story_en)}>{t('common.save', '保存')}</Button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.brandStoryEn', 'Brand Story (English)')}</label>
-            <Textarea rows={4} value={settings.brand_story_en || ''} onChange={e => setSettings(prev => ({ ...prev, brand_story_en: e.target.value }))} />
-          </div>
-          <Button onClick={() => saveText('brand_story', settings.brand_story) || saveText('brand_story_en', settings.brand_story_en)}>{t('common.save', '保存')}</Button>
         </Card>
       )}
 
-      {/* 茶品溯源 */}
-      {tab === 'tea' && (
-        <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-gray-400">{t('content.teaHint', '前台自动三栏排列，可添加任意数量茶品')}</p>
-              <Switch checked={settings.show_tea_sourcing !== false} onChange={v => { setSettings(prev => ({ ...prev, show_tea_sourcing: v })); saveText('show_tea_sourcing', v) }} label={t('content.frontDisplay', '前台显示')} />
+      {activeTab === 'tea' && (
+        <Card>
+          <div className="p-4 border-b flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">{t('content.showTea', '显示茶品溯源')}</span>
+              <button onClick={() => saveSettings('show_tea_sourcing', settings.show_tea_sourcing !== false ? false : true)} className={`w-10 h-6 rounded-full transition-colors ${settings.show_tea_sourcing !== false ? 'bg-primary-500' : 'bg-gray-300'}`}>
+                <span className={`block w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.show_tea_sourcing !== false ? 'translate-x-5' : 'translate-x-1'}`} />
+              </button>
             </div>
-            <Button size="sm" onClick={addTea}>+ {t('content.addTea', '添加茶品')}</Button>
+            <Button onClick={addTea}>+ {t('content.addTea', '添加茶品')}</Button>
           </div>
-          {teaSourcing.map((tea, i) => (
-            <div key={i} className="p-4 bg-gray-50 rounded-lg space-y-3 relative">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={tea.enabled !== false} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, enabled: e.target.checked } : teaItem))} className="w-4 h-4" />
-                  <span className="text-sm text-gray-600">{t('content.frontDisplay', '前台显示')}</span>
-                </label>
-                <button onClick={() => removeTea(i)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
-              </div>
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">{t('content.iconImg', '图标图片')}</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={tea.image || ''} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, image: e.target.value } : teaItem))} placeholder={t('content.imgOrUpload', 'https://... 或点击上传')}
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-                    <Button type="button" size="sm" variant="outline" onClick={() => { setTeaImageIndex(i); teaFileInputRef.current?.click() }} disabled={uploading}>
-                      {uploading && teaImageIndex === i ? t('content.uploading', '上传中...') : t('content.upload', '上传')}
-                    </Button>
+          <div className="p-4 space-y-4">
+            {teaSourcing.map((tea, i) => (
+              <div key={i} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">{t('content.teaItem', '茶品')} {i + 1}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">{t('content.enabled', '启用')}</span>
+                    <button onClick={() => updateTea(i, 'enabled', tea.enabled !== false ? false : true)} className={`w-8 h-5 rounded-full transition-colors ${tea.enabled !== false ? 'bg-primary-500' : 'bg-gray-300'}`}>
+                      <span className={`block w-3 h-3 bg-white rounded-full shadow transition-transform ${tea.enabled !== false ? 'translate-x-4' : 'translate-x-1'}`} />
+                    </button>
+                    <button onClick={() => removeTea(i)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
                   </div>
                 </div>
-                {tea.image && <img src={tea.image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label={t('content.nameCol', '名称')} value={tea.name || ''} onChange={e => updateTea(i, 'name', e.target.value)} />
+                  <Input label={t('content.nameEnCol', '英文名')} value={tea.name_en || ''} onChange={e => updateTea(i, 'name_en', e.target.value)} />
+                  <Input label={t('content.descCol', '描述')} value={tea.desc || ''} onChange={e => updateTea(i, 'desc', e.target.value)} />
+                  <Input label={t('content.descEnCol', '英文描述')} value={tea.desc_en || ''} onChange={e => updateTea(i, 'desc_en', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.teaImage', '茶品图片')}</label>
+                  <div className="flex items-center gap-3">
+                    {tea.image && <img src={tea.image} alt="" className="w-12 h-12 rounded object-cover" />}
+                    <input type="file" accept="image/*" onChange={e => handleUpload(e, `tea_${i}`)} className="text-sm" />
+                    {tea.image && <Input value={tea.image} onChange={e => updateTea(i, 'image', e.target.value)} className="flex-1" />}
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label={t('content.nameLabel', '名称')} value={tea.name} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, name: e.target.value } : teaItem))} />
-                <Input label={t('content.nameEnLabel', '英文名')} value={tea.name_en} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, name_en: e.target.value } : teaItem))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label={t('content.descLabel', '描述')} value={tea.desc} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, desc: e.target.value } : teaItem))} />
-                <Input label={t('content.descEnLabel', '英文描述')} value={tea.desc_en} onChange={e => setTeaSourcing(prev => prev.map((teaItem, j) => j === i ? { ...teaItem, desc_en: e.target.value } : teaItem))} />
-              </div>
-            </div>
-          ))}
-          <Button onClick={saveTeaSourcing}>{t('common.save', '保存')}</Button>
-        </Card>
-      )}
-
-      {/* 奶茶工艺 */}
-      {tab === 'craft' && (
-        <Card className="p-6 space-y-4">
-          <p className="text-sm text-gray-400">{t('content.craftHint', '四点介绍：原叶现萃、鲜果鲜做、甜度可控、现点现做')}</p>
-          {craftPhilosophy.map((item, i) => (
-            <div key={i} className="grid grid-cols-2 gap-3">
-              <Input label={`${t('content.craftName', '名称')} ${i + 1}`} value={item.name} onChange={e => setCraftPhilosophy(prev => prev.map((craftItem, j) => j === i ? { ...craftItem, name: e.target.value } : craftItem))} />
-              <Input label={t('content.nameEnLabel', '英文名')} value={item.name_en} onChange={e => setCraftPhilosophy(prev => prev.map((craftItem, j) => j === i ? { ...craftItem, name_en: e.target.value } : craftItem))} />
-            </div>
-          ))}
-          <Button onClick={saveCraft}>{t('common.save', '保存')}</Button>
-        </Card>
-      )}
-
-      {/* 关于区块 */}
-      {tab === 'about' && (
-        <Card className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.aboutZh', '关于我们（中文）')}</label>
-            <Textarea rows={4} value={settings.about_text || ''} onChange={e => setSettings(prev => ({ ...prev, about_text: e.target.value }))} />
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.aboutEn', 'About Us (English)')}</label>
-            <Textarea rows={4} value={settings.about_text_en || ''} onChange={e => setSettings(prev => ({ ...prev, about_text_en: e.target.value }))} />
-          </div>
-          <Button onClick={() => { saveText('about_text', settings.about_text); saveText('about_text_en', settings.about_text_en) }}>{t('common.save', '保存')}</Button>
         </Card>
       )}
 
-      {/* 自定义板块 */}
-      {tab === 'sections' && (
+      {activeTab === 'craft' && (
         <Card>
-          <div className="p-4 border-b flex justify-between items-center">
-            <p className="text-sm text-gray-500">{t('content.sectionHint', '添加额外的内容板块，会显示在前台首页菜单上方')}</p>
-            <Button onClick={openSectionAdd}>+ {t('content.addSection', '添加板块')}</Button>
+          <div className="p-4 border-b flex justify-end">
+            <Button onClick={addCraft}>+ {t('content.addCraft', '添加工艺')}</Button>
+          </div>
+          <div className="p-4 space-y-3">
+            {craftPhilosophy.map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Input placeholder={t('content.nameCol', '名称')} value={item.name || ''} onChange={e => updateCraft(i, 'name', e.target.value)} className="flex-1" />
+                <Input placeholder={t('content.nameEnCol', '英文名')} value={item.name_en || ''} onChange={e => updateCraft(i, 'name_en', e.target.value)} className="flex-1" />
+                <button onClick={() => removeCraft(i)} className="text-red-400 hover:text-red-600 text-sm px-2">{t('common.delete', '删除')}</button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'about' && (
+        <Card>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.aboutText', '关于我们标题')}</label>
+              <Input value={settings.about_text || ''} onChange={e => setSettings(prev => ({ ...prev, about_text: e.target.value }))} />
+            </div>
+            <Button onClick={() => saveSettings('about_text', settings.about_text)}>{t('common.save', '保存')}</Button>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'sections' && (
+        <Card>
+          <div className="p-4 border-b flex justify-end">
+            <Button onClick={() => openAdd('section')}>+ {t('content.addSection', '添加区块')}</Button>
           </div>
           <Table columns={[
             { header: t('content.imgCol', '图片'), render: s => s.image ? <img src={s.image} alt={s.title} className="w-12 h-12 rounded-lg object-cover" /> : <span className="text-2xl">{s.icon || '📌'}</span> },
-            { header: t('content.titleCol', '标题'), render: s => <div><p className="font-medium text-gray-800">{s.title}</p>{s.title_en && <p className="text-xs text-gray-400">{s.title_en}</p>}</div> },
-            { header: t('content.layoutCol', '布局'), render: s => <Badge variant="default">{s.layout === 'right' ? t('content.rightImgLeftText', '右图左文') : t('content.leftImgRightText', '左图右文')}</Badge> },
-            { header: t('content.contentCol', '内容'), render: s => <p className="text-sm text-gray-500 line-clamp-2 max-w-[250px]">{s.content || '-'}</p> },
+            { header: t('content.titleCol', '标题'), key: 'title' },
+            { header: t('content.layoutCol', '布局'), render: s => s.layout === 'right' ? t('content.imageRight', '图右文左') : t('content.imageLeft', '图左文右') },
             { header: t('content.sortCol', '排序'), key: 'sort_order' },
             { header: t('common.status', '状态'), render: s => <Badge variant={s.enabled ? 'success' : 'default'}>{s.enabled ? t('content.show', '显示') : t('content.hide', '隐藏')}</Badge> }
-          ]} data={sections} actions={s => (
+          ]} data={contentSections} actions={s => (
             <div className="flex gap-2">
-              <button onClick={() => openSectionEdit(s)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
-              <button onClick={() => removeSection(s.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
+              <button onClick={() => openEdit(s, 'section')} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
+              <button onClick={() => remove(s.id, 'section')} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
             </div>
           )} />
         </Card>
       )}
 
-      {/* 轮播图对话框 */}
-      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? t('content.editCarousel', '编辑轮播') : t('content.addCarousel', '添加轮播')}
-        footer={<><Button variant="outline" onClick={() => setDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={saveCarousel}>{t('common.save', '保存')}</Button></>}>
+      <Dialog open={editDialog} onClose={() => setEditDialog(false)} title={editing ? t('content.edit', '编辑') : t('content.add', '添加')} width="max-w-lg">
         <div className="space-y-4">
+          {(activeTab === 'new' || (editing?.type === 'new')) && (
+            <>
+              <Input label={t('content.nameCol', '名称 *')} value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <Input label={t('content.nameEnCol', '英文名')} value={form.name_en || ''} onChange={e => setForm({ ...form, name_en: e.target.value })} />
+              <Textarea label={t('content.descCol', '描述')} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <Textarea label={t('content.descEnCol', '英文描述')} value={form.description_en || ''} onChange={e => setForm({ ...form, description_en: e.target.value })} />
+            </>
+          )}
+          {(activeTab === 'carousel' || (editing?.type === 'carousel')) && (
+            <>
+              <Input label={t('content.titleCol', '标题')} value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} />
+              <Input label={t('content.linkLabel', '跳转链接')} value={form.link || ''} onChange={e => setForm({ ...form, link: e.target.value })} placeholder={t('content.optional', '可选')} />
+            </>
+          )}
+          {(activeTab === 'sections' || (editing?.type === 'section')) && (
+            <>
+              <Input label={t('content.titleCol', '标题 *')} value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} />
+              <Input label={t('content.titleEnCol', '英文标题')} value={form.title_en || ''} onChange={e => setForm({ ...form, title_en: e.target.value })} />
+              <Textarea label={t('content.contentCol', '内容')} value={form.content || ''} onChange={e => setForm({ ...form, content: e.target.value })} />
+              <Textarea label={t('content.contentEnCol', '英文内容')} value={form.content_en || ''} onChange={e => setForm({ ...form, content_en: e.target.value })} />
+              <Input label={t('content.iconCol', '图标(emoji)')} value={form.icon || ''} onChange={e => setForm({ ...form, icon: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.layoutCol', '布局')}</label>
+                <select value={form.layout || 'left'} onChange={e => setForm({ ...form, layout: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="left">{t('content.imageLeft', '图左文右')}</option>
+                  <option value="right">{t('content.imageRight', '图右文左')}</option>
+                </select>
+              </div>
+            </>
+          )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.imgUrlLabel', '图片 URL')}</label>
-            <div className="flex gap-2">
-              <input type="text" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://..."
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-              <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                {uploading ? t('content.uploading', '上传中...') : t('content.selectImg', '选择图片')}
-              </Button>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.imageCol', '图片')}</label>
+            <div className="flex items-center gap-3">
+              {form.image && <img src={form.image} alt="" className="w-16 h-16 rounded object-cover" />}
+              <input type="file" accept="image/*" onChange={e => handleUpload(e)} disabled={uploading} className="text-sm" />
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'carousel')} />
+            {form.image && <Input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} className="mt-2" />}
           </div>
-          <Input label={t('content.titleLabel', '标题')} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-          <Input label={t('content.linkLabel', '跳转链接')} value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder={t('content.optional', '可选')} />
-          <Input label={t('content.sortLabel', '排序')} type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
-          <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label={t('content.show', '显示')} />
-        </div>
-      </Dialog>
-
-      {/* 自定义板块对话框 */}
-      <Dialog open={sectionDialog} onClose={() => setSectionDialog(false)} title={sectionEditing ? t('content.editSection', '编辑板块') : t('content.addSection', '添加板块')} width="max-w-lg">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t('content.sectionTitleZh', '标题（中文）*')} value={sectionForm.title} onChange={e => setSectionForm({ ...sectionForm, title: e.target.value })} placeholder={t('content.sectionTitlePlaceholder', '如：营业时间')} />
-            <Input label={t('content.sectionTitleEn', '标题（英文）')} value={sectionForm.title_en} onChange={e => setSectionForm({ ...sectionForm, title_en: e.target.value })} placeholder="Business Hours" />
-          </div>
-          <Input label={t('content.iconLabel', '图标 (emoji)')} value={sectionForm.icon} onChange={e => setSectionForm({ ...sectionForm, icon: e.target.value })} placeholder="📌 🕐 📍" />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.imgUrlLabel', '图片 URL')}</label>
-            <div className="flex gap-2">
-              <input type="text" value={sectionForm.image} onChange={e => setSectionForm({ ...sectionForm, image: e.target.value })} placeholder="https://example.com/image.jpg"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-              <Button type="button" size="sm" variant="outline" onClick={() => sectionFileInputRef.current?.click()} disabled={uploading}>
-                {uploading ? t('content.uploading', '上传中...') : t('content.selectImg', '选择图片')}
-              </Button>
-            </div>
-            <input ref={sectionFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'section')} />
-            <input ref={teaFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'tea')} />
-            <p className="text-xs text-gray-400 mt-1">{t('content.uploadHint', '点击"选择图片"从电脑上传，或手动填写网络图片地址')}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('content.sortCol', '排序')} type="number" value={form.sort_order || 0} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t('content.imgPosition', '图片位置')}</label>
-              <select value={sectionForm.layout} onChange={e => setSectionForm({ ...sectionForm, layout: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400">
-                <option value="left">{t('content.leftImgRightText', '左图右文')}</option>
-                <option value="right">{t('content.rightImgLeftText', '右图左文')}</option>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.status', '状态')}</label>
+              <select value={form.enabled ?? 1} onChange={e => setForm({ ...form, enabled: parseInt(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value={1}>{t('content.show', '显示')}</option>
+                <option value={0}>{t('content.hide', '隐藏')}</option>
               </select>
             </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer pb-2">
-                <input type="checkbox" checked={sectionForm.enabled} onChange={e => setSectionForm({ ...sectionForm, enabled: e.target.checked })} className="w-4 h-4" />
-                <span className="text-sm text-gray-700">{t('content.frontDisplay', '前台显示')}</span>
-              </label>
-            </div>
-          </div>
-          <Textarea label={t('content.sectionContentZh', '内容（中文）')} rows={3} value={sectionForm.content} onChange={e => setSectionForm({ ...sectionForm, content: e.target.value })} placeholder={t('content.sectionContentPlaceholder', '板块的详细内容')} />
-          <Textarea label={t('content.sectionContentEn', '内容（英文）')} rows={3} value={sectionForm.content_en} onChange={e => setSectionForm({ ...sectionForm, content_en: e.target.value })} placeholder="Detailed content" />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t('content.sortLabel', '排序')} type="number" value={sectionForm.sort_order} onChange={e => setSectionForm({ ...sectionForm, sort_order: parseInt(e.target.value) || 0 })} />
-            <div className="flex items-end justify-center">
-              {sectionForm.image && <img src={sectionForm.image} alt={t('content.preview', '预览')} className="h-16 rounded-lg object-cover" />}
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setSectionDialog(false)}>{t('common.cancel', '取消')}</Button>
-            <Button className="flex-1" onClick={saveSection}>{t('common.save', '保存')}</Button>
           </div>
         </div>
-      </Dialog>
-
-      {/* 新品编辑对话框 */}
-      <Dialog open={newProductDialog} onClose={() => setNewProductDialog(false)} title={newProductEditing ? t('content.editNewProduct', '编辑新品') : t('content.addNewProduct', '添加新品')} width="max-w-lg">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t('content.newProductNameZh', '名称（中文）*')} value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder={t('content.newProductNamePlaceholder', '如：西瓜冰沙柠檬茶')} />
-            <Input label={t('content.newProductNameEn', '名称（英文）')} value={newProductForm.name_en} onChange={e => setNewProductForm({ ...newProductForm, name_en: e.target.value })} placeholder="Watermelon Slush Lemon Tea" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('content.imgLabel', '图片')}</label>
-            <div className="flex gap-2">
-              <input type="text" value={newProductForm.image} onChange={e => setNewProductForm({ ...newProductForm, image: e.target.value })} placeholder={t('content.imgOrUpload', 'https://... 或点击上传')}
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
-              <Button type="button" size="sm" variant="outline" onClick={() => newProductFileRef.current?.click()} disabled={uploading}>{uploading ? t('content.uploading', '上传中...') : t('content.selectImg', '选择图片')}</Button>
-            </div>
-            <input ref={newProductFileRef} type="file" accept="image/*" className="hidden" onChange={e => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              setUploading(true)
-              api.uploadImage(file).then(res => { setNewProductForm(prev => ({ ...prev, image: res.url })); toast(t('content.imgUploaded', '图片上传成功')) }).catch(err => toast(err.message, 'error')).finally(() => setUploading(false))
-              e.target.value = ''
-            }} />
-          </div>
-          <Textarea label={t('content.newProductDescZh', '描述（中文）')} rows={2} value={newProductForm.description} onChange={e => setNewProductForm({ ...newProductForm, description: e.target.value })} placeholder={t('content.newProductDescPlaceholder', '新品的详细介绍')} />
-          <Textarea label={t('content.newProductDescEn', '描述（英文）')} rows={2} value={newProductForm.description_en} onChange={e => setNewProductForm({ ...newProductForm, description_en: e.target.value })} placeholder="Detailed description" />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t('content.sortLabel', '排序')} type="number" value={newProductForm.sort_order} onChange={e => setNewProductForm({ ...newProductForm, sort_order: parseInt(e.target.value) || 0 })} />
-            <div className="flex items-end"><label className="flex items-center gap-2 cursor-pointer pb-2"><input type="checkbox" checked={newProductForm.enabled} onChange={e => setNewProductForm({ ...newProductForm, enabled: e.target.checked })} className="w-4 h-4" /><span className="text-sm text-gray-700">{t('content.frontDisplay', '前台显示')}</span></label></div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setNewProductDialog(false)}>{t('common.cancel', '取消')}</Button>
-            <Button className="flex-1" onClick={saveNewProduct}>{t('common.save', '保存')}</Button>
-          </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setEditDialog(false)}>{t('common.cancel', '取消')}</Button>
+          <Button onClick={save}>{t('common.save', '保存')}</Button>
         </div>
       </Dialog>
     </div>
