@@ -8,6 +8,7 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// 初始化表结构
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -308,6 +309,95 @@ db.exec(`
   );
 `);
 
+// 初始化默认翻译数据
+try {
+  const defaultTranslations = [
+    { key: 'common.confirm', page: 'common', desc: '确认', trans: { zh: '确认', en: 'Confirm', es: 'Confirmar' } },
+    { key: 'common.cancel', page: 'common', desc: '取消', trans: { zh: '取消', en: 'Cancel', es: 'Cancelar' } },
+    { key: 'common.save', page: 'common', desc: '保存', trans: { zh: '保存', en: 'Save', es: 'Guardar' } },
+    { key: 'common.delete', page: 'common', desc: '删除', trans: { zh: '删除', en: 'Delete', es: 'Eliminar' } },
+    { key: 'common.edit', page: 'common', desc: '编辑', trans: { zh: '编辑', en: 'Edit', es: 'Editar' } },
+    { key: 'common.add', page: 'common', desc: '新增', trans: { zh: '新增', en: 'Add', es: 'Añadir' } },
+    { key: 'common.search', page: 'common', desc: '搜索', trans: { zh: '搜索', en: 'Search', es: 'Buscar' } },
+    { key: 'common.reset', page: 'common', desc: '重置', trans: { zh: '重置', en: 'Reset', es: 'Restablecer' } },
+    { key: 'common.loading', page: 'common', desc: '加载中', trans: { zh: '加载中...', en: 'Loading...', es: 'Cargando...' } },
+    { key: 'common.action', page: 'common', desc: '操作', trans: { zh: '操作', en: 'Action', es: 'Acción' } },
+    { key: 'common.status', page: 'common', desc: '状态', trans: { zh: '状态', en: 'Status', es: 'Estado' } },
+    { key: 'common.time', page: 'common', desc: '时间', trans: { zh: '时间', en: 'Time', es: 'Tiempo' } },
+    { key: 'common.amount', page: 'common', desc: '金额', trans: { zh: '金额', en: 'Amount', es: 'Cantidad' } },
+    { key: 'common.quantity', page: 'common', desc: '数量', trans: { zh: '数量', en: 'Quantity', es: 'Cantidad' } },
+    { key: 'common.success', page: 'common', desc: '成功', trans: { zh: '成功', en: 'Success', es: 'Éxito' } },
+    { key: 'common.error', page: 'common', desc: '错误', trans: { zh: '错误', en: 'Error', es: 'Error' } },
+    { key: 'common.back', page: 'common', desc: '返回', trans: { zh: '返回', en: 'Back', es: 'Volver' } },
+    { key: 'common.submit', page: 'common', desc: '提交', trans: { zh: '提交', en: 'Submit', es: 'Enviar' } },
+    { key: 'common.close', page: 'common', desc: '关闭', trans: { zh: '关闭', en: 'Close', es: 'Cerrar' } },
+    { key: 'nav.home', page: 'nav', desc: '首页', trans: { zh: '首页', en: 'Home', es: 'Inicio' } },
+    { key: 'nav.menu', page: 'nav', desc: '菜单', trans: { zh: '菜单', en: 'Menu', es: 'Menú' } },
+    { key: 'nav.about', page: 'nav', desc: '关于', trans: { zh: '关于', en: 'About', es: 'Sobre' } },
+    { key: 'nav.contact', page: 'nav', desc: '联系', trans: { zh: '联系', en: 'Contact', es: 'Contacto' } },
+    { key: 'nav.new', page: 'nav', desc: '新品', trans: { zh: '新品', en: 'New', es: 'Nuevo' } },
+    { key: 'nav.brand', page: 'nav', desc: '品牌', trans: { zh: '品牌', en: 'Brand', es: 'Marca' } },
+    { key: 'nav.tea', page: 'nav', desc: '茶品', trans: { zh: '茶品', en: 'Tea', es: 'Té' } },
+    { key: 'nav.craft', page: 'nav', desc: '工艺', trans: { zh: '工艺', en: 'Craft', es: 'Artesanía' } },
+    { key: 'nav.order', page: 'nav', desc: '查订单', trans: { zh: '查订单', en: 'Track Order', es: 'Seguir Pedido' } },
+    { key: 'nav.admin', page: 'nav', desc: '管理登录', trans: { zh: '管理登录', en: 'Admin Login', es: 'Admin' } },
+    { key: 'admin.dashboard', page: 'admin', desc: '仪表盘', trans: { zh: '仪表盘', en: 'Dashboard', es: 'Panel' } },
+    { key: 'admin.orders', page: 'admin', desc: '订单管理', trans: { zh: '订单管理', en: 'Orders', es: 'Pedidos' } },
+    { key: 'admin.products', page: 'admin', desc: '商品管理', trans: { zh: '商品管理', en: 'Products', es: 'Productos' } },
+    { key: 'admin.users', page: 'admin', desc: '用户管理', trans: { zh: '用户管理', en: 'Users', es: 'Usuarios' } },
+    { key: 'admin.settings', page: 'admin', desc: '系统设置', trans: { zh: '系统设置', en: 'Settings', es: 'Ajustes' } },
+    { key: 'admin.platforms', page: 'admin', desc: '外卖平台', trans: { zh: '外卖平台', en: 'Platforms', es: 'Plataformas' } },
+    { key: 'admin.flavors', page: 'admin', desc: '口味管理', trans: { zh: '口味管理', en: 'Flavors', es: 'Sabores' } },
+    { key: 'admin.permissions', page: 'admin', desc: '权限管理', trans: { zh: '权限管理', en: 'Permissions', es: 'Permisos' } },
+    { key: 'admin.menus', page: 'admin', desc: '菜单管理', trans: { zh: '菜单管理', en: 'Menu Manager', es: 'Gestor de Menú' } },
+    { key: 'admin.forms', page: 'admin', desc: '表单管理', trans: { zh: '表单管理', en: 'Forms', es: 'Formularios' } },
+    { key: 'admin.content', page: 'admin', desc: '内容管理', trans: { zh: '内容管理', en: 'Content', es: 'Contenido' } },
+    { key: 'admin.tables', page: 'admin', desc: '餐桌管理', trans: { zh: '餐桌管理', en: 'Tables', es: 'Mesas' } },
+    { key: 'admin.roles', page: 'admin', desc: '角色管理', trans: { zh: '角色管理', en: 'Roles', es: 'Roles' } },
+    { key: 'admin.inventory', page: 'admin', desc: '货物管理', trans: { zh: '货物管理', en: 'Inventory', es: 'Inventario' } },
+    { key: 'admin.stats', page: 'admin', desc: '销售统计', trans: { zh: '销售统计', en: 'Statistics', es: 'Estadísticas' } },
+    { key: 'admin.members', page: 'admin', desc: '会员管理', trans: { zh: '会员管理', en: 'Members', es: 'Miembros' } },
+    { key: 'admin.coupons', page: 'admin', desc: '优惠券', trans: { zh: '优惠券', en: 'Coupons', es: 'Cupones' } },
+    { key: 'admin.queue', page: 'admin', desc: '排队叫号', trans: { zh: '排队叫号', en: 'Queue', es: 'Cola' } },
+    { key: 'admin.kds', page: 'admin', desc: '厨房显示', trans: { zh: '厨房显示', en: 'Kitchen Display', es: 'Cocina' } },
+    { key: 'admin.reports', page: 'admin', desc: '深度报表', trans: { zh: '深度报表', en: 'Reports', es: 'Reportes' } },
+    { key: 'admin.orderStatuses', page: 'admin', desc: '订单状态管理', trans: { zh: '订单状态管理', en: 'Order Statuses', es: 'Estados de Pedido' } },
+    { key: 'dashboard.todayOrders', page: 'dashboard', desc: '今日订单', trans: { zh: '今日订单', en: 'Today Orders', es: 'Pedidos de Hoy' } },
+    { key: 'dashboard.todayRevenue', page: 'dashboard', desc: '今日营收', trans: { zh: '今日营收', en: "Today's Revenue", es: 'Ingresos de Hoy' } },
+    { key: 'dashboard.pendingOrders', page: 'dashboard', desc: '待处理订单', trans: { zh: '待处理订单', en: 'Pending Orders', es: 'Pedidos Pendientes' } },
+    { key: 'dashboard.weekOrders', page: 'dashboard', desc: '本周订单', trans: { zh: '本周订单', en: 'Week Orders', es: 'Pedidos de la Semana' } },
+    { key: 'dashboard.welcome', page: 'dashboard', desc: '欢迎回来', trans: { zh: '欢迎回来', en: 'Welcome back', es: 'Bienvenido de nuevo' } },
+    { key: 'employee.order', page: 'employee', desc: '点餐', trans: { zh: '点餐', en: 'Order', es: 'Pedido' } },
+    { key: 'employee.clock', page: 'employee', desc: '打卡', trans: { zh: '打卡', en: 'Clock In', es: 'Fichar' } },
+    { key: 'employee.dinein', page: 'employee', desc: '堂吃', trans: { zh: '堂吃', en: 'Dine In', es: 'Comer Aquí' } },
+    { key: 'employee.takeout', page: 'employee', desc: '打包', trans: { zh: '打包', en: 'Takeout', es: 'Para Llevar' } },
+    { key: 'employee.delivery', page: 'employee', desc: '配送', trans: { zh: '配送', en: 'Delivery', es: 'Entrega' } },
+    { key: 'employee.cart', page: 'employee', desc: '购物车', trans: { zh: '购物车', en: 'Cart', es: 'Carrito' } },
+    { key: 'employee.checkout', page: 'employee', desc: '结算', trans: { zh: '结算', en: 'Checkout', es: 'Pagar' } },
+    { key: 'employee.orderSuccess', page: 'employee', desc: '下单成功', trans: { zh: '下单成功', en: 'Order Placed', es: 'Pedido Realizado' } },
+    { key: 'employee.welcome', page: 'employee', desc: '欢迎', trans: { zh: '欢迎', en: 'Welcome', es: 'Bienvenido' } },
+    { key: 'order.pending', page: 'order', desc: '待处理', trans: { zh: '待处理', en: 'Pending', es: 'Pendiente' } },
+    { key: 'order.preparing', page: 'order', desc: '制作中', trans: { zh: '制作中', en: 'Preparing', es: 'Preparando' } },
+    { key: 'order.ready', page: 'order', desc: '待取餐', trans: { zh: '待取餐', en: 'Ready', es: 'Listo' } },
+    { key: 'order.completed', page: 'order', desc: '已完成', trans: { zh: '已完成', en: 'Completed', es: 'Completado' } },
+    { key: 'order.cancelled', page: 'order', desc: '已取消', trans: { zh: '已取消', en: 'Cancelled', es: 'Cancelado' } },
+    { key: 'login.title', page: 'login', desc: '登录', trans: { zh: '登录', en: 'Login', es: 'Iniciar Sesión' } },
+    { key: 'login.username', page: 'login', desc: '用户名', trans: { zh: '用户名', en: 'Username', es: 'Usuario' } },
+    { key: 'login.password', page: 'login', desc: '密码', trans: { zh: '密码', en: 'Password', es: 'Contraseña' } },
+    { key: 'login.submit', page: 'login', desc: '登录按钮', trans: { zh: '登录', en: 'Sign In', es: 'Entrar' } },
+    { key: 'login.logout', page: 'login', desc: '退出登录', trans: { zh: '退出登录', en: 'Logout', es: 'Cerrar Sesión' } },
+    { key: 'login.changePassword', page: 'login', desc: '修改密码', trans: { zh: '修改密码', en: 'Change Password', es: 'Cambiar Contraseña' } }
+  ];
+  const insertTranslation = db.prepare('INSERT OR IGNORE INTO translations (key, page, description, translations) VALUES (?, ?, ?, ?)');
+  defaultTranslations.forEach(t => {
+    insertTranslation.run(t.key, t.page, t.desc, JSON.stringify(t.trans));
+  });
+  console.log(`[初始化] 已插入 ${defaultTranslations.length} 条默认翻译数据`);
+} catch (e) {
+  console.error('[初始化] 默认翻译数据插入失败:', e.message);
+}
+
+// 兼容旧数据库：添加订单时间流程字段
 try {
   const cols = db.prepare("PRAGMA table_info(orders)").all();
   if (!cols.find(c => c.name === 'start_time')) db.prepare("ALTER TABLE orders ADD COLUMN start_time TEXT").run();
