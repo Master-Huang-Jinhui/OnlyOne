@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../../lib/api'
+import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Badge, Dialog, Input, Select, Empty, toast } from '../../components/ui'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 export default function Queue() {
+  const { t } = useLanguage()
+  const confirm = useConfirm()
   const [queues, setQueues] = useState([])
   const [stats, setStats] = useState({ waiting: 0, calling: 0, completed: 0, skipped: 0, total: 0, avg_wait_minutes: 0 })
   const [typeFilter, setTypeFilter] = useState('')
@@ -13,10 +17,7 @@ export default function Queue() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [listData, statsData] = await Promise.all([
-        api.getQueueList({ type: typeFilter }),
-        api.getQueueStats()
-      ])
+      const [listData, statsData] = await Promise.all([api.getQueueList({ type: typeFilter }), api.getQueueStats()])
       setQueues(Array.isArray(listData) ? listData : [])
       setStats(statsData || { waiting: 0, calling: 0, completed: 0, skipped: 0, total: 0, avg_wait_minutes: 0 })
     } catch (e) { console.error('排队加载失败:', e.message) }
@@ -24,61 +25,54 @@ export default function Queue() {
   }, [typeFilter])
 
   useEffect(() => { load() }, [load])
-
-  useEffect(() => {
-    if (!autoRefresh) return
-    const timer = setInterval(load, 5000)
-    return () => clearInterval(timer)
-  }, [autoRefresh, load])
+  useEffect(() => { if (!autoRefresh) return; const timer = setInterval(load, 5000); return () => clearInterval(timer) }, [autoRefresh, load])
 
   const takeNumber = async () => {
     const { type, customer_name, people_count, note } = takeDialog
-    if (!type) { toast('请选择类型', 'error'); return }
+    if (!type) { toast(t('queue.typeRequired', '请选择类型'), 'error'); return }
     try {
       const data = await api.takeQueueNumber({ type, customer_name: customer_name || '', people_count: parseInt(people_count) || 1, note: note || '' })
-      toast(`取号成功：${data.number}`)
-      setTakeDialog(null)
-      load()
+      toast(`${t('queue.takeSuccess', '取号成功：')}${data.number}`)
+      setTakeDialog(null); load()
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const callNumber = async (q) => {
-    try { await api.callQueueNumber(q.id); toast(`正在叫号 ${q.number}`); load() } catch (e) { toast(e.message, 'error') }
-  }
+  const callNumber = async (q) => { try { await api.callQueueNumber(q.id); toast(`${t('queue.calling', '正在叫号')} ${q.number}`); load() } catch (e) { toast(e.message, 'error') } }
 
   const recallNumber = async (q) => {
     try {
       const data = await api.recallQueueNumber(q.id)
-      toast(`再次叫号 ${q.number}（第${data.recall_count}次）`)
+      toast(`${t('queue.recallPrefix', '再次叫号')} ${q.number}（${t('queue.recallTimes', '第')}${data.recall_count}${t('queue.recallTimesSuffix', '次')}）`)
       load()
     } catch (e) { toast(e.message, 'error') }
   }
 
   const completeNumber = async (q) => {
-    if (!window.confirm(`确认 ${q.number} 已完成？`)) return
-    try { await api.completeQueueNumber(q.id); toast('已完成'); load() } catch (e) { toast(e.message, 'error') }
+    if (!await confirm({ title: t('queue.completeTitle', '确认完成'), message: `${t('queue.completeMsgPrefix', '确认')} ${q.number} ${t('queue.completeMsgSuffix', '已完成？')}`, variant: 'success' })) return
+    try { await api.completeQueueNumber(q.id); toast(t('queue.completed', '已完成')); load() } catch (e) { toast(e.message, 'error') }
   }
 
   const skipNumber = async (q) => {
-    if (!window.confirm(`确认跳过 ${q.number}？`)) return
-    try { await api.skipQueueNumber(q.id); toast('已跳过'); load() } catch (e) { toast(e.message, 'error') }
+    if (!await confirm({ title: t('queue.skipTitle', '确认跳过'), message: `${t('queue.skipMsgPrefix', '确认跳过')} ${q.number}${t('queue.skipMsgSuffix', '？')}`, variant: 'danger' })) return
+    try { await api.skipQueueNumber(q.id); toast(t('queue.skipped', '已跳过')); load() } catch (e) { toast(e.message, 'error') }
   }
 
   const callNext = async () => {
-    try {
-      const data = await api.callNextQueue(typeFilter)
-      toast(`正在叫号 ${data.number}`)
-      load()
-    } catch (e) { toast(e.message, 'error') }
+    try { const data = await api.callNextQueue(typeFilter); toast(`${t('queue.calling', '正在叫号')} ${data.number}`); load() } catch (e) { toast(e.message, 'error') }
   }
 
   const waitingList = queues.filter(q => q.status === 'waiting')
   const callingList = queues.filter(q => q.status === 'calling')
   const completedList = queues.filter(q => q.status === 'completed' || q.status === 'skipped')
 
-  const typeLabel = (type) => type === 'dinein' ? '堂吃' : '外带'
+  const typeLabel = (type) => type === 'dinein' ? t('queue.dinein', '堂吃') : t('queue.takeout', '外带')
   const statusBadge = (status) => {
-    const map = { waiting: { label: '等待中', variant: 'warning' }, calling: { label: '叫号中', variant: 'primary' }, completed: { label: '已完成', variant: 'success' }, skipped: { label: '已跳过', variant: 'default' } }
+    const map = {
+      waiting: { label: t('queue.waiting', '等待中'), variant: 'warning' },
+      calling: { label: t('queue.callingStatus', '叫号中'), variant: 'primary' },
+      completed: { label: t('queue.completed', '已完成'), variant: 'success' },
+      skipped: { label: t('queue.skipped', '已跳过'), variant: 'default' }
+    }
     const s = map[status] || { label: status, variant: 'default' }
     return <Badge variant={s.variant}>{s.label}</Badge>
   }
@@ -94,61 +88,44 @@ export default function Queue() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">📢 排队叫号</h2>
-          <p className="text-sm text-gray-400 mt-1">管理顾客排队，支持堂吃和外带两种类型</p>
+          <h2 className="text-xl font-bold text-gray-800">{t('queue.title', '📢 排队叫号')}</h2>
+          <p className="text-sm text-gray-400 mt-1">{t('queue.subtitle', '管理顾客排队，支持堂吃和外带两种类型')}</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
             <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} className="w-4 h-4" />
-            自动刷新 (5秒)
+            {t('queue.autoRefresh', '自动刷新 (5秒)')}
           </label>
-          <Button onClick={() => setTakeDialog({ type: 'dinein', customer_name: '', people_count: 2, note: '' })}>+ 取号</Button>
+          <Button onClick={() => setTakeDialog({ type: 'dinein', customer_name: '', people_count: 2, note: '' })}>{t('queue.takeBtn', '+ 取号')}</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-5 gap-4">
-        <Card className="p-4 bg-yellow-50">
-          <p className="text-sm text-yellow-600">等待中</p>
-          <p className="text-3xl font-bold text-yellow-700 mt-1">{stats.waiting}</p>
-        </Card>
-        <Card className="p-4 bg-blue-50">
-          <p className="text-sm text-blue-600">叫号中</p>
-          <p className="text-3xl font-bold text-blue-700 mt-1">{stats.calling}</p>
-        </Card>
-        <Card className="p-4 bg-green-50">
-          <p className="text-sm text-green-600">已完成</p>
-          <p className="text-3xl font-bold text-green-700 mt-1">{stats.completed}</p>
-        </Card>
-        <Card className="p-4 bg-gray-50">
-          <p className="text-sm text-gray-600">已跳过</p>
-          <p className="text-3xl font-bold text-gray-700 mt-1">{stats.skipped}</p>
-        </Card>
-        <Card className="p-4 bg-purple-50">
-          <p className="text-sm text-purple-600">平均等待</p>
-          <p className="text-3xl font-bold text-purple-700 mt-1">{stats.avg_wait_minutes}<span className="text-lg">分钟</span></p>
-        </Card>
+        <Card className="p-4 bg-yellow-50"><p className="text-sm text-yellow-600">{t('queue.waiting', '等待中')}</p><p className="text-3xl font-bold text-yellow-700 mt-1">{stats.waiting}</p></Card>
+        <Card className="p-4 bg-blue-50"><p className="text-sm text-blue-600">{t('queue.callingStatus', '叫号中')}</p><p className="text-3xl font-bold text-blue-700 mt-1">{stats.calling}</p></Card>
+        <Card className="p-4 bg-green-50"><p className="text-sm text-green-600">{t('queue.completed', '已完成')}</p><p className="text-3xl font-bold text-green-700 mt-1">{stats.completed}</p></Card>
+        <Card className="p-4 bg-gray-50"><p className="text-sm text-gray-600">{t('queue.skipped', '已跳过')}</p><p className="text-3xl font-bold text-gray-700 mt-1">{stats.skipped}</p></Card>
+        <Card className="p-4 bg-purple-50"><p className="text-sm text-purple-600">{t('queue.avgWait', '平均等待')}</p><p className="text-3xl font-bold text-purple-700 mt-1">{stats.avg_wait_minutes}<span className="text-lg">{t('queue.minutes', '分钟')}</span></p></Card>
       </div>
 
       <div className="flex items-center gap-3">
         <Select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          options={[{ value: '', label: '全部类型' }, { value: 'dinein', label: '堂吃' }, { value: 'takeout', label: '外带' }]} />
-        {waitingList.length > 0 && (
-          <Button variant="primary" onClick={callNext}>🔔 叫下一个</Button>
-        )}
+          options={[{ value: '', label: t('queue.allTypes', '全部类型') }, { value: 'dinein', label: t('queue.dinein', '堂吃') }, { value: 'takeout', label: t('queue.takeout', '外带') }]} />
+        {waitingList.length > 0 && <Button variant="primary" onClick={callNext}>{t('queue.callNext', '🔔 叫下一个')}</Button>}
       </div>
 
       {callingList.length > 0 && (
         <Card className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-80">当前叫号</p>
+              <p className="text-sm opacity-80">{t('queue.currentCall', '当前叫号')}</p>
               <p className="text-5xl font-bold mt-2 animate-pulse">{callingList[0].number}</p>
-              <p className="text-sm opacity-80 mt-2">{typeLabel(callingList[0].type)} · {callingList[0].customer_name || '匿名顾客'} · {callingList[0].people_count}人</p>
+              <p className="text-sm opacity-80 mt-2">{typeLabel(callingList[0].type)} · {callingList[0].customer_name || t('queue.anonymous', '匿名顾客')} · {callingList[0].people_count}{t('queue.peopleUnit', '人')}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => recallNumber(callingList[0])}>🔔 再叫一次</Button>
-              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => completeNumber(callingList[0])}>✓ 完成</Button>
-              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => skipNumber(callingList[0])}>⏭ 跳过</Button>
+              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => recallNumber(callingList[0])}>{t('queue.recallBtn', '🔔 再叫一次')}</Button>
+              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => completeNumber(callingList[0])}>{t('queue.completeBtn', '✓ 完成')}</Button>
+              <Button variant="outline" className="bg-white/20 border-white/40 text-white hover:bg-white/30" onClick={() => skipNumber(callingList[0])}>{t('queue.skipBtn', '⏭ 跳过')}</Button>
             </div>
           </div>
         </Card>
@@ -157,23 +134,23 @@ export default function Queue() {
       <div className="grid grid-cols-2 gap-6">
         <Card>
           <div className="flex items-center justify-between px-5 py-3 bg-yellow-50 border-b">
-            <h3 className="font-bold text-yellow-700">⏳ 等待中 ({waitingList.length})</h3>
+            <h3 className="font-bold text-yellow-700">{t('queue.waitingTitle', '⏳ 等待中')} ({waitingList.length})</h3>
           </div>
           <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
             {waitingList.length === 0 ? (
-              <Empty text="暂无等待中的排队号" icon="⏳" />
+              <Empty text={t('queue.noWaiting', '暂无等待中的排队号')} icon="⏳" />
             ) : waitingList.map((q, idx) => (
               <div key={q.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl font-bold text-yellow-700">{idx + 1}</span>
                   <div>
                     <p className="font-bold text-gray-800">{q.number}</p>
-                    <p className="text-xs text-gray-500">{typeLabel(q.type)} · {q.customer_name || '匿名'} · {q.people_count}人 · 等待{calcWait(q)}分钟</p>
+                    <p className="text-xs text-gray-500">{typeLabel(q.type)} · {q.customer_name || t('queue.anonymousShort', '匿名')} · {q.people_count}{t('queue.peopleUnit', '人')} · {t('queue.waitingPrefix', '等待')}{calcWait(q)}{t('queue.minutes', '分钟')}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => callNumber(q)}>叫号</Button>
-                  <Button size="sm" variant="outline" onClick={() => skipNumber(q)}>跳过</Button>
+                  <Button size="sm" onClick={() => callNumber(q)}>{t('queue.callBtn', '叫号')}</Button>
+                  <Button size="sm" variant="outline" onClick={() => skipNumber(q)}>{t('queue.skipBtnShort', '跳过')}</Button>
                 </div>
               </div>
             ))}
@@ -182,16 +159,16 @@ export default function Queue() {
 
         <Card>
           <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b">
-            <h3 className="font-bold text-gray-700">📋 今日记录 ({completedList.length})</h3>
+            <h3 className="font-bold text-gray-700">{t('queue.todayRecords', '📋 今日记录')} ({completedList.length})</h3>
           </div>
           <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
             {completedList.length === 0 ? (
-              <Empty text="暂无记录" icon="📋" />
+              <Empty text={t('queue.noRecords', '暂无记录')} icon="📋" />
             ) : completedList.map(q => (
               <div key={q.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-gray-700">{q.number}</span>
-                  <span className="text-xs text-gray-500">{typeLabel(q.type)} · {q.customer_name || '匿名'}</span>
+                  <span className="text-xs text-gray-500">{typeLabel(q.type)} · {q.customer_name || t('queue.anonymousShort', '匿名')}</span>
                 </div>
                 {statusBadge(q.status)}
               </div>
@@ -200,17 +177,17 @@ export default function Queue() {
         </Card>
       </div>
 
-      <Dialog open={!!takeDialog} onClose={() => setTakeDialog(null)} title="取号" width="max-w-sm">
+      <Dialog open={!!takeDialog} onClose={() => setTakeDialog(null)} title={t('queue.takeTitle', '取号')} width="max-w-sm">
         {takeDialog && (
           <div className="space-y-4">
-            <Select label="类型 *" value={takeDialog.type} onChange={e => setTakeDialog({ ...takeDialog, type: e.target.value })}
-              options={[{ value: 'dinein', label: '堂吃' }, { value: 'takeout', label: '外带' }]} />
-            <Input label="顾客姓名" value={takeDialog.customer_name} onChange={e => setTakeDialog({ ...takeDialog, customer_name: e.target.value })} placeholder="选填" />
-            <Input label="人数" type="number" min="1" value={takeDialog.people_count} onChange={e => setTakeDialog({ ...takeDialog, people_count: e.target.value })} />
-            <Input label="备注" value={takeDialog.note} onChange={e => setTakeDialog({ ...takeDialog, note: e.target.value })} placeholder="选填" />
+            <Select label={t('queue.typeLabel', '类型 *')} value={takeDialog.type} onChange={e => setTakeDialog({ ...takeDialog, type: e.target.value })}
+              options={[{ value: 'dinein', label: t('queue.dinein', '堂吃') }, { value: 'takeout', label: t('queue.takeout', '外带') }]} />
+            <Input label={t('queue.customerName', '顾客姓名')} value={takeDialog.customer_name} onChange={e => setTakeDialog({ ...takeDialog, customer_name: e.target.value })} placeholder={t('queue.optional', '选填')} />
+            <Input label={t('queue.partySize', '人数')} type="number" min="1" value={takeDialog.people_count} onChange={e => setTakeDialog({ ...takeDialog, people_count: e.target.value })} />
+            <Input label={t('queue.note', '备注')} value={takeDialog.note} onChange={e => setTakeDialog({ ...takeDialog, note: e.target.value })} placeholder={t('queue.optional', '选填')} />
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setTakeDialog(null)}>取消</Button>
-              <Button className="flex-1" onClick={takeNumber}>确认取号</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setTakeDialog(null)}>{t('common.cancel', '取消')}</Button>
+              <Button className="flex-1" onClick={takeNumber}>{t('queue.confirmTake', '确认取号')}</Button>
             </div>
           </div>
         )}
