@@ -76,7 +76,6 @@ export default function Menu() {
     navigate('/checkout')
   }
 
-  // 按分类分组标签
   const tagsByCategory = useMemo(() => {
     const groups = {}
     flavorTags.forEach(tag => {
@@ -86,7 +85,6 @@ export default function Menu() {
     return groups
   }, [])
 
-  // 渲染标签组件
   const renderTags = (tags = [], small = false) => (
     <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>
       {tags.map((tagName, i) => {
@@ -252,7 +250,6 @@ export default function Menu() {
         </div>
       )}
 
-      {/* 口味标签选择对话框 */}
       {tagsDialog && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setTagsDialog(null)} />
