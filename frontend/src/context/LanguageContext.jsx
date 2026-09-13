@@ -16,7 +16,6 @@ export function LanguageProvider({ children }) {
   const [translations, setTranslations] = useState({})
   const [loading, setLoading] = useState(true)
 
-  // 加载翻译字典
   useEffect(() => {
     const load = async () => {
       try {
@@ -31,13 +30,11 @@ export function LanguageProvider({ children }) {
     load()
   }, [])
 
-  // 切换语言
   const setLanguage = useCallback((lang) => {
     setLanguageState(lang)
     localStorage.setItem('language', lang)
   }, [])
 
-  // 翻译函数
   const t = useCallback((key, fallback) => {
     const trans = translations[key]
     if (trans && trans[language]) {
@@ -46,7 +43,6 @@ export function LanguageProvider({ children }) {
     return fallback || key
   }, [translations, language])
 
-  // 刷新翻译字典（后台修改后调用）
   const refreshTranslations = useCallback(async () => {
     try {
       const data = await api.getTranslations()
