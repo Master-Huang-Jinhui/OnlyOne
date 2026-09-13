@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { api } from '../../lib/api'
 import { getOrderIdentity } from '../../lib/guest'
 import { Button, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const { items, subtotal, clear, addToHistory, getTagInfo, getItemUnitPrice } = useCart()
   const [settings, setSettings] = useState({})
   const [business, setBusiness] = useState({ open: true })
@@ -31,15 +33,15 @@ export default function Checkout() {
 
   const handleSubmit = async () => {
     if (!business.open) {
-      toast('今日门店休息，无法下单', 'error')
+      toast(t('checkout.closedToast', '今日门店休息，无法下单'), 'error')
       return
     }
     if (!customerName || !customerPhone) {
-      toast('请填写姓名和电话', 'error')
+      toast(t('checkout.enterNamePhone', '请填写姓名和电话'), 'error')
       return
     }
     if (diningType === 'delivery' && !customerAddress) {
-      toast('请填写配送地址', 'error')
+      toast(t('checkout.enterAddress', '请填写配送地址'), 'error')
       return
     }
     setSubmitting(true)
@@ -56,7 +58,7 @@ export default function Checkout() {
       setOrderResult(result)
       addToHistory()
       clear()
-      toast('下单成功！')
+      toast(t('checkout.orderSuccessToast', '下单成功！'))
     } catch (e) {
       toast(e.message, 'error')
     } finally {
@@ -69,22 +71,22 @@ export default function Checkout() {
       <div className="min-h-screen bg-gray-50 pt-16 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md w-full mx-4 text-center">
           <div className="text-6xl mb-4">✅</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">下单成功</h2>
-          <p className="text-gray-500 mb-2">订单号</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('checkout.orderSuccess', '下单成功')}</h2>
+          <p className="text-gray-500 mb-2">{t('checkout.orderNo', '订单号')}</p>
           <p className="text-xl font-bold text-primary-600 mb-6 tracking-wider">{orderResult.order_no}</p>
           <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>商品小计</span><span>${orderResult.subtotal?.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>税费</span><span>${orderResult.tax?.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>配送费</span><span>${orderResult.delivery_fee?.toFixed(2)}</span></div>
-            <div className="border-t pt-2 mt-2 flex justify-between font-bold"><span>合计</span><span className="text-primary-600">${orderResult.total?.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>{t('checkout.subtotal', '商品小计')}</span><span>${orderResult.subtotal?.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>{t('checkout.tax', '税费')}</span><span>${orderResult.tax?.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-600 mb-1"><span>{t('checkout.deliveryFee', '配送费')}</span><span>${orderResult.delivery_fee?.toFixed(2)}</span></div>
+            <div className="border-t pt-2 mt-2 flex justify-between font-bold"><span>{t('checkout.total', '合计')}</span><span className="text-primary-600">${orderResult.total?.toFixed(2)}</span></div>
           </div>
-          <p className="text-sm text-gray-400 mb-6">请到店出示订单号取餐 / 等待配送</p>
+          <p className="text-sm text-gray-400 mb-6">{t('checkout.pickupNote', '请到店出示订单号取餐 / 等待配送')}</p>
           <Link to={`/order-status?order=${orderResult.order_no}`} className="block mb-3">
-            <Button className="w-full">📋 查看订单状态</Button>
+            <Button className="w-full">📋 {t('checkout.viewOrderStatus', '查看订单状态')}</Button>
           </Link>
           <div className="flex gap-3">
-            <Link to="/" className="flex-1"><Button variant="outline" className="w-full">返回首页</Button></Link>
-            <Link to="/menu" className="flex-1"><Button className="w-full">继续点餐</Button></Link>
+            <Link to="/" className="flex-1"><Button variant="outline" className="w-full">{t('checkout.backHome', '返回首页')}</Button></Link>
+            <Link to="/menu" className="flex-1"><Button className="w-full">{t('cart.continueOrdering', '继续点餐')}</Button></Link>
           </div>
         </div>
       </div>
@@ -94,8 +96,8 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 pt-16 flex flex-col items-center justify-center">
-        <Empty text="购物车是空的" icon="🛒" />
-        <Link to="/menu"><Button className="mt-4">去点餐</Button></Link>
+        <Empty text={t('cart.empty', '购物车是空的')} icon="🛒" />
+        <Link to="/menu"><Button className="mt-4">{t('cart.goOrder', '去点餐')}</Button></Link>
       </div>
     )
   }
@@ -104,24 +106,25 @@ export default function Checkout() {
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="bg-white border-b sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
-          <Link to="/menu" className="text-gray-600 hover:text-primary-600 text-sm">← 返回菜单</Link>
-          <h1 className="text-lg font-bold text-gray-800 ml-4">结算</h1>
+          <Link to="/menu" className="text-gray-600 hover:text-primary-600 text-sm">← {t('checkout.backToMenu', '返回菜单')}</Link>
+          <h1 className="text-lg font-bold text-gray-800 ml-4">{t('checkout.title', '结算')}</h1>
         </div>
       </div>
       <div className="max-w-3xl mx-auto px-4 py-8">
 
         {!business.open && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-600 font-medium">⚠️ 今日门店休息，暂不接受下单</p>
+            <p className="text-red-600 font-medium">⚠️ {t('checkout.closedWarning', '今日门店休息，暂不接受下单')}</p>
           </div>
         )}
 
+        {/* 取餐方式 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
-          <h3 className="font-semibold text-gray-800 mb-4">取餐方式</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.pickupMethod', '取餐方式')}</h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { value: 'takeout', label: '自取', icon: '🥡', desc: '到店取餐' },
-              { value: 'delivery', label: '配送', icon: '🛵', desc: '送货上门' }
+              { value: 'takeout', label: t('checkout.takeout', '自取'), icon: '🥡', desc: t('checkout.takeoutDesc', '到店取餐') },
+              { value: 'delivery', label: t('checkout.delivery', '配送'), icon: '🛵', desc: t('checkout.deliveryDesc', '送货上门') }
             ].map(opt => (
               <button
                 key={opt.value}
@@ -136,27 +139,29 @@ export default function Checkout() {
           </div>
           {diningType === 'delivery' && (
             <p className="text-xs text-gray-400 mt-3">
-              配送范围 {settings.delivery_range_miles || 3} 英里内，满 ${freeDeliveryMin} 免配送费，否则配送费 ${settings.delivery_fee || '3.99'}
+              {t('checkout.deliveryRangePrefix', '配送范围')} {settings.delivery_range_miles || 3} {t('checkout.milesWithin', '英里内')}，{t('checkout.freeDeliveryOver', '满')} ${freeDeliveryMin} {t('checkout.freeDelivery', '免配送费')}，{t('checkout.otherwiseFee', '否则配送费')} ${settings.delivery_fee || '3.99'}
             </p>
           )}
         </div>
 
+        {/* 联系信息 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
-          <h3 className="font-semibold text-gray-800 mb-4">联系信息</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.contactInfo', '联系信息')}</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Input label="姓名 *" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="您的姓名" />
-              <Input label="电话 *" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="联系电话" />
+              <Input label={t('checkout.nameLabel', '姓名 *')} value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder={t('checkout.namePlaceholder', '您的姓名')} />
+              <Input label={t('checkout.phoneLabel', '电话 *')} value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder={t('checkout.phonePlaceholder', '联系电话')} />
             </div>
             {diningType === 'delivery' && (
-              <Input label="配送地址 *" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="详细配送地址" />
+              <Input label={t('checkout.addressLabel', '配送地址 *')} value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder={t('checkout.addressPlaceholder', '详细配送地址')} />
             )}
-            <Textarea label="订单备注" value={note} onChange={e => setNote(e.target.value)} placeholder="特殊要求，如少辣、不要葱等" rows={3} />
+            <Textarea label={t('checkout.noteLabel', '订单备注')} value={note} onChange={e => setNote(e.target.value)} placeholder={t('checkout.notePlaceholder', '特殊要求，如少辣、不要葱等')} rows={3} />
           </div>
         </div>
 
+        {/* 订单明细 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
-          <h3 className="font-semibold text-gray-800 mb-4">订单明细</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.orderDetails', '订单明细')}</h3>
           <div className="space-y-3 mb-4">
             {items.map((item, i) => {
               const tagsExtra = (item.notes || []).reduce((sum, t) => sum + (getTagInfo(t).extra_price || 0), 0)
@@ -178,25 +183,25 @@ export default function Checkout() {
             })}
           </div>
           <div className="border-t pt-3 space-y-2">
-            <div className="flex justify-between text-sm text-gray-600"><span>商品小计</span><span>${subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-600"><span>税费 ({(taxRate * 100).toFixed(3)}%)</span><span>${tax.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-600"><span>{t('checkout.subtotal', '商品小计')}</span><span>${subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-600"><span>{t('checkout.tax', '税费')} ({(taxRate * 100).toFixed(3)}%)</span><span>${tax.toFixed(2)}</span></div>
             {diningType === 'delivery' && (
               <div className="flex justify-between text-sm text-gray-600">
-                <span>配送费 {deliveryFee === 0 && <span className="text-green-600">(已免)</span>}</span>
+                <span>{t('checkout.deliveryFee', '配送费')} {deliveryFee === 0 && <span className="text-green-600">({t('checkout.freeFee', '已免')})</span>}</span>
                 <span>${deliveryFee.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
-              <span>合计</span>
+              <span>{t('checkout.total', '合计')}</span>
               <span className="text-primary-600">${total.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
         <div className="flex gap-4">
-          <Link to="/menu"><Button variant="outline">返回菜单</Button></Link>
+          <Link to="/menu"><Button variant="outline">{t('checkout.backToMenu', '返回菜单')}</Button></Link>
           <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !business.open}>
-            {submitting ? '提交中...' : '提交订单'}
+            {submitting ? t('checkout.submitting', '提交中...') : t('checkout.submit', '提交订单')}
           </Button>
         </div>
       </div>
