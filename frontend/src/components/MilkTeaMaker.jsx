@@ -18,9 +18,9 @@ const toppingOptions = [
 const teaColorPalette = ['#a97542', '#9fb555', '#b04d2a', '#6b5a44', '#7c3aed', '#0891b2', '#be185d', '#65a30d']
 
 export default function MilkTeaMaker({ teas }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const teaOptions = teas && teas.length > 0
-    ? teas.map((tea, i) => ({ name: tea.name || tea, color: tea.color || teaColorPalette[i % teaColorPalette.length], label: tea.name_en || tea.name || tea }))
+    ? teas.map((tea, i) => ({ name: tea.name || tea, color: tea.color || teaColorPalette[i % teaColorPalette.length], label: language === 'en' ? (tea.name_en || tea.name || tea) : (tea.name || tea) }))
     : defaultTeaOptions.map(opt => ({ ...opt, label: t(opt.labelKey, opt.name) }))
   const renderedToppingOptions = toppingOptions.map(opt => ({ ...opt, label: t(opt.labelKey, opt.name) }))
   const [teaBase, setTeaBase] = useState('')
@@ -31,7 +31,7 @@ export default function MilkTeaMaker({ teas }) {
 
   const toggleTopping = (name) => {
     if (toppings.includes(name)) {
-      setToppings(toppings.filter(item => item !== name))
+      setToppings(toppings.filter(item => item.name !== name))
     } else {
       setToppings([...toppings, name])
     }
