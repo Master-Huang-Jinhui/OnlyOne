@@ -8,7 +8,7 @@ import { Button, Badge, Empty, toast } from '../../components/ui'
 
 export default function Menu() {
   const navigate = useNavigate()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, flavorTags, getTagInfo, calcTagsExtraPrice, loadFlavors } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
@@ -122,7 +122,7 @@ export default function Menu() {
         <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
           <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{t('menu.all', '全部')}</button>
           {categories.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{cat.name}</button>
+            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{language === 'en' ? (cat.name_en || cat.name) : cat.name}</button>
           ))}
         </div>
 
@@ -142,9 +142,9 @@ export default function Menu() {
                     {product.is_recommend && <Badge variant="danger" className="absolute top-3 left-3">{t('home.recommend', '推荐')}</Badge>}
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold text-gray-800 mb-1">{product.name}</h3>
-                    {product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
-                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{product.description}</p>
+                    <h3 className="font-bold text-gray-800 mb-1">{language === 'en' ? (product.name_en || product.name) : product.name}</h3>
+                    {language !== 'en' && product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
+                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{language === 'en' ? (product.description_en || product.description) : product.description}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-bold text-primary-600">${product.price?.toFixed(2)}</span>
                       <Button size="sm" onClick={() => handleAdd(product)} disabled={!business.open}>{business.open ? t('menu.add', '+ 加入') : t('menu.closedBtn', '休息中')}</Button>
@@ -196,7 +196,7 @@ export default function Menu() {
                         <span className="text-xs text-gray-400">{record.date}</span>
                         <span className="text-sm font-bold text-primary-600">${record.total.toFixed(2)}</span>
                       </div>
-                      <div className="text-sm text-gray-600 mb-2">{record.items.map((item, i) => <span key={i}>{item.name}×{item.quantity}{i < record.items.length - 1 ? '、' : ''}</span>)}</div>
+                      <div className="text-sm text-gray-600 mb-2">{record.items.map((item, i) => <span key={i}>{language === 'en' ? (item.name_en || item.name) : item.name}×{item.quantity}{i < record.items.length - 1 ? '、' : ''}</span>)}</div>
                       <Button size="sm" variant="outline" onClick={() => { reorderFromHistory(record.id); toast(t('menu.addedToCart', '已加入购物车')) }}>{t('menu.reorder', '再来一单')}</Button>
                     </div>
                   ))}
@@ -209,7 +209,7 @@ export default function Menu() {
                       <div key={item.cartId} className="bg-gray-50 rounded-lg p-3">
                         <div className="flex items-start justify-between mb-1">
                           <div className="flex-1">
-                            <p className="font-medium text-gray-800 text-sm">{item.name}</p>
+                            <p className="font-medium text-gray-800 text-sm">{language === 'en' ? (item.name_en || item.name) : item.name}</p>
                             {item.notes && item.notes.length > 0 && renderTags(item.notes, true)}
                           </div>
                           <span className="font-bold text-primary-600 text-sm">${(unitPrice * item.quantity).toFixed(2)}</span>
@@ -257,7 +257,7 @@ export default function Menu() {
             <div className="p-4 border-b flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-800">{t('menu.selectFlavorTitle', '选择口味')}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{tagsDialog.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{language === 'en' ? (tagsDialog.name_en || tagsDialog.name) : tagsDialog.name}</p>
               </div>
               <button onClick={() => setTagsDialog(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>

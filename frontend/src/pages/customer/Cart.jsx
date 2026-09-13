@@ -6,7 +6,7 @@ import { Button, Input, Empty, Dialog } from '../../components/ui'
 
 export default function Cart() {
   const navigate = useNavigate()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { items, updateQuantity, updateNote, clearNote, removeItem, clear, subtotal, totalCount } = useCart()
   const [noteDialog, setNoteDialog] = useState(null)
   const [noteText, setNoteText] = useState('')
@@ -50,7 +50,7 @@ export default function Cart() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-800">{item.name}</h3>
+                      <h3 className="font-semibold text-gray-800">{language === 'en' ? (item.name_en || item.name) : item.name}</h3>
                       {item.note && (
                         <span className="inline-block mt-1 text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded">📝 {item.note}</span>
                       )}
@@ -106,7 +106,7 @@ export default function Cart() {
           </>
         }
       >
-        <p className="text-sm text-gray-500 mb-3">{t('cart.productLabel', '商品')}：{noteDialog?.name}</p>
+        <p className="text-sm text-gray-500 mb-3">{t('cart.productLabel', '商品')}：{language === 'en' ? (noteDialog?.name_en || noteDialog?.name) : noteDialog?.name}</p>
         <Input
           placeholder={t('cart.notePlaceholder', '例如：少冰、半糖、不要香菜...')}
           value={noteText}
