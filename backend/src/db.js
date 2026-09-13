@@ -23,6 +23,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
@@ -32,6 +33,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS platforms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -46,6 +48,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -53,6 +56,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -67,6 +71,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_no TEXT UNIQUE NOT NULL,
@@ -86,6 +91,7 @@ db.exec(`
     table_session TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS tables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_no TEXT UNIQUE NOT NULL,
@@ -102,12 +108,14 @@ db.exec(`
     qr_custom_url TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS table_zones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS table_reservations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_id INTEGER,
@@ -121,7 +129,9 @@ db.exec(`
     status TEXT DEFAULT 'pending',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+
   CREATE TABLE IF NOT EXISTS menus (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER DEFAULT 0,
@@ -131,6 +141,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS forms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -139,12 +150,14 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS form_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     form_id INTEGER,
     data TEXT DEFAULT '{}',
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_blocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     block_key TEXT UNIQUE,
@@ -156,6 +169,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS carousel (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image TEXT,
@@ -164,6 +178,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS memos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -173,6 +188,7 @@ db.exec(`
     completed INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS content_sections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -185,6 +201,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS new_products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -195,6 +212,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS role_permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -202,6 +220,7 @@ db.exec(`
     can_view INTEGER DEFAULT 1,
     can_edit INTEGER DEFAULT 0
   );
+
   CREATE TABLE IF NOT EXISTS flavor_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -209,6 +228,7 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     category_ids TEXT
   );
+
   CREATE TABLE IF NOT EXISTS flavor_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     category_id INTEGER,
@@ -219,6 +239,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1
   );
+
   CREATE TABLE IF NOT EXISTS order_statuses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     status_key TEXT NOT NULL,
@@ -231,6 +252,7 @@ db.exec(`
     next_status TEXT,
     next_label TEXT
   );
+
   CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -240,6 +262,7 @@ db.exec(`
     clock_out TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -252,6 +275,7 @@ db.exec(`
     note TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS coupons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -268,6 +292,7 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS member_coupons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     member_id INTEGER NOT NULL,
@@ -278,6 +303,7 @@ db.exec(`
     obtained_at TEXT DEFAULT (datetime('now','localtime')),
     used_at TEXT
   );
+
   CREATE TABLE IF NOT EXISTS points_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     member_id INTEGER NOT NULL,
@@ -286,6 +312,7 @@ db.exec(`
     reason TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
+
   CREATE TABLE IF NOT EXISTS queue_numbers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     number TEXT NOT NULL,
@@ -298,6 +325,7 @@ db.exec(`
     called_at TEXT,
     completed_at TEXT
   );
+
   CREATE TABLE IF NOT EXISTS translations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT NOT NULL UNIQUE,
@@ -386,7 +414,26 @@ try {
     { key: 'login.password', page: 'login', desc: '密码', trans: { zh: '密码', en: 'Password', es: 'Contraseña' } },
     { key: 'login.submit', page: 'login', desc: '登录按钮', trans: { zh: '登录', en: 'Sign In', es: 'Entrar' } },
     { key: 'login.logout', page: 'login', desc: '退出登录', trans: { zh: '退出登录', en: 'Logout', es: 'Cerrar Sesión' } },
-    { key: 'login.changePassword', page: 'login', desc: '修改密码', trans: { zh: '修改密码', en: 'Change Password', es: 'Cambiar Contraseña' } }
+    { key: 'login.changePassword', page: 'login', desc: '修改密码', trans: { zh: '修改密码', en: 'Change Password', es: 'Cambiar Contraseña' } },
+    { key: 'home.newArrivals', page: 'home', desc: '限时尝鲜', trans: { zh: '限时尝鲜', en: 'Limited Time', es: 'Tiempo Limitado' } },
+    { key: 'home.newInProgress', page: 'home', desc: '新品研发中', trans: { zh: '新品研发中', en: 'New Products Coming Soon', es: 'Nuevos Productos Pronto' } },
+    { key: 'home.newInProgressDesc', page: 'home', desc: '新品研发中描述', trans: { zh: '我们的厨师团队正在精心研制全新美味，每一款都经过反复调试与改良。敬请期待，惊喜即将登场！', en: 'Our chef team is carefully developing new delicious flavors, each经过反复调试与改良。Stay tuned, surprises coming soon!', es: 'Nuestro equipo de chefs está desarrollando nuevos sabores deliciosos. ¡Mantente atento, sorpresas pronto!' } },
+    { key: 'home.selectedTea', page: 'home', desc: '精选好茶', trans: { zh: '精选好茶', en: 'Selected Teas', es: 'Tés Seleccionados' } },
+    { key: 'home.ourPhilosophy', page: 'home', desc: '我们的理念', trans: { zh: '我们的理念', en: 'Our Philosophy', es: 'Nuestra Filosofía' } },
+    { key: 'home.interactive', page: 'home', desc: '互动体验', trans: { zh: '互动体验', en: 'Interactive Experience', es: 'Experiencia Interactiva' } },
+    { key: 'home.milkTeaBirth', page: 'home', desc: '一杯奶茶的诞生', trans: { zh: '一杯奶茶的诞生', en: 'Birth of a Milk Tea', es: 'Nacimiento de un Té con Leche' } },
+    { key: 'home.milkTeaBirthDesc', page: 'home', desc: '奶茶制作描述', trans: { zh: '点击按钮，亲手体验奶茶制作的每一步', en: 'Click buttons to experience every step of milk tea making', es: 'Haz clic en los botones para experimentar cada paso de la preparación del té con leche' } },
+    { key: 'home.deliciousNow', page: 'home', desc: '美味即刻拥有', trans: { zh: '美味即刻拥有', en: 'Delicious Now', es: 'Delicioso Ahora' } },
+    { key: 'home.viewFullMenu', page: 'home', desc: '查看完整菜单', trans: { zh: '查看完整菜单 →', en: 'View Full Menu →', es: 'Ver Menú Completo →' } },
+    { key: 'home.recommend', page: 'home', desc: '推荐', trans: { zh: '推荐', en: 'Recommend', es: 'Recomendado' } },
+    { key: 'home.addToCart', page: 'home', desc: '加入购物车', trans: { zh: '加入购物车', en: 'Add to Cart', es: 'Añadir al Carrito' } },
+    { key: 'home.closed', page: 'home', desc: '休息中', trans: { zh: '休息中', en: 'Closed', es: 'Cerrado' } },
+    { key: 'home.address', page: 'home', desc: '地址', trans: { zh: '地址', en: 'Address', es: 'Dirección' } },
+    { key: 'home.phone', page: 'home', desc: '电话', trans: { zh: '电话', en: 'Phone', es: 'Teléfono' } },
+    { key: 'home.welcomeCall', page: 'home', desc: '欢迎来电咨询', trans: { zh: '欢迎来电咨询', en: 'Welcome to Call', es: 'Bienvenido a Llamar' } },
+    { key: 'home.businessHours', page: 'home', desc: '营业时间', trans: { zh: '营业时间', en: 'Business Hours', es: 'Horario de Atención' } },
+    { key: 'home.openToday', page: 'home', desc: '今日营业', trans: { zh: '今日营业', en: 'Open Today', es: 'Abierto Hoy' } },
+    { key: 'home.closedToday', page: 'home', desc: '今日休息', trans: { zh: '今日休息', en: 'Closed Today', es: 'Cerrado Hoy' } }
   ];
   const insertTranslation = db.prepare('INSERT OR IGNORE INTO translations (key, page, description, translations) VALUES (?, ?, ?, ?)');
   defaultTranslations.forEach(t => {
