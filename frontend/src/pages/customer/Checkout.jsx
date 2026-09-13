@@ -118,7 +118,6 @@ export default function Checkout() {
           </div>
         )}
 
-        {/* 取餐方式 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.pickupMethod', '取餐方式')}</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -144,7 +143,6 @@ export default function Checkout() {
           )}
         </div>
 
-        {/* 联系信息 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.contactInfo', '联系信息')}</h3>
           <div className="space-y-4">
@@ -159,7 +157,6 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* 订单明细 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">{t('checkout.orderDetails', '订单明细')}</h3>
           <div className="space-y-3 mb-4">

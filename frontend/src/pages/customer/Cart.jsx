@@ -75,7 +75,6 @@ export default function Cart() {
           ))}
         </div>
 
-        {/* 小计 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <div className="flex justify-between text-gray-600 mb-2">
             <span>{t('cart.subtotal', '商品小计')}</span>
@@ -96,7 +95,6 @@ export default function Cart() {
         </div>
       </div>
 
-      {/* 备注对话框 */}
       <Dialog
         open={!!noteDialog}
         onClose={() => setNoteDialog(null)}
