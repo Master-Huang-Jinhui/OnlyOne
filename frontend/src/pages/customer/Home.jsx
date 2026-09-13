@@ -30,13 +30,13 @@ export default function Home() {
   const showTea = settings.show_tea_sourcing !== false && enabledTeas.length > 0
 
   const sections = [
-    { id: 'new', label: '新品' },
-    { id: 'brand', label: '品牌' },
-    ...(showTea ? [{ id: 'tea', label: '茶品' }] : []),
-    { id: 'craft', label: '工艺' },
-    { id: 'about', label: '关于' },
-    { id: 'menu', label: '菜单' },
-    { id: 'contact', label: '联系' }
+    { id: 'new', label: t('nav.new') },
+    { id: 'brand', label: t('nav.brand') },
+    ...(showTea ? [{ id: 'tea', label: t('nav.tea') }] : []),
+    { id: 'craft', label: t('nav.craft') },
+    { id: 'about', label: t('nav.about') },
+    { id: 'menu', label: t('nav.menu') },
+    { id: 'contact', label: t('nav.contact') }
   ]
 
   useEffect(() => {
@@ -113,12 +113,12 @@ export default function Home() {
                 </>
               )}
             </div>
-            <Link to="/order-status" className="text-sm text-gray-600 hover:text-primary-600 font-medium hidden sm:block">查订单</Link>
+            <Link to="/order-status" className="text-sm text-gray-600 hover:text-primary-600 font-medium hidden sm:block">{t('nav.order')}</Link>
             <Link to="/cart" className="relative p-2 text-gray-600 hover:text-primary-600">
               <span className="text-xl">🛒</span>
               {totalCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{totalCount}</span>}
             </Link>
-            <Link to="/login" className="text-sm text-primary-600 hover:text-primary-700 font-medium">管理登录</Link>
+            <Link to="/login" className="text-sm text-primary-600 hover:text-primary-700 font-medium">{t('nav.admin')}</Link>
           </div>
         </div>
       </nav>
@@ -163,8 +163,8 @@ export default function Home() {
       <section id="new" className="py-16 bg-gradient-to-br from-amber-50 to-orange-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-10 reveal">
-            <Badge variant="primary" className="mb-4">新品上市</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">限时尝鲜</h2>
+            <Badge variant="primary" className="mb-4">{t('nav.new')}</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">{t('home.newArrivals')}</h2>
           </div>
           {newProducts.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -185,8 +185,8 @@ export default function Home() {
           ) : (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">👨‍🍳</div>
-              <h3 className="text-xl font-bold text-gray-700 mb-2">新品研发中</h3>
-              <p className="text-gray-500 max-w-md mx-auto">我们的厨师团队正在精心研制全新美味，每一款都经过反复调试与改良。敬请期待，惊喜即将登场！</p>
+              <h3 className="text-xl font-bold text-gray-700 mb-2">{t('home.newInProgress')}</h3>
+              <p className="text-gray-500 max-w-md mx-auto">{t('home.newInProgressDesc')}</p>
             </div>
           )}
         </div>
@@ -194,7 +194,7 @@ export default function Home() {
 
       <section id="brand" className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
-          <Badge variant="primary" className="mb-4">品牌故事</Badge>
+          <Badge variant="primary" className="mb-4">{t('nav.brand')}</Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">{settings.brand_story ? settings.brand_story.split('，')[0] : '法拉盛门店'}</h2>
           <p className="text-lg text-gray-600 leading-relaxed">{settings.brand_story || '法拉盛门店，烧烤 + 新式茶饮定位'}</p>
           {settings.brand_story_en && <p className="text-md text-gray-400 mt-3 italic">{settings.brand_story_en}</p>}
@@ -205,8 +205,8 @@ export default function Home() {
       <section id="tea" className="py-20 bg-gradient-to-b from-blue-50/50 to-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
-            <Badge variant="primary" className="mb-4">茶品溯源</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">精选好茶</h2>
+            <Badge variant="primary" className="mb-4">{t('nav.tea')}</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">{t('home.selectedTea')}</h2>
           </div>
           <div className="flex flex-wrap justify-center gap-8">
             {enabledTeas.map((tea, i) => (
@@ -226,7 +226,10 @@ export default function Home() {
 
       <section id="craft" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12 reveal"><Badge variant="primary" className="mb-4">奶茶工艺</Badge><h2 className="text-3xl md:text-4xl font-bold text-gray-800">我们的理念</h2></div>
+          <div className="text-center mb-12 reveal">
+            <Badge variant="primary" className="mb-4">{t('nav.craft')}</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">{t('home.ourPhilosophy')}</h2>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {craftPhilosophy.map((item, i) => (
               <div key={i} className="text-center p-6 rounded-xl bg-gradient-to-br from-primary-50 to-blue-50 reveal" style={{ transitionDelay: `${i * 100}ms` }}>
@@ -242,9 +245,9 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-br from-primary-50 via-white to-blue-50">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="reveal">
-            <Badge variant="primary" className="mb-4">互动体验</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">一杯奶茶的诞生</h2>
-            <p className="text-gray-500 mb-10">点击按钮，亲手体验奶茶制作的每一步</p>
+            <Badge variant="primary" className="mb-4">{t('home.interactive')}</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">{t('home.milkTeaBirth')}</h2>
+            <p className="text-gray-500 mb-10">{t('home.milkTeaBirthDesc')}</p>
           </div>
           <div className="reveal bg-white/70 backdrop-blur rounded-3xl p-8 shadow-lg border border-primary-100">
             <MilkTeaMaker teas={enabledTeas} />
@@ -254,8 +257,8 @@ export default function Home() {
 
       <section id="about" className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
-          <Badge variant="primary" className="mb-4">关于我们</Badge>
-          <h2 className="text-3xl font-bold text-gray-800 mb-6">{settings.about_text || '关于我们'}</h2>
+          <Badge variant="primary" className="mb-4">{t('nav.about')}</Badge>
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">{settings.about_text || t('nav.about')}</h2>
           <p className="text-gray-600 leading-relaxed">Only One BBQ & Tea 致力于为顾客提供最优质的烧烤和新式茶饮体验。我们坚持选用新鲜食材，现点现做，让每一位顾客都能品尝到最地道的美味。</p>
         </div>
       </section>
@@ -267,7 +270,7 @@ export default function Home() {
               {section.image ? (
                 <div className="w-full md:w-1/2 relative group">
                   <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
-                    <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <img src={section.image} alt={section.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
                 </div>
@@ -289,16 +292,16 @@ export default function Home() {
       <section id="menu" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
-            <Badge variant="primary" className="mb-4">精选菜单</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">美味即刻拥有</h2>
-            <Link to="/menu"><Button variant="outline">查看完整菜单 →</Button></Link>
+            <Badge variant="primary" className="mb-4">{t('nav.menu')}</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">{t('home.deliciousNow')}</h2>
+            <Link to="/menu"><Button variant="outline">{t('home.viewFullMenu')}</Button></Link>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.slice(0, 6).map((product, i) => (
               <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all reveal group" style={{ transitionDelay: `${i * 80}ms` }}>
                 <div className="h-44 bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center relative overflow-hidden">
                   {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <span className="text-5xl">🍜</span>}
-                  {product.is_recommend && <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">推荐</span>}
+                  {product.is_recommend && <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">{t('home.recommend')}</span>}
                 </div>
                 <div className="p-5">
                   <h3 className="font-bold text-gray-800 mb-1">{product.name}</h3>
@@ -306,7 +309,9 @@ export default function Home() {
                   <p className="text-sm text-gray-500 mb-4 line-clamp-2">{product.description}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-primary-600">${product.price?.toFixed(2)}</span>
-                    <Button size="sm" onClick={() => handleAddToCart(product)} disabled={!business.open}>{business.open ? '加入购物车' : '休息中'}</Button>
+                    <Button size="sm" onClick={() => handleAddToCart(product)} disabled={!business.open}>
+                      {business.open ? t('home.addToCart') : t('home.closed')}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -317,11 +322,25 @@ export default function Home() {
 
       <section id="contact" className="py-20 bg-gradient-to-br from-primary-600 to-primary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
-          <h2 className="text-3xl font-bold mb-8">联系我们</h2>
+          <h2 className="text-3xl font-bold mb-8">{t('nav.contact')}</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <div><div className="text-3xl mb-3">📍</div><h3 className="font-semibold mb-2">地址</h3><p className="text-primary-100 text-sm">{settings.address || '162-01 Sanford Ave, Flushing, NY'}</p></div>
-            <div><div className="text-3xl mb-3">📞</div><h3 className="font-semibold mb-2">电话</h3><p className="text-primary-100 text-sm">{settings.phone || '欢迎来电咨询'}</p></div>
-            <div><div className="text-3xl mb-3">🕐</div><h3 className="font-semibold mb-2">营业时间</h3><p className="text-primary-100 text-sm">{business.open ? `今日营业 ${business.open_time} - ${business.close_time}` : '今日休息'}</p></div>
+            <div>
+              <div className="text-3xl mb-3">📍</div>
+              <h3 className="font-semibold mb-2">{t('home.address')}</h3>
+              <p className="text-primary-100 text-sm">{settings.address || '162-01 Sanford Ave, Flushing, NY'}</p>
+            </div>
+            <div>
+              <div className="text-3xl mb-3">📞</div>
+              <h3 className="font-semibold mb-2">{t('home.phone')}</h3>
+              <p className="text-primary-100 text-sm">{settings.phone || t('home.welcomeCall')}</p>
+            </div>
+            <div>
+              <div className="text-3xl mb-3">🕐</div>
+              <h3 className="font-semibold mb-2">{t('home.businessHours')}</h3>
+              <p className="text-primary-100 text-sm">
+                {business.open ? `${t('home.openToday')} ${business.open_time} - ${business.close_time}` : t('home.closedToday')}
+              </p>
+            </div>
           </div>
         </div>
       </section>
