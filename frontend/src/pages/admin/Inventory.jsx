@@ -30,18 +30,21 @@ export default function Inventory() {
     return () => clearTimeout(timer)
   }, [searchKeyword])
 
+  // 加载货物列表（支持关键词模糊搜索）
   const loadGoods = () => {
     api.getGoods({ keyword: searchKeyword }).then(data => {
       setGoods(Array.isArray(data) ? data : [])
     }).catch(() => {})
   }
 
+  // 加载进货单列表
   const loadOrders = () => {
     api.getPurchaseOrders({}).then(data => {
       setOrders(Array.isArray(data) ? data : [])
     }).catch(() => {})
   }
 
+  // 保存货物信息（新建或编辑）
   const saveGoods = async () => {
     const { mode, data } = goodsDialog
     if (!data.name.trim()) { toast(t('inventory.nameRequired', '货物名称必填'), 'error'); return }
@@ -52,11 +55,13 @@ export default function Inventory() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除货物（需确认）
   const deleteGoods = async (g) => {
     if (!await confirm({ title: t('inventory.deleteTitle', '删除货物'), message: `${t('inventory.deleteMsgPrefix', '确定删除货物')}"${g.name}"${t('inventory.deleteMsgSuffix', '吗？')}`, variant: 'danger' })) return
     await api.deleteGoods(g.id); toast(t('inventory.deleted', '货物已删除')); loadGoods()
   }
 
+  // 打开新建进货单对话框，默认日期为今天
   const openNewOrder = () => {
     const today = new Date().toISOString().split('T')[0]
     setOrderDialog({
@@ -69,6 +74,7 @@ export default function Inventory() {
     })
   }
 
+  // 添加一行空的货物明细项
   const addOrderItem = () => {
     setOrderDialog(prev => ({
       ...prev,
@@ -76,6 +82,7 @@ export default function Inventory() {
     }))
   }
 
+  // 删除指定索引的货物明细项
   const removeOrderItem = (idx) => {
     setOrderDialog(prev => ({
       ...prev,
@@ -83,6 +90,7 @@ export default function Inventory() {
     }))
   }
 
+  // 更新货物明细项的某个字段，选择已有货物时自动带出单位和价格
   const updateOrderItem = (idx, field, value) => {
     setOrderDialog(prev => {
       const items = [...prev.data.items]
@@ -100,12 +108,14 @@ export default function Inventory() {
     })
   }
 
+  // 计算进货单总金额（货物小计 + 配送费 - 折扣）
   const calcOrderTotal = () => {
     if (!orderDialog) return 0
     const itemsTotal = orderDialog.data.items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), 0)
     return itemsTotal + (parseFloat(orderDialog.data.delivery_fee) || 0) - (parseFloat(orderDialog.data.discount) || 0)
   }
 
+  // 保存进货单（新建或编辑），保存后刷新货物库存
   const saveOrder = async () => {
     const { mode, data } = orderDialog
     if (!data.supplier.trim()) { toast(t('inventory.supplierRequired', '供应商必填'), 'error'); return }
@@ -117,6 +127,7 @@ export default function Inventory() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 查看进货单详情
   const viewOrder = async (id) => {
     try {
       const data = await api.getPurchaseOrder(id)
@@ -124,11 +135,13 @@ export default function Inventory() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除进货单（需确认）
   const deleteOrder = async (o) => {
     if (!await confirm({ title: t('inventory.deleteOrderTitle', '删除进货单'), message: `${t('inventory.deleteOrderMsgPrefix', '确定删除进货单')}"${o.order_no || o.id}"${t('inventory.deleteOrderMsgSuffix', '吗？')}`, variant: 'danger' })) return
     await api.deletePurchaseOrder(o.id); toast(t('inventory.orderDeleted', '进货单已删除')); loadOrders()
   }
 
+  // 清洗OCR识别出的文本（去除误识别字符）
   const cleanOcrText = (text) => {
     return text
       .replace(/false/gi, '')
@@ -138,6 +151,7 @@ export default function Inventory() {
       .trim()
   }
 
+  // 解析小票文本为货物明细列表（正则匹配品名+数量+单价）
   const parseReceiptText = (text) => {
     const cleaned = cleanOcrText(text)
     const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0)
@@ -157,6 +171,7 @@ export default function Inventory() {
     return items
   }
 
+  // 处理拍照上传：用Tesseract.js识别小票图片，自动填充货物明细
   const handleOcrUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
