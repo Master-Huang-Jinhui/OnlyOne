@@ -8,6 +8,7 @@ import { useConfirm } from '../../components/ConfirmDialog'
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function Dashboard() {
+  // 仪表盘：统计卡片 + 热销TOP5 + 备忘录 + 待处理订单 + 外卖平台，15秒自动刷新
   const confirm = useConfirm()
   const navigate = useNavigate()
   const { t } = useLanguage()
@@ -34,6 +35,7 @@ export default function Dashboard() {
   }
   const diningMap = { dinein: t('dining.dinein', '堂吃'), takeout: t('dining.takeout', '自取'), delivery: t('dining.delivery', '配送') }
 
+  // 推进订单到下一个状态（待处理→制作中→待取餐→已完成）
   const updateOrderStatus = async (id, status) => {
     try {
       await api.updateOrderStatus(id, status)
@@ -43,15 +45,18 @@ export default function Dashboard() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 获取今天00:00的ISO时间字符串（用于筛选今日订单）
   const todayStart = () => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`
   }
+  // 获取当前时间的ISO字符串
   const nowStr = () => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
 
+  // 加载今日待处理订单（分页），新订单到来时播放提示音+震动
   const loadPendingOrders = (page = pendingPage) => {
     api.getOrders({ status: 'pending', page, page_size: pendingPageSize, sort_by: 'created_at', sort_order: 'desc', start_date: todayStart(), end_date: nowStr() })
       .then(data => {
@@ -78,6 +83,7 @@ export default function Dashboard() {
     return () => clearInterval(timer)
   }, [])
 
+  // 加载仪表盘全部数据：统计/平台/备忘录/热销/待处理订单
   const loadData = () => {
     api.getOrderStats().then(data => setStats(data || {})).catch(() => {})
     api.getPlatforms().then(data => setPlatforms(Array.isArray(data) ? data : [])).catch(() => {})
@@ -86,11 +92,13 @@ export default function Dashboard() {
     loadPendingOrders(1)
   }
 
+  // 切换待处理订单分页
   const handlePendingPageChange = (page) => {
     setPendingPage(page)
     loadPendingOrders(page)
   }
 
+  // 添加备忘录/重点事项
   const addMemo = async () => {
     if (!memoForm.title) { toast(t('dashboard.enterTitle', '请输入标题'), 'error'); return }
     try {
@@ -102,11 +110,13 @@ export default function Dashboard() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 切换备忘录完成/未完成状态
   const toggleMemo = async (memo) => {
     await api.updateMemo(memo.id, { completed: !memo.completed })
     loadData()
   }
 
+  // 删除备忘录
   const deleteMemo = async (id) => {
     await api.deleteMemo(id)
     loadData()
@@ -119,6 +129,7 @@ export default function Dashboard() {
         <span className="text-sm text-gray-400">{t('dashboard.welcome', '欢迎回来 👋')}</span>
       </div>
 
+      {/* 统计卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title={t('dashboard.todayOrders', '今日订单')} value={stats.today_count || 0} icon="📋" color="blue" />
         <StatCard title={t('dashboard.todayRevenue', '今日营收')} value={`$${(stats.today_revenue || 0).toFixed(2)}`} icon="💰" color="green" />
@@ -126,6 +137,7 @@ export default function Dashboard() {
         <StatCard title={t('dashboard.weekOrders', '本周订单')} value={stats.week_count || 0} icon="📊" color="purple" />
       </div>
 
+      {/* 热销 TOP5 */}
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/admin/stats/product')}>
         <div className="px-5 py-4 border-b flex items-center justify-between bg-gradient-to-r from-red-50 to-orange-50">
           <div className="flex items-center gap-2">
@@ -154,6 +166,7 @@ export default function Dashboard() {
         </div>
       </Card>
 
+      {/* 备忘录 / 重点事项（优先级最高） */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">{t('dashboard.memos', '备忘录 / 重点事项')}</h3>
@@ -184,6 +197,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* 今日待处理订单 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -228,14 +242,23 @@ export default function Dashboard() {
           <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
             <span className="text-sm text-gray-500">{t('common.totalLabel', '共')} {pendingTotal} {t('common.records', '条')}</span>
             <div className="flex items-center gap-2">
-              <button onClick={() => handlePendingPageChange(pendingPage - 1)} disabled={pendingPage <= 1} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">{t('common.prevPage', '上一页')}</button>
+              <button
+                onClick={() => handlePendingPageChange(pendingPage - 1)}
+                disabled={pendingPage <= 1}
+                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+              >{t('common.prevPage', '上一页')}</button>
               <span className="text-sm text-gray-600">{t('common.pageLabel', '第')} {pendingPage} / {Math.max(1, Math.ceil(pendingTotal / pendingPageSize))} {t('common.pageUnit', '页')}</span>
-              <button onClick={() => handlePendingPageChange(pendingPage + 1)} disabled={pendingPage >= Math.ceil(pendingTotal / pendingPageSize)} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">{t('common.nextPage', '下一页')}</button>
+              <button
+                onClick={() => handlePendingPageChange(pendingPage + 1)}
+                disabled={pendingPage >= Math.ceil(pendingTotal / pendingPageSize)}
+                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+              >{t('common.nextPage', '下一页')}</button>
             </div>
           </div>
         )}
       </Card>
 
+      {/* 外卖平台 */}
       <Card>
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">{t('dashboard.takeoutPlatforms', '外卖平台')}</h3>
@@ -268,17 +291,26 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <Dialog open={memoDialog} onClose={() => setMemoDialog(false)} title={t('dashboard.addMemo', '添加备忘 / 重点事项')} footer={<><Button variant="outline" onClick={() => setMemoDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={addMemo}>{t('common.save', '保存')}</Button></>}>
+      {/* 添加备忘对话框 */}
+      <Dialog
+        open={memoDialog}
+        onClose={() => setMemoDialog(false)}
+        title={t('dashboard.addMemo', '添加备忘 / 重点事项')}
+        footer={<><Button variant="outline" onClick={() => setMemoDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={addMemo}>{t('common.save', '保存')}</Button></>}
+      >
         <div className="space-y-4">
           <Input label={t('dashboard.memoTitle', '标题 *')} value={memoForm.title} onChange={e => setMemoForm({ ...memoForm, title: e.target.value })} placeholder={t('dashboard.memoTitlePlaceholder', '备忘标题')} />
           <Textarea label={t('dashboard.memoContent', '内容')} value={memoForm.content} onChange={e => setMemoForm({ ...memoForm, content: e.target.value })} placeholder={t('dashboard.memoContentPlaceholder', '详细内容（可选）')} rows={3} />
           <div className="grid grid-cols-2 gap-4">
-            <Select label={t('dashboard.memoType', '类型')} value={memoForm.type} onChange={e => setMemoForm({ ...memoForm, type: e.target.value })} options={[{ value: 'memo', label: t('dashboard.memoTypeMemo', '备忘录') }, { value: 'important', label: t('dashboard.memoTypeImportant', '重点事项') }]} />
-            <Select label={t('dashboard.memoPriority', '优先级')} value={memoForm.priority} onChange={e => setMemoForm({ ...memoForm, priority: e.target.value })} options={[{ value: 'normal', label: t('dashboard.priorityNormal', '普通') }, { value: 'high', label: t('dashboard.priorityHigh', '高优先级') }]} />
+            <Select label={t('dashboard.memoType', '类型')} value={memoForm.type} onChange={e => setMemoForm({ ...memoForm, type: e.target.value })}
+              options={[{ value: 'memo', label: t('dashboard.memoTypeMemo', '备忘录') }, { value: 'important', label: t('dashboard.memoTypeImportant', '重点事项') }]} />
+            <Select label={t('dashboard.memoPriority', '优先级')} value={memoForm.priority} onChange={e => setMemoForm({ ...memoForm, priority: e.target.value })}
+              options={[{ value: 'normal', label: t('dashboard.priorityNormal', '普通') }, { value: 'high', label: t('dashboard.priorityHigh', '高优先级') }]} />
           </div>
         </div>
       </Dialog>
 
+      {/* 订单详情弹窗 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`${t('orders.orderDetail', '订单详情')} - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
@@ -310,10 +342,14 @@ export default function Dashboard() {
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
               {statusMap[detail.status]?.next && (
-                <Button size="sm" onClick={() => updateOrderStatus(detail.id, statusMap[detail.status].next)}>{statusMap[detail.status].nextLabel}</Button>
+                <Button size="sm" onClick={() => updateOrderStatus(detail.id, statusMap[detail.status].next)}>
+                  {statusMap[detail.status].nextLabel}
+                </Button>
               )}
               {detail.status === 'pending' && (
-                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={async () => { if (await confirm({ title: t('orders.cancelOrder', '取消订单'), message: t('orders.confirmCancelOrder', '确定取消此订单？'), variant: 'danger' })) updateOrderStatus(detail.id, 'cancelled') }}>{t('orders.cancelOrder', '取消订单')}</Button>
+                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={async () => { if (await confirm({ title: t('orders.cancelOrder', '取消订单'), message: t('orders.confirmCancelOrder', '确定取消此订单？'), variant: 'danger' })) updateOrderStatus(detail.id, 'cancelled') }}>
+                  {t('orders.cancelOrder', '取消订单')}
+                </Button>
               )}
             </div>
           </div>
