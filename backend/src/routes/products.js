@@ -8,16 +8,20 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
+// ===== 分类管理 =====
+// 获取启用的菜品分类列表（前台公开）
 router.post('/categories/list', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories WHERE enabled = 1 ORDER BY sort_order, id').all();
   res.json(categories);
 });
 
+// 获取所有分类（含禁用，后台管理用）
 router.post('/categories/all', auth, managerAccess, (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order, id').all();
   res.json(categories);
 });
 
+// 新增菜品分类
 router.post('/categories', auth, managerAccess, (req, res) => {
   const { name, name_en, sort_order = 0 } = req.body;
   if (!name) return res.status(400).json({ error: '分类名称必填' });
@@ -25,6 +29,7 @@ router.post('/categories', auth, managerAccess, (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
+// 更新菜品分类
 router.post('/categories/update/:id', auth, managerAccess, (req, res) => {
   const { name, name_en, sort_order, enabled } = req.body;
   const fields = [];
@@ -38,11 +43,14 @@ router.post('/categories/update/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// 删除菜品分类
 router.post('/categories/delete/:id', auth, managerAccess, (req, res) => {
   db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 
+// ===== 商品管理 =====
+// 获取上架商品列表（前台公开，可按分类筛选）
 router.post('/list', (req, res) => {
   const { category_id } = req.query;
   let sql = 'SELECT p.*, c.name as category_name, c.name_en as category_name_en FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.available = 1';
@@ -53,17 +61,20 @@ router.post('/list', (req, res) => {
   res.json(products);
 });
 
+// 获取所有商品（含下架，后台管理用）
 router.post('/all', auth, managerAccess, (req, res) => {
   const products = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.sort_order, p.id').all();
   res.json(products);
 });
 
+// 获取单个商品详情
 router.post('/detail/:id', (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: '商品不存在' });
   res.json(product);
 });
 
+// 新增商品
 router.post('/', auth, managerAccess, (req, res) => {
   const { name, name_en, category_id, price, description, description_en, image, available = 1, is_recommend = 0, sort_order = 0 } = req.body;
   if (!name || price === undefined) return res.status(400).json({ error: '商品名称和价格必填' });
@@ -73,6 +84,7 @@ router.post('/', auth, managerAccess, (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
+// 更新商品（白名单字段，动态拼接UPDATE）
 router.post('/update/:id', auth, managerAccess, (req, res) => {
   const allowed = ['name', 'name_en', 'category_id', 'price', 'description', 'description_en', 'image', 'available', 'is_recommend', 'sort_order'];
   const fields = [];
@@ -89,6 +101,7 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// 删除商品（记录审计日志）
 router.post('/delete/:id', auth, managerAccess, (req, res) => {
   const product = db.prepare('SELECT name, name_en FROM products WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
@@ -96,8 +109,10 @@ router.post('/delete/:id', auth, managerAccess, (req, res) => {
   res.json({ success: true });
 });
 
+// ===== 导入导出 =====
 const EXPORT_HEADERS = ['一级大类', '菜品中文名', '菜品英文名', '价格', '是否上架', '图片URL', '描述', '英文描述'];
 
+// 下载Excel导入模板
 router.post('/export/template', auth, managerAccess, (req, res) => {
   const ws = XLSX.utils.aoa_to_sheet([
     EXPORT_HEADERS,
@@ -113,6 +128,7 @@ router.post('/export/template', auth, managerAccess, (req, res) => {
   res.send(buf);
 });
 
+// 导出全部商品为Excel
 router.post('/export', auth, managerAccess, (req, res) => {
   const products = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY c.sort_order, p.sort_order, p.id').all();
   const rows = [EXPORT_HEADERS];
@@ -129,6 +145,7 @@ router.post('/export', auth, managerAccess, (req, res) => {
   res.send(buf);
 });
 
+// 从Excel批量导入商品（检测重复，支持确认导入）
 router.post('/import', auth, managerAccess, upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: '请上传Excel文件' });
@@ -137,6 +154,7 @@ router.post('/import', auth, managerAccess, upload.single('file'), (req, res) =>
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
     if (rows.length < 2) return res.status(400).json({ error: '文件为空或格式错误' });
+
     const header = rows[0].map(h => String(h || '').trim());
     const catIdx = header.findIndex(h => h.includes('大类') || h.includes('分类'));
     const nameIdx = header.findIndex(h => h.includes('中文') || (h.includes('名') && !h.includes('英文')));
@@ -146,14 +164,20 @@ router.post('/import', auth, managerAccess, upload.single('file'), (req, res) =>
     const imgIdx = header.findIndex(h => h.includes('图片') || h.toLowerCase().includes('image'));
     const descIdx = header.findIndex(h => h === '描述' || (h.includes('描述') && !h.includes('英文')));
     const descEnIdx = header.findIndex(h => h.includes('英文描述') || h.includes('描述英文'));
-    if (nameIdx === -1 || priceIdx === -1) return res.status(400).json({ error: '必须包含"菜品中文名"和"价格"列' });
+
+    if (nameIdx === -1 || priceIdx === -1) {
+      return res.status(400).json({ error: '必须包含"菜品中文名"和"价格"列' });
+    }
+
     const insertProduct = db.prepare(`INSERT INTO products (name, name_en, category_id, price, description, description_en, image, available, is_recommend, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`);
     const getCategory = db.prepare('SELECT id FROM categories WHERE name = ? OR name_en = ?');
     const createCategory = db.prepare('INSERT INTO categories (name, name_en, sort_order) VALUES (?, ?, ?)');
     const getMaxSort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) as max_sort FROM products');
     const findDuplicate = db.prepare('SELECT id, name FROM products WHERE name = ? AND COALESCE(category_id, 0) = COALESCE(?, 0) LIMIT 1');
+
     const duplicates = [];
     const validRows = [];
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const name = String(row[nameIdx] || '').trim();
@@ -165,40 +189,55 @@ router.post('/import', auth, managerAccess, upload.single('file'), (req, res) =>
         categoryId = cat ? cat.id : null;
       }
       const dup = findDuplicate.get(name, categoryId);
-      if (dup) { duplicates.push({ row: i + 1, name, category: categoryId ? String(row[catIdx]) : '未分类' }); }
-      else { validRows.push(row); }
+      if (dup) {
+        duplicates.push({ row: i + 1, name, category: categoryId ? String(row[catIdx]) : '未分类' });
+      } else {
+        validRows.push(row);
+      }
     }
+
     if (!confirmImport && duplicates.length > 0) {
       return res.json({ needConfirm: true, duplicates: duplicates.slice(0, 20), duplicateCount: duplicates.length, totalRows: rows.length - 1 });
     }
+
     let success = 0, failed = 0, skipped = 0;
     const errors = [];
     let currentSort = getMaxSort.get().max_sort;
+
     const tx = db.transaction(() => {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const name = String(row[nameIdx] || '').trim();
         const price = parseFloat(row[priceIdx]) || 0;
         if (!name) { failed++; errors.push(`第${i + 1}行：商品名称为空，跳过`); continue; }
+
         let categoryId = null;
         if (catIdx !== -1 && row[catIdx]) {
           const catName = String(row[catIdx]).trim();
           let cat = getCategory.get(catName, catName);
-          if (!cat) { const r = createCategory.run(catName, '', 0); categoryId = r.lastInsertRowid; }
-          else { categoryId = cat.id; }
+          if (!cat) {
+            const r = createCategory.run(catName, '', 0);
+            categoryId = r.lastInsertRowid;
+          } else {
+            categoryId = cat.id;
+          }
         }
+
         const dup = findDuplicate.get(name, categoryId);
         if (dup) { skipped++; continue; }
+
         const nameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim() : '';
         const available = availIdx !== -1 ? (String(row[availIdx]).includes('否') || String(row[availIdx]).includes('0') ? 0 : 1) : 1;
         const image = imgIdx !== -1 ? String(row[imgIdx] || '').trim() : '';
         const description = descIdx !== -1 ? String(row[descIdx] || '').trim() : '';
         const description_en = descEnIdx !== -1 ? String(row[descEnIdx] || '').trim() : '';
+
         currentSort++;
         insertProduct.run(name, nameEn, categoryId, price, description, description_en, image, available, currentSort);
         success++;
       }
     });
+
     tx();
     res.json({ success, failed, skipped, errors: errors.slice(0, 10) });
   } catch (e) {
