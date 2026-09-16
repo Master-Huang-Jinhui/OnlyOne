@@ -10,12 +10,14 @@ export default function OrderStatuses() {
   const { t } = useLanguage()
   const confirm = useConfirm()
 
+  // 订单类型列表（堂吃/打包/配送）
   const DINING_TYPES = [
     { value: 'dinein', label: t('orderStatuses.dinein', '堂吃') },
     { value: 'takeout', label: t('orderStatuses.takeout', '打包/自取') },
     { value: 'delivery', label: t('orderStatuses.delivery', '配送') }
   ]
 
+  // 状态标签可选颜色
   const COLORS = [
     { value: 'primary', label: t('orderStatuses.colorBlue', '蓝色') },
     { value: 'success', label: t('orderStatuses.colorGreen', '绿色') },
@@ -30,18 +32,23 @@ export default function OrderStatuses() {
 
   useEffect(() => { loadStatuses() }, [])
 
+  // 加载所有订单状态配置
   const loadStatuses = async () => {
     try { const data = await api.getAllOrderStatuses(); setStatuses(Array.isArray(data) ? data : []) } catch (e) { toast(e.message, 'error') } finally { setLoading(false) }
   }
 
+  // 按订单类型分组状态列表
   const groupedByType = DINING_TYPES.map(dt => ({ ...dt, items: statuses.filter(s => s.dining_type === dt.value) }))
 
+  // 打开添加状态对话框
   const openAdd = (diningType) => {
     setDialog({ mode: 'add', data: { status_key: 'pending', dining_type: diningType, label: '', color: 'default', sort_order: 0, enabled: 1, is_active: 0, next_status: '', next_label: '' } })
   }
 
+  // 打开编辑状态对话框
   const openEdit = (status) => { setDialog({ mode: 'edit', data: { ...status } }) }
 
+  // 保存状态配置（新建或编辑）
   const save = async () => {
     const { mode, data } = dialog
     if (!data.status_key || !data.label.trim()) { toast(t('orderStatuses.required', '状态标识和名称必填'), 'error'); return }
@@ -52,15 +59,18 @@ export default function OrderStatuses() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 切换状态启用/禁用
   const toggleEnabled = async (status) => {
     try { await api.updateOrderStatus(status.id, { enabled: status.enabled ? 0 : 1 }); loadStatuses() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除状态（需确认）
   const remove = async (status) => {
     if (!await confirm({ title: t('orderStatuses.deleteTitle', '删除状态'), message: `${t('orderStatuses.deleteMsgPrefix', '确定删除状态')}"${status.label}"${t('orderStatuses.deleteMsgSuffix', '吗？')}`, variant: 'danger' })) return
     try { await api.deleteOrderStatus(status.id); toast(t('orderStatuses.deleted', '删除成功')); loadStatuses() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 根据颜色值返回对应的CSS类名
   const getColorClass = (color) => {
     const map = { primary: 'bg-blue-100 text-blue-700', success: 'bg-green-100 text-green-700', warning: 'bg-orange-100 text-orange-700', danger: 'bg-red-100 text-red-700', default: 'bg-gray-100 text-gray-600' }
     return map[color] || map.default
