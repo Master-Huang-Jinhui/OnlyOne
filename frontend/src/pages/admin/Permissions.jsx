@@ -17,6 +17,7 @@ export default function Permissions() {
 
   useEffect(() => { load() }, [])
 
+  // 权限快速模板：一键勾选对应角色的菜单
   const PERMISSION_TEMPLATES = [
     { name: t('perms.tplOwner', '店长（全部权限）'), desc: t('perms.tplOwnerDesc', '拥有后台全部菜单权限'), selectAll: true, menuNames: [] },
     { name: t('perms.tplCashier', '收银员（订单+商品）'), desc: t('perms.tplCashierDesc', '只能管理订单和商品'), menuNames: ['订单管理', '商品管理', '口味管理', '订单状态管理'] },
@@ -32,12 +33,14 @@ export default function Permissions() {
     { value: 'user', label: t('perms.regularUser', '普通用户') }
   ]
 
+  // 加载用户列表和菜单列表
   const load = () => {
     setLoading(true)
     api.getUsers().then(data => setUsers(Array.isArray(data) ? data : [])).catch(() => {})
     api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
   }
 
+  // 根据关键词和角色筛选用户（排除超级管理员admin）
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       if (u.role === 'admin') return false
@@ -51,6 +54,7 @@ export default function Permissions() {
     })
   }, [users, keyword, roleFilter])
 
+  // 打开权限分配对话框，解析用户已有的菜单权限
   const openPermission = (user) => {
     setEditingUser(user)
     setAppliedTemplate('')
@@ -63,6 +67,7 @@ export default function Permissions() {
     setDialog(true)
   }
 
+  // 切换单个菜单的选中状态
   const toggleMenu = (menuId) => {
     setSelectedMenus(prev => prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId])
     setAppliedTemplate('')
@@ -71,10 +76,14 @@ export default function Permissions() {
   const allMenuIds = useMemo(() => menus.map(m => m.id), [menus])
   const allSelected = allMenuIds.length > 0 && allMenuIds.every(id => selectedMenus.includes(id))
 
+  // 全选所有菜单
   const selectAll = () => { setSelectedMenus(allMenuIds); setAppliedTemplate(t('perms.appliedAll', '已全选')) }
+  // 全不选（默认全部可见）
   const selectNone = () => { setSelectedMenus([]); setAppliedTemplate(t('perms.appliedNone', '已全不选（默认全部可见）')) }
+  // 反选
   const invertSelection = () => { setSelectedMenus(allMenuIds.filter(id => !selectedMenus.includes(id))); setAppliedTemplate('') }
 
+  // 应用权限模板，自动勾选对应菜单
   const applyTemplate = (template) => {
     if (template.selectAll) {
       setSelectedMenus(allMenuIds)
@@ -86,6 +95,7 @@ export default function Permissions() {
     toast(`${t('perms.templateApplied', '已应用模板：')}${template.name}`)
   }
 
+  // 保存用户权限到后端
   const savePermission = async () => {
     if (!editingUser) return
     try {
@@ -97,11 +107,13 @@ export default function Permissions() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 根据菜单ID获取菜单名称
   const getMenuName = (menuId) => {
     const m = menus.find(m => m.id === menuId)
     return m ? m.name : `${t('perms.menu', '菜单')}${menuId}`
   }
 
+  // 获取用户已配置的菜单数量
   const getUserMenuCount = (user) => {
     try {
       const perms = JSON.parse(user.permissions || '{}')
