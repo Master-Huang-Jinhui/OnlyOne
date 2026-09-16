@@ -3,7 +3,7 @@ import { api } from '../../lib/api'
 import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Table, Badge, Dialog, Input, Select, Empty, toast } from '../../components/ui'
 import { useConfirm } from '../../components/ConfirmDialog'
-import { formatDateTime } from '../../utils/format'
+import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function Coupons() {
   const { t } = useLanguage()
@@ -19,6 +19,7 @@ export default function Coupons() {
 
   useEffect(() => { load(); loadStats() }, [])
 
+// 加载优惠券列表（按筛选条件分页）
   const load = () => {
     api.getCoupons({ status: statusFilter, page, page_size: pageSize }).then(data => {
       setCoupons(data.coupons || [])
@@ -26,17 +27,27 @@ export default function Coupons() {
     }).catch(() => {})
   }
 
-  const loadStats = () => { api.getCouponStats().then(data => setStats(data)).catch(() => {}) }
+  // 加载优惠券统计（总数/上架/已领取/已使用）
+  const loadStats = () => {
+    api.getCouponStats().then(data => setStats(data)).catch(() => {})
+  }
 
+  // 保存优惠券（新建或编辑）
   const save = async () => {
     const { mode, data } = dialog
     if (!data.name.trim() || !data.type || !data.value) { toast(t('coupons.required', '名称、类型、面值必填'), 'error'); return }
     try {
       const payload = {
-        name: data.name.trim(), type: data.type, value: parseFloat(data.value),
-        min_amount: parseFloat(data.min_amount) || 0, max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
-        valid_days: data.valid_days ? parseInt(data.valid_days) : null, stock: data.stock ? parseInt(data.stock) : null,
-        start_date: data.start_date || null, end_date: data.end_date || null, sort_order: parseInt(data.sort_order) || 0
+        name: data.name.trim(),
+        type: data.type,
+        value: parseFloat(data.value),
+        min_amount: parseFloat(data.min_amount) || 0,
+        max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
+        valid_days: data.valid_days ? parseInt(data.valid_days) : null,
+        stock: data.stock ? parseInt(data.stock) : null,
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        sort_order: parseInt(data.sort_order) || 0
       }
       if (mode === 'add') { await api.createCoupon(payload); toast(t('coupons.created', '优惠券创建成功')) }
       else { await api.updateCoupon(data.id, payload); toast(t('coupons.updated', '优惠券已更新')) }
@@ -44,17 +55,30 @@ export default function Coupons() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除优惠券（需确认）
   const remove = async (c) => {
     if (!await confirm({ title: t('coupons.deleteTitle', '删除优惠券'), message: `${t('coupons.deleteMsgPrefix', '确定删除优惠券')}"${c.name}"${t('coupons.deleteMsgSuffix', '吗？')}`, variant: 'danger' })) return
     try { await api.deleteCoupon(c.id); toast(t('coupons.deleted', '优惠券已删除')); load(); loadStats() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 切换优惠券上架/下架状态
   const toggleStatus = async (c) => {
-    try { await api.updateCoupon(c.id, { enabled: c.enabled ? 0 : 1 }); toast(c.enabled ? t('coupons.offShelf', '已下架') : t('coupons.onShelf', '已上架')); load() } catch (e) { toast(e.message, 'error') }
+    try {
+      await api.updateCoupon(c.id, { enabled: c.enabled ? 0 : 1 })
+      toast(c.enabled ? t('coupons.offShelf', '已下架') : t('coupons.onShelf', '已上架'))
+      load()
+    } catch (e) { toast(e.message, 'error') }
   }
 
-  const viewDetail = async (c) => { try { const data = await api.getCouponDetail(c.id); setDetail(data) } catch (e) { toast(e.message, 'error') } }
+  // 查看优惠券详情（领取/使用记录）
+  const viewDetail = async (c) => {
+    try {
+      const data = await api.getCouponDetail(c.id)
+      setDetail(data)
+    } catch (e) { toast(e.message, 'error') }
+  }
 
+  // 格式化优惠券面值（满减显示$金额，折扣显示百分比）
   const formatValue = (c) => c.type === 'fixed' ? `$${parseFloat(c.value).toFixed(2)}` : `${parseFloat(c.value)}%`
 
   const columns = [
@@ -83,10 +107,22 @@ export default function Coupons() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <Card className="p-4 bg-red-50"><p className="text-sm text-red-600">{t('coupons.totalCoupons', '优惠券总数')}</p><p className="text-3xl font-bold text-red-700 mt-1">{stats.total}</p></Card>
-        <Card className="p-4 bg-green-50"><p className="text-sm text-green-600">{t('coupons.onShelf', '上架中')}</p><p className="text-3xl font-bold text-green-700 mt-1">{stats.active}</p></Card>
-        <Card className="p-4 bg-blue-50"><p className="text-sm text-blue-600">{t('coupons.claimed', '已领取')}</p><p className="text-3xl font-bold text-blue-700 mt-1">{stats.totalClaimed}</p></Card>
-        <Card className="p-4 bg-yellow-50"><p className="text-sm text-yellow-600">{t('coupons.used', '已使用')}</p><p className="text-3xl font-bold text-yellow-700 mt-1">{stats.totalUsed}</p></Card>
+        <Card className="p-4 bg-red-50">
+          <p className="text-sm text-red-600">{t('coupons.totalCoupons', '优惠券总数')}</p>
+          <p className="text-3xl font-bold text-red-700 mt-1">{stats.total}</p>
+        </Card>
+        <Card className="p-4 bg-green-50">
+          <p className="text-sm text-green-600">{t('coupons.onShelf', '上架中')}</p>
+          <p className="text-3xl font-bold text-green-700 mt-1">{stats.active}</p>
+        </Card>
+        <Card className="p-4 bg-blue-50">
+          <p className="text-sm text-blue-600">{t('coupons.claimed', '已领取')}</p>
+          <p className="text-3xl font-bold text-blue-700 mt-1">{stats.totalClaimed}</p>
+        </Card>
+        <Card className="p-4 bg-yellow-50">
+          <p className="text-sm text-yellow-600">{t('coupons.used', '已使用')}</p>
+          <p className="text-3xl font-bold text-yellow-700 mt-1">{stats.totalUsed}</p>
+        </Card>
       </div>
 
       <div className="flex items-center gap-3">
@@ -99,14 +135,18 @@ export default function Coupons() {
           <Empty text={t('coupons.noCoupons', '暂无优惠券，点击右上角创建')} icon="🎟️" />
         ) : (
           <>
-            <Table columns={columns} data={coupons} actions={c => (
-              <div className="flex items-center gap-3">
-                <button onClick={() => viewDetail(c)} className="text-xs text-blue-600 hover:text-blue-700">{t('coupons.detail', '详情')}</button>
-                <button onClick={() => toggleStatus(c)} className={`text-xs ${c.enabled ? 'text-yellow-600' : 'text-green-600'}`}>{c.enabled ? t('coupons.offShelfBtn', '下架') : t('coupons.onShelfBtn', '上架')}</button>
-                <button onClick={() => setDialog({ mode: 'edit', data: { ...c } })} className="text-xs text-primary-600 hover:text-primary-700">{t('common.edit', '编辑')}</button>
-                <button onClick={() => remove(c)} className="text-xs text-red-400 hover:text-red-600">{t('common.delete', '删除')}</button>
-              </div>
-            )} />
+            <Table
+              columns={columns}
+              data={coupons}
+              actions={c => (
+                <div className="flex items-center gap-3">
+                  <button onClick={() => viewDetail(c)} className="text-xs text-blue-600 hover:text-blue-700">{t('coupons.detail', '详情')}</button>
+                  <button onClick={() => toggleStatus(c)} className={`text-xs ${c.enabled ? 'text-yellow-600' : 'text-green-600'}`}>{c.enabled ? t('coupons.offShelfBtn', '下架') : t('coupons.onShelfBtn', '上架')}</button>
+                  <button onClick={() => setDialog({ mode: 'edit', data: { ...c } })} className="text-xs text-primary-600 hover:text-primary-700">{t('common.edit', '编辑')}</button>
+                  <button onClick={() => remove(c)} className="text-xs text-red-400 hover:text-red-600">{t('common.delete', '删除')}</button>
+                </div>
+              )}
+            />
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t">
                 <span className="text-sm text-gray-400">{t('coupons.totalPrefix', '共')} {total} {t('coupons.totalMiddle', '条，第')} {page}/{totalPages} {t('coupons.pageSuffix', '页')}</span>

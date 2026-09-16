@@ -15,6 +15,7 @@ export default function Flavors() {
 
   useEffect(() => { load() }, [])
 
+  // 加载口味分类列表和商品分类（用于关联适用商品）
   const load = () => {
     api.getAllFlavorCategories().then(data => {
       const list = Array.isArray(data) ? data : []
@@ -24,42 +25,81 @@ export default function Flavors() {
     api.getAllCategories().then(data => setProductCategories(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
+  // 保存口味大类（新建或编辑）
   const saveCategory = async () => {
     const { mode, data } = catDialog
     const name = data.name.trim()
     if (!name) { toast(t('flavors.catNameRequired', '请填写分类名称'), 'error'); return }
     const categoryIds = Array.isArray(data.category_ids) ? data.category_ids : []
     try {
-      if (mode === 'add') { await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds }); toast(t('flavors.catAdded', '分类已添加')) }
-      else { await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds }); toast(t('flavors.catUpdated', '分类已更新')) }
-      setCatDialog(null); load()
+      if (mode === 'add') {
+        await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
+        toast(t('flavors.catAdded', '分类已添加'))
+      } else {
+        await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
+        toast(t('flavors.catUpdated', '分类已更新'))
+      }
+      setCatDialog(null)
+      load()
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const toggleCategory = async (cat) => { await api.updateFlavorCategory(cat.id, { enabled: cat.enabled ? 0 : 1 }); toast(cat.enabled ? t('flavors.catDisabled', '已禁用该分类') : t('flavors.catEnabled', '已启用该分类')); load() }
-
-  const deleteCategory = async (cat) => {
-    if (!await confirm({ title: t('flavors.confirmDeleteCatTitle', '删除分类'), message: `${t('flavors.confirmDeleteCatStart', '确定删除分类"')}${cat.name}${t('flavors.confirmDeleteCatEnd', '"吗？该分类下没有标签才能删除。')}`, variant: 'danger' })) return
-    try { await api.deleteFlavorCategory(cat.id); toast(t('flavors.catDeleted', '分类已删除')); load() } catch (e) { toast(e.message, 'error') }
+  // 切换口味大类启用/禁用
+  const toggleCategory = async (cat) => {
+    await api.updateFlavorCategory(cat.id, { enabled: cat.enabled ? 0 : 1 })
+    toast(cat.enabled ? t('flavors.catDisabled', '已禁用该分类') : t('flavors.catEnabled', '已启用该分类'))
+    load()
   }
 
+  // 删除口味大类（需确认）
+  const deleteCategory = async (cat) => {
+    if (!await confirm({ title: t('flavors.confirmDeleteCatTitle', '删除分类'), message: `${t('flavors.confirmDeleteCatStart', '确定删除分类"')}${cat.name}${t('flavors.confirmDeleteCatEnd', '"吗？该分类下没有标签才能删除。')}`, variant: 'danger' })) return
+    try {
+      await api.deleteFlavorCategory(cat.id)
+      toast(t('flavors.catDeleted', '分类已删除'))
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  // 保存口味标签（新建或编辑）
   const saveTag = async () => {
     const { mode, categoryId, data } = tagDialog
     const name = data.name.trim()
     if (!name) { toast(t('flavors.tagNameRequired', '请填写标签名称'), 'error'); return }
     try {
-      const payload = { category_id: categoryId, name, extra_price: parseFloat(data.extra_price) || 0, is_default: data.is_default ? 1 : 0, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0 }
-      if (mode === 'add') { await api.createFlavorTag(payload); toast(t('flavors.tagAdded', '标签已添加')) }
-      else { await api.updateFlavorTag(data.id, payload); toast(t('flavors.tagUpdated', '标签已更新')) }
-      setTagDialog(null); load()
+      const payload = {
+        category_id: categoryId,
+        name,
+        extra_price: parseFloat(data.extra_price) || 0,
+        is_default: data.is_default ? 1 : 0,
+        sort_order: data.sort_order || 0,
+        enabled: data.enabled ? 1 : 0
+      }
+      if (mode === 'add') {
+        await api.createFlavorTag(payload)
+        toast(t('flavors.tagAdded', '标签已添加'))
+      } else {
+        await api.updateFlavorTag(data.id, payload)
+        toast(t('flavors.tagUpdated', '标签已更新'))
+      }
+      setTagDialog(null)
+      load()
     } catch (e) { toast(e.message, 'error') }
   }
 
-  const toggleTag = async (tag) => { await api.updateFlavorTag(tag.id, { enabled: tag.enabled ? 0 : 1 }); toast(tag.enabled ? t('flavors.tagDisabled', '已禁用该标签') : t('flavors.tagEnabled', '已启用该标签')); load() }
+  // 切换口味标签启用/禁用
+  const toggleTag = async (tag) => {
+    await api.updateFlavorTag(tag.id, { enabled: tag.enabled ? 0 : 1 })
+    toast(tag.enabled ? t('flavors.tagDisabled', '已禁用该标签') : t('flavors.tagEnabled', '已启用该标签'))
+    load()
+  }
 
+  // 删除口味标签（需确认）
   const deleteTag = async (tag) => {
     if (!await confirm({ title: t('flavors.confirmDeleteTagTitle', '删除标签'), message: `${t('flavors.confirmDeleteTagStart', '确定删除标签"')}${tag.name}${t('flavors.confirmDeleteTagEnd', '"吗？')}`, variant: 'danger' })) return
-    await api.deleteFlavorTag(tag.id); toast(t('flavors.tagDeleted', '标签已删除')); load()
+    await api.deleteFlavorTag(tag.id)
+    toast(t('flavors.tagDeleted', '标签已删除'))
+    load()
   }
 
   const tagColumns = [
@@ -86,7 +126,9 @@ export default function Flavors() {
         <Card key={cat.id} className="overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 bg-gray-50 border-b">
             <div className="flex items-center gap-3">
-              <button onClick={() => setExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} className="text-gray-500 hover:text-gray-700 w-6">{expanded[cat.id] ? '▼' : '▶'}</button>
+              <button onClick={() => setExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} className="text-gray-500 hover:text-gray-700 w-6">
+                {expanded[cat.id] ? '▼' : '▶'}
+              </button>
               <h3 className="font-bold text-gray-800 text-lg">{cat.name}</h3>
               <Badge variant={cat.enabled ? 'success' : 'default'}>{cat.enabled ? t('flavors.enabledOn', '启用中') : t('flavors.disabledOff', '已禁用')}</Badge>
               <span className="text-xs text-gray-400">{cat.tags?.length || 0} {t('flavors.tagsUnit', '个标签')}</span>
@@ -104,13 +146,17 @@ export default function Flavors() {
               {(!cat.tags || cat.tags.length === 0) ? (
                 <Empty text={t('flavors.noTags', '该分类下暂无标签，点击右上角 + 标签 添加')} icon="🏷️" />
               ) : (
-                <Table columns={tagColumns} data={cat.tags} actions={tag => (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => toggleTag(tag)} className={`text-xs ${tag.enabled ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{tag.enabled ? t('flavors.disabled', '禁用') : t('flavors.enabled', '启用')}</button>
-                    <button onClick={() => setTagDialog({ mode: 'edit', categoryId: cat.id, data: { ...tag } })} className="text-xs text-primary-600 hover:text-primary-700">{t('common.edit', '编辑')}</button>
-                    <button onClick={() => deleteTag(tag)} className="text-xs text-red-400 hover:text-red-600">{t('common.delete', '删除')}</button>
-                  </div>
-                )} />
+                <Table
+                  columns={tagColumns}
+                  data={cat.tags}
+                  actions={tag => (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleTag(tag)} className={`text-xs ${tag.enabled ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}`}>{tag.enabled ? t('flavors.disabled', '禁用') : t('flavors.enabled', '启用')}</button>
+                      <button onClick={() => setTagDialog({ mode: 'edit', categoryId: cat.id, data: { ...tag } })} className="text-xs text-primary-600 hover:text-primary-700">{t('common.edit', '编辑')}</button>
+                      <button onClick={() => deleteTag(tag)} className="text-xs text-red-400 hover:text-red-600">{t('common.delete', '删除')}</button>
+                    </div>
+                  )}
+                />
               )}
             </div>
           )}
