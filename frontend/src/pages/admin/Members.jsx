@@ -21,6 +21,7 @@ export default function Members() {
 
   useEffect(() => { load(); loadStats() }, [])
 
+  // 加载会员列表（支持关键词搜索和等级筛选，分页）
   const load = () => {
     api.getMembers({ keyword: keyword.trim(), level: levelFilter, page, page_size: pageSize }).then(data => {
       setMembers(data.members || [])
@@ -28,8 +29,10 @@ export default function Members() {
     }).catch(() => {})
   }
 
+  // 加载会员统计数据（总数/今日新增/积分总数/等级分布）
   const loadStats = () => { api.getMemberStats().then(data => setStats(data)).catch(() => {}) }
 
+  // 保存会员信息（新建或编辑）
   const save = async () => {
     const { mode, data } = dialog
     if (!data.name.trim() || !data.phone.trim()) { toast(t('members.namePhoneRequired', '姓名和手机号必填'), 'error'); return }
@@ -40,13 +43,16 @@ export default function Members() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除会员（需确认）
   const remove = async (m) => {
     if (!await confirm({ title: t('members.deleteTitle', '删除会员'), message: `${t('members.deleteMsgPrefix', '确定删除会员')}"${m.name}"${t('members.deleteMsgSuffix', '吗？')}`, variant: 'danger' })) return
     try { await api.deleteMember(m.id); toast(t('members.deleted', '会员已删除')); load(); loadStats() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 查看会员详情（含最近订单和优惠券）
   const viewDetail = async (m) => { try { const data = await api.getMemberDetail(m.id); setDetail(data) } catch (e) { toast(e.message, 'error') } }
 
+  // 调整会员积分（正数增加，负数扣减）
   const adjustPoints = async () => {
     const { member_id, points, reason } = pointsDialog
     if (!points) { toast(t('members.pointsRequired', '请输入积分数量'), 'error'); return }
@@ -58,6 +64,7 @@ export default function Members() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 根据会员等级返回对应的徽章颜色
   const levelColor = (level) => { const map = { '普通会员': 'default', '银卡会员': 'primary', '金卡会员': 'warning', '钻石会员': 'danger' }; return map[level] || 'default' }
 
   const columns = [
