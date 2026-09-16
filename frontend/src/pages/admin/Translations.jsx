@@ -4,6 +4,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Input, Dialog, toast, Empty } from '../../components/ui'
 
 export default function Translations() {
+  // 多语言字典管理：增删改查系统所有翻译key，按页面分类筛选
   const { t } = useLanguage()
   const [data, setData] = useState({ byPage: {}, total: 0 })
   const [loading, setLoading] = useState(false)
@@ -14,21 +15,46 @@ export default function Translations() {
 
   useEffect(() => { load() }, [])
 
+  // 加载全部翻译条目（按页面分组）
   const load = async () => {
     setLoading(true)
-    try { const result = await api.getAdminTranslations(); setData(result) } catch (e) { toast(e.message, 'error') } finally { setLoading(false) }
+    try {
+      const result = await api.getAdminTranslations()
+      setData(result)
+    } catch (e) {
+      toast(e.message, 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const pages = Object.keys(data.byPage || {})
-  const allItems = activePage === 'all' ? Object.values(data.byPage || {}).flat() : (data.byPage?.[activePage] || [])
+  const allItems = activePage === 'all'
+    ? Object.values(data.byPage || {}).flat()
+    : (data.byPage?.[activePage] || [])
 
-  const openAdd = () => { setEditing(null); setForm({ key: '', page: 'common', description: '', zh: '', en: '', es: '' }); setEditDialog(true) }
-  const openEdit = (item) => {
-    setEditing(item)
-    setForm({ key: item.key, page: item.page, description: item.description || '', zh: item.translations?.zh || '', en: item.translations?.en || '', es: item.translations?.es || '' })
+  // 打开添加翻译弹窗
+  const openAdd = () => {
+    setEditing(null)
+    setForm({ key: '', page: 'common', description: '', zh: '', en: '', es: '' })
     setEditDialog(true)
   }
 
+  // 打开编辑翻译弹窗
+  const openEdit = (item) => {
+    setEditing(item)
+    setForm({
+      key: item.key,
+      page: item.page,
+      description: item.description || '',
+      zh: item.translations?.zh || '',
+      en: item.translations?.en || '',
+      es: item.translations?.es || ''
+    })
+    setEditDialog(true)
+  }
+
+  // 保存翻译：新增或更新
   const save = async () => {
     if (!form.key) { toast(t('translations.keyRequired', 'key 必填'), 'error'); return }
     try {
@@ -36,15 +62,37 @@ export default function Translations() {
       if (form.zh) translations.zh = form.zh
       if (form.en) translations.en = form.en
       if (form.es) translations.es = form.es
-      if (editing) { await api.updateTranslation(editing.id, { key: form.key, page: form.page, description: form.description, translations }); toast(t('translations.updated', '更新成功')) }
-      else { await api.createTranslation({ key: form.key, page: form.page, description: form.description, translations }); toast(t('translations.added', '添加成功')) }
-      setEditDialog(false); load()
+
+      if (editing) {
+        await api.updateTranslation(editing.id, {
+          key: form.key,
+          page: form.page,
+          description: form.description,
+          translations
+        })
+        toast(t('translations.updated', '更新成功'))
+      } else {
+        await api.createTranslation({
+          key: form.key,
+          page: form.page,
+          description: form.description,
+          translations
+        })
+        toast(t('translations.added', '添加成功'))
+      }
+      setEditDialog(false)
+      load()
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除翻译条目
   const remove = async (item) => {
     if (!confirm(`${t('translations.deleteMsgPrefix', '确定删除翻译「')}${item.key}${t('translations.deleteMsgSuffix', '」？')}`)) return
-    try { await api.deleteTranslation(item.id); toast(t('translations.deleted', '已删除')); load() } catch (e) { toast(e.message, 'error') }
+    try {
+      await api.deleteTranslation(item.id)
+      toast(t('translations.deleted', '已删除'))
+      load()
+    } catch (e) { toast(e.message, 'error') }
   }
 
   return (
@@ -57,13 +105,25 @@ export default function Translations() {
         <Button onClick={openAdd}>{t('translations.addBtn', '+ 添加翻译')}</Button>
       </div>
 
+      {/* 页面分类标签 */}
       {pages.length > 0 && (
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setActivePage('all')} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activePage === 'all' ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+          <button
+            onClick={() => setActivePage('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activePage === 'all' ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
             {t('translations.all', '全部')} ({data.total})
           </button>
           {pages.map(page => (
-            <button key={page} onClick={() => setActivePage(page)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activePage === page ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            <button
+              key={page}
+              onClick={() => setActivePage(page)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                activePage === page ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
               {page} ({data.byPage[page]?.length || 0})
             </button>
           ))}
@@ -110,6 +170,7 @@ export default function Translations() {
         )}
       </Card>
 
+      {/* 编辑弹窗 */}
       <Dialog open={editDialog} onClose={() => setEditDialog(false)} title={editing ? t('translations.editTitle', '编辑翻译') : t('translations.addTitle', '添加翻译')} width="max-w-lg">
         <div className="space-y-4">
           <Input label={t('translations.keyLabel', 'Key *')} value={form.key} onChange={e => setForm({ ...form, key: e.target.value })} placeholder={t('translations.keyPh', '如：common.save')} disabled={!!editing} />
