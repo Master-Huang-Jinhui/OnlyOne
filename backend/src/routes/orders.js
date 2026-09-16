@@ -16,6 +16,7 @@ const { auditLog } = require('../utils/audit');
 const router = express.Router();
 
 // 创建订单（前台公开）
+// 接收购物车商品列表，计算金额（含税/配送费），生成每日递增订单号，自动扣减库存
 router.post('/', (req, res) => {
   const { items, dining_type = 'takeout', customer_name, customer_phone, customer_address, note, guest_id, table_id, table_session } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -106,6 +107,7 @@ router.post('/', (req, res) => {
 });
 
 // 订单列表（后台）
+// 支持状态筛选、关键词搜索、时间范围、排序、分页，返回订单列表和汇总统计
 router.post('/list', auth, managerAccess, (req, res) => {
   const { status, start_date, end_date, sort_by = 'created_at', sort_order = 'desc', page = 1, page_size = 20, keyword } = req.query;
   const limit = Math.min(Math.max(parseInt(page_size) || 20, 1), 100);
@@ -117,110 +119,180 @@ router.post('/list', auth, managerAccess, (req, res) => {
 
   if (keyword && keyword.trim()) {
     const kw = '%' + keyword.trim() + '%';
-    sql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
-    params.push(kw, kw, kw);
+    sql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ? OR items LIKE ?)';
+    params.push(kw, kw, kw, kw);
   }
 
-  if (start_date && end_date) {
-    sql += ' AND date(created_at) BETWEEN ? AND ?';
-    params.push(start_date, end_date);
-  } else if (start_date) {
-    sql += ' AND date(created_at) >= ?';
-    params.push(start_date);
-  } else if (end_date) {
-    sql += ' AND date(created_at) <= ?';
-    params.push(end_date);
+  // 时间范围筛选（支持日期 YYYY-MM-DD 和日期时间 YYYY-MM-DDTHH:MM）
+  if (start_date) {
+    const start = start_date.replace('T', ' ');
+    sql += ' AND created_at >= ?'; params.push(start.length === 16 ? start + ':00' : start);
+  }
+  if (end_date) {
+    const end = end_date.replace('T', ' ');
+    if (end.length === 10) { sql += ' AND created_at <= ?'; params.push(end + ' 23:59:59'); }
+    else { sql += ' AND created_at <= ?'; params.push(end.length === 16 ? end + ':00' : end); }
   }
 
-  const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as cnt');
-  const total = db.prepare(countSql).get(...params).cnt;
+  // 排序（白名单防止注入）
+  const allowedSortBy = ['order_no', 'total', 'created_at', 'id'];
+  const allowedSortOrder = ['asc', 'desc'];
+  const sortBy = allowedSortBy.includes(sort_by) ? sort_by : 'created_at';
+  const sortOrder = allowedSortOrder.includes(sort_order) ? sort_order : 'desc';
+  sql += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
 
-  sql += ` ORDER BY ${sort_by} ${sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'} LIMIT ? OFFSET ?`;
-  params.push(limit, offset);
+  sql += ' LIMIT ? OFFSET ?';
+  params.push(parseInt(limit), parseInt(offset));
 
   const orders = db.prepare(sql).all(...params);
-  orders.forEach(o => {
-    try { o.items = JSON.parse(o.items || '[]'); } catch (e) { o.items = []; }
-  });
+  orders.forEach(o => o.items = JSON.parse(o.items || '[]'));
 
-  // 统计（基于全量筛选结果）
-  const statsSql = sql.replace(/ORDER BY.*LIMIT.*OFFSET.*/, '');
-  const statsParams = params.slice(0, -2);
-  const stats = db.prepare(`SELECT COUNT(*) as total_orders, COALESCE(SUM(total),0) as total_revenue, COALESCE(SUM(subtotal),0) as total_subtotal, COALESCE(SUM(tax),0) as total_tax FROM (${statsSql})`).get(...statsParams);
+  // 同时返回统计信息
+  let countSql = 'SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE 1=1';
+  const countParams = [];
+  if (status) { countSql += ' AND status = ?'; countParams.push(status); }
+  if (keyword && keyword.trim()) {
+    const kw = '%' + keyword.trim() + '%';
+    countSql += ' AND (order_no LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ? OR items LIKE ?)';
+    countParams.push(kw, kw, kw, kw);
+  }
+  if (start_date) { const start = start_date.replace('T', ' '); countSql += ' AND created_at >= ?'; countParams.push(start.length === 16 ? start + ':00' : start); }
+  if (end_date) { const end = end_date.replace('T', ' '); if (end.length === 10) { countSql += ' AND created_at <= ?'; countParams.push(end + ' 23:59:59'); } else { countSql += ' AND created_at <= ?'; countParams.push(end.length === 16 ? end + ':00' : end); } }
+  const summary = db.prepare(countSql).get(...countParams);
 
-  res.json({ orders, total, page: parseInt(page), page_size: limit, stats });
+  res.json({ orders, total: summary.cnt, revenue: summary.revenue });
 });
 
-// 订单详情（后台）
-router.post('/detail/:orderNo', auth, managerAccess, (req, res) => {
-  const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(req.params.orderNo);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
-  try { order.items = JSON.parse(order.items || '[]'); } catch (e) { order.items = []; }
-  res.json(order);
+// 订单统计
+// 返回今日订单数/营收、待处理数、近7天订单数/营收
+router.post('/stats', auth, managerAccess, (req, res) => {
+  const today = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) = date('now','localtime')").get();
+  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending'").get();
+  const week = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE created_at >= datetime('now','localtime','-7 days')").get();
+  res.json({ today_count: today.cnt, today_revenue: today.revenue, pending_count: pending.cnt, week_count: week.cnt, week_revenue: week.revenue });
 });
 
-// 订单详情（前台公开，按订单号查询）
-router.post('/public/:orderNo', (req, res) => {
-  const order = db.prepare('SELECT id, order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, status, created_at, pickup_number, table_id, table_session, payment_method, paid_at FROM orders WHERE order_no = ?').get(req.params.orderNo);
-  if (!order) return res.status(404).json({ error: '订单不存在' });
-  try { order.items = JSON.parse(order.items || '[]'); } catch (e) { order.items = []; }
-  res.json(order);
-});
-
-// 更新订单状态（后台）
+// 更新订单状态（后台管理员）
+// 推进订单状态：pending→preparing→ready→completed，自动记录各阶段时间戳
 router.post('/:id/status', auth, managerAccess, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: '无效状态' });
-  const order = db.prepare('SELECT id, status FROM orders WHERE id = ?').get(req.params.id);
+  const order = db.prepare('SELECT order_no, total, dining_type FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: '订单不存在' });
-  
   const timeField = status === 'preparing' ? 'start_time' : status === 'ready' ? 'ready_time' : status === 'completed' ? 'complete_time' : null;
   if (timeField) {
     db.prepare(`UPDATE orders SET status = ?, ${timeField} = COALESCE(${timeField}, datetime('now','localtime')) WHERE id = ?`).run(status, req.params.id);
   } else {
     db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
   }
-  auditLog(req.user?.id, 'order_status', `订单${order.order_no}状态改为${status}`);
+  auditLog(req, 'UPDATE_ORDER_STATUS', `订单 ${order.order_no} 状态改为 ${status}`, { orderId: req.params.id, orderNo: order.order_no, status, total: order.total });
   res.json({ success: true });
 });
 
-// 仪表盘统计
-router.post('/dashboard/stats', auth, managerAccess, (req, res) => {
-  const today = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) = date('now','localtime')").get();
-  const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending'").get();
-  const preparing = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'preparing'").get();
-  const week = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) >= date('now','localtime','-6 days')").get();
-  res.json({ today: { count: today.cnt, revenue: today.revenue }, pending: pending.cnt, preparing: preparing.cnt, week: { count: week.cnt, revenue: week.revenue } });
+// 公开接口：根据订单号查询订单（客人查单不需要登录）
+router.post('/lookup/:orderNo', (req, res) => {
+  const order = db.prepare('SELECT id, order_no, items, subtotal, tax, delivery_fee, total, dining_type, customer_name, customer_phone, customer_address, note, status, created_at FROM orders WHERE order_no = ?').get(req.params.orderNo);
+  if (!order) return res.status(404).json({ error: '订单不存在，请检查订单号' });
+  order.items = JSON.parse(order.items || '[]');
+  res.json(order);
 });
 
-// 待处理订单（仪表盘）
-router.post('/pending/list', auth, managerAccess, (req, res) => {
-  const { status, page = 1, page_size = 10 } = req.body || {};
-  const limit = Math.min(Math.max(parseInt(page_size) || 10, 1), 50);
-  const offset = (Math.max(1, parseInt(page) || 1) - 1) * limit;
-  let sql = "SELECT * FROM orders WHERE status IN ('pending','preparing','ready') AND date(created_at) = date('now','localtime')";
+// 公开接口：统一搜索（同时匹配订单号、手机号、姓名）
+router.post('/search', (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword || !keyword.trim()) {
+    return res.status(400).json({ error: '请输入订单号、手机号或姓名' });
+  }
+
+  const kw = keyword.trim();
+  const cleanPhone = kw.replace(/\D/g, '');
+
+  // 同时匹配订单号（精确或模糊）、手机号（清理格式后模糊）、姓名（模糊）
+  const sql = `SELECT id, order_no, total, dining_type, customer_name, customer_phone, status, created_at 
+    FROM orders 
+    WHERE order_no LIKE ? 
+       OR REPLACE(REPLACE(REPLACE(REPLACE(customer_phone, '-', ''), '(', ''), ')', ''), ' ', '') LIKE ? 
+       OR customer_name LIKE ?
+    ORDER BY created_at DESC LIMIT 50`;
+
+  const orders = db.prepare(sql).all(`%${kw}%`, `%${cleanPhone}%`, `%${kw}%`);
+  res.json({ orders, count: orders.length });
+});
+
+// 公开接口：查询本设备/本餐桌的订单（客人只能看自己的）
+// 支持按guest_id或table_id+table_session查询
+router.post('/mine', (req, res) => {
+  const { guest_id, table_id, table_session } = req.query;
+
+  if (!guest_id && !table_id) {
+    return res.status(400).json({ error: '缺少设备标识或餐桌标识' });
+  }
+
+  let sql = `SELECT id, order_no, total, dining_type, customer_name, status, created_at 
+    FROM orders WHERE status != 'cancelled' AND (`;
+  const conditions = [];
+  const params = [];
+
+  if (guest_id) {
+    conditions.push('guest_id = ?');
+    params.push(guest_id);
+  }
+  if (table_id && table_session) {
+    conditions.push('(table_id = ? AND table_session = ?)');
+    params.push(table_id, table_session);
+  }
+
+  if (conditions.length === 0) {
+    return res.status(400).json({ error: '缺少有效查询条件' });
+  }
+
+  sql += conditions.join(' OR ') + ') ORDER BY created_at DESC LIMIT 50';
+
+  const orders = db.prepare(sql).all(...params);
+  res.json({ orders, count: orders.length });
+});
+
+// 员工端：按桌子查询所有未取消订单（结账用）
+// 合并同一会话下的所有订单，返回合计金额
+router.post('/table/:tableId', auth, (req, res) => {
+  const table = db.prepare('SELECT current_session FROM tables WHERE id = ?').get(req.params.tableId);
+  const session = table?.current_session;
+  let orders;
+  if (session) {
+    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND table_session = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId, session);
+  } else {
+    orders = db.prepare("SELECT id, order_no, items, total, status, created_at FROM orders WHERE table_id = ? AND status != 'cancelled' ORDER BY created_at").all(req.params.tableId);
+  }
+  orders.forEach(o => { o.items = JSON.parse(o.items || '[]'); });
+  const total = orders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+  res.json({ orders, total, count: orders.length });
+});
+
+// 订单详情（需登录）
+router.post('/detail/:id', auth, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: '订单不存在' });
+  order.items = JSON.parse(order.items || '[]');
+  res.json(order);
+});
+
+// ===== 员工端接口（只需登录，无需管理员权限）=====
+
+// 员工端：今日订单列表（可按状态筛选）
+router.post('/employee/today', auth, (req, res) => {
+  const { status } = req.query;
+  let sql = "SELECT * FROM orders WHERE date(created_at) = date('now','localtime')";
   const params = [];
   if (status) { sql += ' AND status = ?'; params.push(status); }
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
+  sql += ' ORDER BY created_at DESC LIMIT 100';
   const orders = db.prepare(sql).all(...params);
-  orders.forEach(o => { try { o.items = JSON.parse(o.items || '[]'); } catch (e) { o.items = []; } });
-  const countSql = sql.replace(/ORDER BY.*LIMIT.*OFFSET.*/, '').replace('SELECT *', 'SELECT COUNT(*) as cnt');
-  const total = db.prepare(countSql).get(...params.slice(0, -2)).cnt;
-  res.json({ orders, total, page: parseInt(page), page_size: limit });
+  orders.forEach(o => o.items = JSON.parse(o.items || '[]'));
+  const summary = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) = date('now','localtime')").get();
+  res.json({ orders, total: summary.cnt, revenue: summary.revenue });
 });
 
-// 员工端：餐桌订单列表
-router.post('/table/:tableId/orders', auth, (req, res) => {
-  const orders = db.prepare('SELECT * FROM orders WHERE table_id = ? ORDER BY created_at ASC').all(req.params.tableId);
-  orders.forEach(o => { try { o.items = JSON.parse(o.items || '[]'); } catch (e) { o.items = []; } });
-  const activeOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'completed');
-  const total = activeOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
-  res.json({ orders, total, active_count: activeOrders.length });
-});
-
-// 员工端：更新订单状态
+// 员工端：更新订单状态（推进流程，记录时间戳）
 router.post('/employee/:id/status', auth, (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
@@ -237,6 +309,7 @@ router.post('/employee/:id/status', auth, (req, res) => {
 });
 
 // 员工端：向已有订单追加商品（加单）
+// 同商品同口味自动合并数量，重新计算金额
 router.post('/employee/:id/append', auth, (req, res) => {
   const { items } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -283,7 +356,7 @@ router.post('/employee/:id/append', auth, (req, res) => {
   res.json({ success: true, order_no: order.order_no, total, append_total: appendSubtotal });
 });
 
-// 结账（更新状态为已完成，记录付款方式）
+// 结账（更新状态为已完成，记录付款方式，堂吃自动清桌）
 router.post('/checkout/:id', auth, (req, res) => {
   const { payment_method = 'cash', note = '' } = req.body;
   const validMethods = ['cash', 'card', 'apple_pay', 'platform', 'other'];
@@ -319,7 +392,7 @@ router.post('/cash-drawer/open', auth, (req, res) => {
   });
 });
 
-// 付款统计（按付款方式汇总）
+// 付款统计（按付款方式汇总已完成订单）
 router.post('/payment-stats', auth, managerAccess, (req, res) => {
   const { start_date, end_date } = req.body || {};
   let dateFilter = "date(created_at) = date('now','localtime')";
