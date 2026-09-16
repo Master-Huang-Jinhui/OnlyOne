@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import { Button, Badge, Empty, toast } from '../../components/ui'
 
 export default function Menu() {
+  // 菜单页：分类筛选 + 商品列表 + 购物车侧边栏 + 口味选择弹窗
   const navigate = useNavigate()
   const { t, language } = useLanguage()
   const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, flavorTags, getTagInfo, calcTagsExtraPrice, loadFlavors } = useCart()
@@ -29,10 +30,12 @@ export default function Menu() {
 
   const filtered = activeCategory === 'all' ? products : products.filter(p => p.category_id == activeCategory)
 
+  // 统计某商品在购物车中的总数量（含不同口味变体）
   const getItemCount = (productId) => {
     return items.filter(i => i.id === productId).reduce((sum, i) => sum + i.quantity, 0)
   }
 
+  // 添加商品到购物车（自动加载该分类的默认口味标签）
   const handleAdd = async (product) => {
     if (!business.open) return
     const data = await loadFlavors(product.category_id)
@@ -40,6 +43,7 @@ export default function Menu() {
     addItem(product, defaults.length > 0 ? defaults : [])
   }
 
+  // 打开口味选择弹窗（加载该商品分类的口味标签）
   const openTagsDialog = async (item) => {
     await loadFlavors(item.category_id)
     setTagsDialog(item)
@@ -49,6 +53,7 @@ export default function Menu() {
 
   const singleChoiceCategories = ['辣度', '冰度', '甜度']
 
+  // 切换口味标签选中状态（辣度/冰度/甜度为单选，其余为多选）
   const toggleTag = (tagName, category) => {
     setSelectedTags(prev => {
       if (singleChoiceCategories.includes(category)) {
@@ -61,6 +66,7 @@ export default function Menu() {
     })
   }
 
+  // 保存口味选择（含自定义备注）并关闭弹窗
   const saveTags = () => {
     if (tagsDialog) {
       const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
@@ -70,12 +76,14 @@ export default function Menu() {
     setCustomNote('')
   }
 
+  // 跳转到结算页（购物车为空时提示）
   const handleCheckout = () => {
     if (items.length === 0) { toast(t('menu.cartEmpty', '购物车是空的'), 'error'); return }
     setCartOpen(false)
     navigate('/checkout')
   }
 
+  // 按分类分组标签
   const tagsByCategory = useMemo(() => {
     const groups = {}
     flavorTags.forEach(tag => {
@@ -85,6 +93,7 @@ export default function Menu() {
     return groups
   }, [])
 
+  // 渲染标签组件
   const renderTags = (tags = [], small = false) => (
     <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>
       {tags.map((tagName, i) => {
@@ -122,7 +131,7 @@ export default function Menu() {
         <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
           <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{t('menu.all', '全部')}</button>
           {categories.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{language === 'en' ? (cat.name_en || cat.name) : cat.name}</button>
+            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{cat.name}</button>
           ))}
         </div>
 
@@ -196,7 +205,7 @@ export default function Menu() {
                         <span className="text-xs text-gray-400">{record.date}</span>
                         <span className="text-sm font-bold text-primary-600">${record.total.toFixed(2)}</span>
                       </div>
-                      <div className="text-sm text-gray-600 mb-2">{record.items.map((item, i) => <span key={i}>{language === 'en' ? (item.name_en || item.name) : item.name}×{item.quantity}{i < record.items.length - 1 ? '、' : ''}</span>)}</div>
+                      <div className="text-sm text-gray-600 mb-2">{record.items.map((item, i) => <span key={i}>{item.name}×{item.quantity}{i < record.items.length - 1 ? '、' : ''}</span>)}</div>
                       <Button size="sm" variant="outline" onClick={() => { reorderFromHistory(record.id); toast(t('menu.addedToCart', '已加入购物车')) }}>{t('menu.reorder', '再来一单')}</Button>
                     </div>
                   ))}
@@ -209,7 +218,7 @@ export default function Menu() {
                       <div key={item.cartId} className="bg-gray-50 rounded-lg p-3">
                         <div className="flex items-start justify-between mb-1">
                           <div className="flex-1">
-                            <p className="font-medium text-gray-800 text-sm">{language === 'en' ? (item.name_en || item.name) : item.name}</p>
+                            <p className="font-medium text-gray-800 text-sm">{item.name}</p>
                             {item.notes && item.notes.length > 0 && renderTags(item.notes, true)}
                           </div>
                           <span className="font-bold text-primary-600 text-sm">${(unitPrice * item.quantity).toFixed(2)}</span>
@@ -250,6 +259,7 @@ export default function Menu() {
         </div>
       )}
 
+      {/* 口味标签选择对话框 */}
       {tagsDialog && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setTagsDialog(null)} />
@@ -257,7 +267,7 @@ export default function Menu() {
             <div className="p-4 border-b flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-800">{t('menu.selectFlavorTitle', '选择口味')}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{language === 'en' ? (tagsDialog.name_en || tagsDialog.name) : tagsDialog.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{tagsDialog.name}</p>
               </div>
               <button onClick={() => setTagsDialog(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>

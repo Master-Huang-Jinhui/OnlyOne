@@ -5,17 +5,20 @@ import { useLanguage } from '../../context/LanguageContext'
 import { Button, Input, Empty, Dialog } from '../../components/ui'
 
 export default function Cart() {
+  // 购物车页：商品列表 + 数量调整 + 备注编辑 + 小计结算
   const navigate = useNavigate()
   const { t, language } = useLanguage()
   const { items, updateQuantity, updateNote, clearNote, removeItem, clear, subtotal, totalCount } = useCart()
   const [noteDialog, setNoteDialog] = useState(null)
   const [noteText, setNoteText] = useState('')
 
+  // 打开备注编辑弹窗
   const openNoteDialog = (item) => {
     setNoteDialog(item)
     setNoteText(item.note || '')
   }
 
+  // 保存商品备注并关闭弹窗
   const saveNote = () => {
     if (noteDialog) {
       updateNote(noteDialog.cartId, noteText)
@@ -75,6 +78,7 @@ export default function Cart() {
           ))}
         </div>
 
+        {/* 小计 */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
           <div className="flex justify-between text-gray-600 mb-2">
             <span>{t('cart.subtotal', '商品小计')}</span>
@@ -95,6 +99,7 @@ export default function Cart() {
         </div>
       </div>
 
+      {/* 备注对话框 */}
       <Dialog
         open={!!noteDialog}
         onClose={() => setNoteDialog(null)}
@@ -106,7 +111,7 @@ export default function Cart() {
           </>
         }
       >
-        <p className="text-sm text-gray-500 mb-3">{t('cart.productLabel', '商品')}：{language === 'en' ? (noteDialog?.name_en || noteDialog?.name) : noteDialog?.name}</p>
+        <p className="text-sm text-gray-500 mb-3">{t('cart.productLabel', '商品')}：{noteDialog?.name}</p>
         <Input
           placeholder={t('cart.notePlaceholder', '例如：少冰、半糖、不要香菜...')}
           value={noteText}

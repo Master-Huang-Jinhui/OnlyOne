@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import { Button, toast } from '../../components/ui'
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
+// 格式化电话号码为 (XXX) XXX-XXXX 格式
 function formatPhone(phone) {
   const clean = (phone || '').replace(/\D/g, '')
   if (clean.length === 10) return `(${clean.slice(0,3)}) ${clean.slice(3,6)}-${clean.slice(6)}`
@@ -13,6 +14,7 @@ function formatPhone(phone) {
 }
 
 export default function OrderStatus() {
+  // 订单状态查询页：我的订单列表 + 按订单号搜索 + 订单详情时间线
   const { t } = useLanguage()
   const [searchParams] = useSearchParams()
   const [orderNoInput, setOrderNoInput] = useState('')
@@ -34,6 +36,7 @@ export default function OrderStatus() {
     }
   }, [])
 
+  // 加载当前设备/餐桌关联的我的订单列表
   const loadMyOrders = async () => {
     setLoading(true)
     try {
@@ -48,6 +51,7 @@ export default function OrderStatus() {
     }
   }
 
+  // 按订单号搜索订单详情
   const handleSearchByNo = async (no) => {
     const orderNo = (no || orderNoInput).trim().toUpperCase()
     if (!orderNo) { toast(t('orderStatus.enterOrderNo', '请输入订单号'), 'error'); return }
@@ -63,6 +67,7 @@ export default function OrderStatus() {
     }
   }
 
+  // 从我的订单列表点击查看某笔订单详情
   const handleViewDetail = async (orderNo) => {
     setLoading(true)
     try {
@@ -76,6 +81,7 @@ export default function OrderStatus() {
     }
   }
 
+  // 返回我的订单列表
   const handleBack = () => {
     setOrder(null)
     setView('mine')

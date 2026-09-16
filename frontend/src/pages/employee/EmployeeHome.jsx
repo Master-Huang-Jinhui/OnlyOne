@@ -7,6 +7,7 @@ import { Dialog, Input, Button, toast } from '../../components/ui'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function EmployeeHome() {
+  // 员工主页：时钟显示 + 打卡 + 堂吃/打包点餐入口 + 订单查询 + 修改密码
   const { user, logout } = useAuth()
   const { t, language } = useLanguage()
   const navigate = useNavigate()
@@ -23,6 +24,7 @@ export default function EmployeeHome() {
     return () => clearInterval(timer)
   }, [])
 
+  // 上班打卡
   const handleClockIn = async () => {
     try {
       const res = await api.clockIn()
@@ -31,6 +33,7 @@ export default function EmployeeHome() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 下班打卡
   const handleClockOut = async () => {
     try {
       const res = await api.clockOut()
@@ -39,6 +42,7 @@ export default function EmployeeHome() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 修改密码（校验两次密码一致）
   const handleChangePassword = async () => {
     if (!pwdForm.oldPassword || !pwdForm.newPassword) { toast(t('common.fillAll', '请填写完整'), 'error'); return }
     if (pwdForm.newPassword !== pwdForm.confirmPassword) { toast(t('employee.passwordMismatch', '两次密码不一致'), 'error'); return }
@@ -50,6 +54,7 @@ export default function EmployeeHome() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 打开堂吃餐桌选择弹窗
   const openDineIn = async () => {
     try {
       const data = await api.getPublicTables()
@@ -60,6 +65,7 @@ export default function EmployeeHome() {
     }
   }
 
+  // 选择餐桌：已占用则进入详情加单，未占用则进入点餐页
   const selectTable = (table) => {
     setTableDialog(false)
     if (table.status === 'occupied') {
