@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import { Button, Input, toast } from '../../components/ui'
 
 export default function Login() {
+  // 登录页：账号密码登录，根据角色跳转到对应工作台
   const navigate = useNavigate()
   const { login } = useAuth()
   const { t } = useLanguage()
@@ -12,6 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // 提交登录：校验输入，调用login后根据角色跳转
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!username || !password) {
