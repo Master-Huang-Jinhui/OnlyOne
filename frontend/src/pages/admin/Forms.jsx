@@ -3,11 +3,12 @@ import { api } from '../../lib/api'
 import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Switch, Empty, toast } from '../../components/ui'
 import { useConfirm } from '../../components/ConfirmDialog'
-import { formatDateTime } from '../../utils/format'
+import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 const emptyForm = { name: '', description: '', fields: [], enabled: true }
 
 export default function Forms() {
+  // 表单管理：自定义表单创建/编辑/字段配置/查看提交记录
   const { t } = useLanguage()
   const confirm = useConfirm()
   const [forms, setForms] = useState([])
@@ -33,11 +34,15 @@ export default function Forms() {
 
   useEffect(() => { load() }, [])
 
+  // 加载表单列表
   const load = () => api.getForms().then(setForms).catch(() => {})
 
+  // 打开添加表单弹窗
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
+  // 打开编辑表单弹窗
   const openEdit = (f) => { setEditing(f); setForm({ ...f, fields: f.fields || [] }); setDialog(true) }
 
+  // 保存表单：新增或更新
   const save = async () => {
     if (!form.name) { toast(t('forms.nameRequired', '表单名称必填'), 'error'); return }
     try {
@@ -47,17 +52,39 @@ export default function Forms() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除表单（需确认）
   const remove = async (id) => {
     if (!await confirm({ title: t('forms.deleteTitle', '删除表单'), message: t('forms.deleteMessage', '确定删除该表单及所有提交记录？'), variant: 'danger' })) return
     await api.deleteForm(id); toast(t('forms.deleted', '已删除')); load()
   }
 
-  const addField = () => { setForm(prev => ({ ...prev, fields: [...prev.fields, { type: 'text', label: '', placeholder: '', required: false, options: '' }] })) }
-  const updateField = (idx, key, value) => { setForm(prev => ({ ...prev, fields: prev.fields.map((f, i) => i === idx ? { ...f, [key]: value } : f) })) }
-  const removeField = (idx) => { setForm(prev => ({ ...prev, fields: prev.fields.filter((_, i) => i !== idx) })) }
+  // 添加一个新字段
+  const addField = () => {
+    setForm(prev => ({
+      ...prev,
+      fields: [...prev.fields, { type: 'text', label: '', placeholder: '', required: false, options: '' }]
+    }))
+  }
 
+  // 更新指定索引字段的某个属性
+  const updateField = (idx, key, value) => {
+    setForm(prev => ({
+      ...prev,
+      fields: prev.fields.map((f, i) => i === idx ? { ...f, [key]: value } : f)
+    }))
+  }
+
+  // 删除指定索引的字段
+  const removeField = (idx) => {
+    setForm(prev => ({ ...prev, fields: prev.fields.filter((_, i) => i !== idx) }))
+  }
+
+  // 查看某表单的提交记录
   const viewSubmissions = async (id) => {
-    try { const data = await api.getFormSubmissions(id); setSubmissions(data) } catch (e) { toast(e.message, 'error') }
+    try {
+      const data = await api.getFormSubmissions(id)
+      setSubmissions(data)
+    } catch (e) { toast(e.message, 'error') }
   }
 
   return (
@@ -85,6 +112,7 @@ export default function Forms() {
         )} />
       </Card>
 
+      {/* 表单编辑对话框 */}
       <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? t('forms.editTitle', '编辑表单') : t('forms.createTitle', '创建表单')} width="max-w-3xl"
         footer={<><Button variant="outline" onClick={() => setDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={save}>{t('common.save', '保存')}</Button></>}>
         <div className="space-y-4">
@@ -92,6 +120,8 @@ export default function Forms() {
             <Input label={t('forms.nameLabel', '表单名称 *')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <Input label={t('forms.descLabel', '描述')} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
+
+          {/* 字段列表 */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-medium text-gray-700">{t('forms.fieldsLabel', '表单字段')}</label>
@@ -103,7 +133,8 @@ export default function Forms() {
                 <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs text-gray-400 w-6">#{idx + 1}</span>
-                    <Select value={field.type} onChange={e => updateField(idx, 'type', e.target.value)} options={fieldTypes} className="w-36" />
+                    <Select value={field.type} onChange={e => updateField(idx, 'type', e.target.value)}
+                      options={fieldTypes} className="w-36" />
                     <Input placeholder={t('forms.fieldLabel', '字段标签')} value={field.label} onChange={e => updateField(idx, 'label', e.target.value)} className="flex-1" />
                     <button onClick={() => removeField(idx)} className="text-red-400 hover:text-red-600 px-2">×</button>
                   </div>
@@ -120,10 +151,12 @@ export default function Forms() {
               ))}
             </div>
           </div>
+
           <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label={t('forms.enableForm', '启用表单')} />
         </div>
       </Dialog>
 
+      {/* 提交记录对话框 */}
       <Dialog open={!!submissions} onClose={() => setSubmissions(null)} title={t('forms.submissionsTitle', '表单提交记录')} width="max-w-2xl">
         {submissions && submissions.length === 0 ? (
           <Empty text={t('forms.noSubmissions', '暂无提交记录')} icon="📭" />
