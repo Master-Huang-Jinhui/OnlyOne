@@ -6,16 +6,19 @@ import { Card, Button, Table, Badge, Dialog, Select, Empty, toast } from '../../
 import { useConfirm } from '../../components/ConfirmDialog'
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
+// 获取今天的日期字符串 YYYY-MM-DD
 const today = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+// 获取当前时间 datetime-local 格式 YYYY-MM-DDTHH:MM
 const now = () => {
   const d = new Date()
   return `${today()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 export default function Orders() {
+  // 订单管理：日期范围查询 + 状态筛选 + 排序 + 分页 + 详情弹窗 + 状态推进
   const confirm = useConfirm()
   const { t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -43,6 +46,7 @@ export default function Orders() {
   useEffect(() => {
     const orderId = searchParams.get('orderId')
     if (orderId) {
+      // 从仪表盘跳转过来：直接加载该订单详情，并设置查询范围为全部
       setStartDate('')
       setEndDate('')
       setStatusFilter('')
@@ -50,6 +54,7 @@ export default function Orders() {
         if (order) setDetail(order)
       }).catch(() => {})
       load({ startDate: '', endDate: '', statusFilter: '', page: 1 })
+      // 清除 URL 参数，避免刷新时重复打开
       searchParams.delete('orderId')
       setSearchParams(searchParams, { replace: true })
     } else {
@@ -57,6 +62,7 @@ export default function Orders() {
     }
   }, [])
 
+  // 加载订单列表：支持日期范围/状态/排序/分页参数覆盖
   const load = (overrides = {}) => {
     const curStatus = overrides.statusFilter !== undefined ? overrides.statusFilter : statusFilter
     const curStart = overrides.startDate !== undefined ? overrides.startDate : startDate
@@ -79,8 +85,10 @@ export default function Orders() {
     }).catch(() => {})
   }
 
+  // 点击查询按钮：重置到第1页并加载
   const handleSearch = () => { setPage(1); load({ page: 1 }) }
 
+  // 点击列头排序：同列切换升序/降序，新列默认降序
   const handleSort = (field) => {
     let newSortBy = field
     let newSortOrder = 'desc'
@@ -92,11 +100,13 @@ export default function Orders() {
     load({ sortBy: newSortBy, sortOrder: newSortOrder })
   }
 
+  // 返回排序列的图标（升序↑/降序↓/未排序⇅）
   const sortIcon = (field) => {
     if (sortBy !== field) return <span className="text-gray-300 ml-1">⇅</span>
     return <span className="text-primary-600 ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
   }
 
+  // 更新订单状态（下拉选择），同步刷新列表和详情弹窗
   const updateStatus = async (id, status) => {
     await api.updateOrderStatus(id, status)
     toast(t('common.statusUpdated', '状态已更新'))
@@ -104,7 +114,9 @@ export default function Orders() {
     if (detail?.id === id) setDetail({ ...detail, status })
   }
 
+  // 快捷筛选：今日
   const setToday = () => { const s = today() + 'T00:00'; const e = now(); setStartDate(s); setEndDate(e); setPage(1); load({ startDate: s, endDate: e, page: 1 }) }
+  // 快捷筛选：本周（周一开始）
   const setThisWeek = () => {
     const d = new Date()
     const day = d.getDay() || 7
@@ -118,16 +130,34 @@ export default function Orders() {
     setPage(1)
     load({ startDate: start, endDate: end, page: 1 })
   }
+  // 快捷筛选：全部（不限制日期）
   const setAll = () => { setStartDate(''); setEndDate(''); setPage(1); load({ startDate: '', endDate: '', page: 1 }) }
 
   const columns = [
-    { header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">{t('orders.orderNo', '订单号')}{sortIcon('order_no')}</button>, render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button> },
-    { header: t('orders.items', '商品'), render: o => (<div className="max-w-[200px]">{o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}{o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} {t('orders.itemsUnit', '件')}</p>}</div>) },
+    {
+      header: <button onClick={() => handleSort('order_no')} className="hover:text-primary-600">{t('orders.orderNo', '订单号')}{sortIcon('order_no')}</button>,
+      render: o => <button onClick={() => setDetail(o)} className="text-primary-600 hover:underline font-mono text-sm">{o.order_no}</button>
+    },
+    {
+      header: t('orders.items', '商品'),
+      render: o => (
+        <div className="max-w-[200px]">
+          {o.items.slice(0, 2).map((it, i) => <p key={i} className="text-xs text-gray-600 truncate">{it.name} ×{it.quantity}</p>)}
+          {o.items.length > 2 && <p className="text-xs text-gray-400">+{o.items.length - 2} {t('orders.itemsUnit', '件')}</p>}
+        </div>
+      )
+    },
     { header: t('orders.customer', '顾客'), render: o => <div><p className="text-sm text-gray-700">{o.customer_name || '-'}</p><p className="text-xs text-gray-400">{o.customer_phone || '-'}</p></div> },
     { header: t('orders.diningType', '取餐方式'), render: o => <Badge variant="default">{diningMap[o.dining_type] || o.dining_type}</Badge> },
-    { header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">{t('orders.total', '金额')}{sortIcon('total')}</button>, render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span> },
+    {
+      header: <button onClick={() => handleSort('total')} className="hover:text-primary-600">{t('orders.total', '金额')}{sortIcon('total')}</button>,
+      render: o => <span className="font-medium text-primary-600">${parseFloat(o.total).toFixed(2)}</span>
+    },
     { header: t('orders.status', '状态'), render: o => <Badge variant={statusMap[o.status]?.variant || 'default'}>{statusMap[o.status]?.label || o.status}</Badge> },
-    { header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">{t('common.time', '时间')}{sortIcon('created_at')}</button>, render: o => <span className="text-xs text-gray-400">{formatDateTime(o.created_at)}</span> }
+    {
+      header: <button onClick={() => handleSort('created_at')} className="hover:text-primary-600">{t('common.time', '时间')}{sortIcon('created_at')}</button>,
+      render: o => <span className="text-xs text-gray-400">{formatDateTime(o.created_at)}</span>
+    }
   ]
 
   return (
@@ -139,6 +169,7 @@ export default function Orders() {
         </div>
       </div>
 
+      {/* 统计卡片 */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="p-4">
           <p className="text-sm text-gray-500">{t('orders.totalCount', '订单总数')}</p>
@@ -150,15 +181,18 @@ export default function Orders() {
         </Card>
       </div>
 
+      {/* 日期查询 */}
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('orders.startDate', '开始时间')}</label>
-            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('orders.endDate', '结束时间')}</label>
-            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
+            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary-400" />
           </div>
           <Button onClick={handleSearch}>{t('orders.query', '查询')}</Button>
           <div className="flex gap-2 ml-auto">
@@ -169,10 +203,13 @@ export default function Orders() {
         </div>
       </Card>
 
+      {/* 状态筛选 */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => { setStatusFilter(''); setPage(1); load({ statusFilter: '', page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{t('orders.allStatus', '全部')}</button>
         {Object.entries(statusMap).map(([key, val]) => (
-          <button key={key} onClick={() => { setStatusFilter(key); setPage(1); load({ statusFilter: key, page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{val.label}</button>
+          <button key={key} onClick={() => { setStatusFilter(key); setPage(1); load({ statusFilter: key, page: 1 }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === key ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+            {val.label}
+          </button>
         ))}
       </div>
 
@@ -182,12 +219,18 @@ export default function Orders() {
         ) : (
           <>
             <Table columns={columns} data={orders} actions={o => (
-              <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
+              <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)}
+                options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.label }))} />
             )} />
+            {/* 分页 */}
             <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span>{t('common.totalLabel', '共')} {summary.total} {t('common.records', '条')}</span>
-                <select value={pageSize} onChange={e => { const size = parseInt(e.target.value); setPageSize(size); setPage(1); load({ pageSize: size, page: 1 }) }} className="px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none">
+                <select
+                  value={pageSize}
+                  onChange={e => { const size = parseInt(e.target.value); setPageSize(size); setPage(1); load({ pageSize: size, page: 1 }) }}
+                  className="px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none"
+                >
                   <option value={10}>10 {t('orders.perPage', '条/页')}</option>
                   <option value={20}>20 {t('orders.perPage', '条/页')}</option>
                   <option value={50}>50 {t('orders.perPage', '条/页')}</option>
@@ -195,15 +238,24 @@ export default function Orders() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => { const p = Math.max(1, page - 1); setPage(p); load({ page: p }) }} disabled={page <= 1} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">{t('common.prevPage', '上一页')}</button>
+                <button
+                  onClick={() => { const p = Math.max(1, page - 1); setPage(p); load({ page: p }) }}
+                  disabled={page <= 1}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+                >{t('common.prevPage', '上一页')}</button>
                 <span className="text-sm text-gray-600">{t('common.pageLabel', '第')} {page} / {Math.max(1, Math.ceil(summary.total / pageSize))} {t('common.pageUnit', '页')}</span>
-                <button onClick={() => { const p = page + 1; setPage(p); load({ page: p }) }} disabled={page >= Math.ceil(summary.total / pageSize)} className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white">{t('common.nextPage', '下一页')}</button>
+                <button
+                  onClick={() => { const p = page + 1; setPage(p); load({ page: p }) }}
+                  disabled={page >= Math.ceil(summary.total / pageSize)}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white"
+                >{t('common.nextPage', '下一页')}</button>
               </div>
             </div>
           </>
         )}
       </Card>
 
+      {/* 订单详情 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`${t('orders.orderDetail', '订单详情')} - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">
@@ -235,10 +287,14 @@ export default function Orders() {
             </div>
             <div className="flex gap-2 pt-2 flex-wrap">
               {statusMap[detail.status]?.next && (
-                <Button size="sm" onClick={() => updateStatus(detail.id, statusMap[detail.status].next)}>{statusMap[detail.status].nextLabel}</Button>
+                <Button size="sm" onClick={() => updateStatus(detail.id, statusMap[detail.status].next)}>
+                  {statusMap[detail.status].nextLabel}
+                </Button>
               )}
               {detail.status === 'pending' && (
-                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={async () => { if (await confirm({ title: t('orders.cancelOrder', '取消订单'), message: t('orders.confirmCancelOrder', '确定取消此订单？'), variant: 'danger' })) updateStatus(detail.id, 'cancelled') }}>{t('orders.cancelOrder', '取消订单')}</Button>
+                <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={async () => { if (await confirm({ title: t('orders.cancelOrder', '取消订单'), message: t('orders.confirmCancelOrder', '确定取消此订单？'), variant: 'danger' })) updateStatus(detail.id, 'cancelled') }}>
+                  {t('orders.cancelOrder', '取消订单')}
+                </Button>
               )}
             </div>
           </div>
