@@ -13,6 +13,7 @@ export default function KDS() {
   const [loading, setLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
 
+  // 加载KDS待处理订单和统计数据
   const load = useCallback(async () => {
     try {
       const [pendingData, statsData] = await Promise.all([api.getKDSPendingOrders(), api.getKDSStats()])
@@ -22,21 +23,26 @@ export default function KDS() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  // 自动刷新：每10秒拉取一次最新订单
   useEffect(() => { if (!autoRefresh) return; const timer = setInterval(() => { load() }, 10000); return () => clearInterval(timer) }, [autoRefresh, load])
 
+  // 推进订单状态（待制作→制作中→待取餐）
   const handleAdvance = async (order) => {
     try { const result = await api.advanceKDSOrder(order.id); toast(result.label || t('kds.statusUpdated', '状态已更新')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 确认出餐（完成订单），需二次确认
   const handleComplete = async (order) => {
     if (!await confirm({ title: t('kds.confirmOutput', '确认出餐'), message: `${t('kds.outputMsgPrefix', '确定订单')} ${order.order_no} ${t('kds.outputMsgSuffix', '已出餐？')}`, variant: 'success' })) return
     try { await api.completeKDSOrder(order.id); toast(t('kds.outputDone', '已出餐')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 打印订单小票
   const handlePrint = async (order) => {
     try { const receipt = await api.getReceipt(order.id); printReceipt(receipt) } catch (e) { toast(e.message, 'error') }
   }
 
+  // 生成并弹出打印窗口（小票格式）
   const printReceipt = (data) => {
     const printWindow = window.open('', '_blank', 'width=300,height=600')
     if (!printWindow) { toast(t('kds.popupBlocked', '请允许弹出窗口以打印小票'), 'error'); return }
@@ -46,7 +52,9 @@ export default function KDS() {
     printWindow.document.close()
   }
 
+  // 根据订单状态返回卡片背景颜色
   const getStatusColor = (status) => { if (status === 'pending') return 'bg-red-50 border-red-200'; if (status === 'preparing') return 'bg-amber-50 border-amber-200'; if (status === 'ready') return 'bg-green-50 border-green-200'; return 'bg-white border-gray-200' }
+  // 根据订单状态返回徽章文字和颜色
   const getStatusBadge = (status) => { if (status === 'pending') return { text: t('kds.pending', '待制作'), color: 'bg-red-500 text-white' }; if (status === 'preparing') return { text: t('kds.preparing', '制作中'), color: 'bg-amber-500 text-white' }; if (status === 'ready') return { text: t('kds.ready', '待取餐'), color: 'bg-green-500 text-white' }; return { text: status, color: 'bg-gray-500 text-white' } }
 
   return (
