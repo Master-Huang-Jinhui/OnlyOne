@@ -8,6 +8,7 @@ import { getStatusLabel, getStatusVariant, getDiningLabel } from '../../lib/orde
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function EmployeeTableDetail() {
+  // 堂吃桌台详情页：显示该桌所有进行中订单的商品明细 + 加单编辑入口 + 结账弹窗
   const { user, logout } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -27,6 +28,7 @@ export default function EmployeeTableDetail() {
     loadOrders()
   }, [])
 
+  // 加载该桌所有未完成订单
   const loadOrders = async () => {
     if (!tableId) return
     try {
@@ -52,10 +54,12 @@ export default function EmployeeTableDetail() {
   const tax = Math.round(subtotal * taxRate * 100) / 100
   const totalWithTax = Math.round((subtotal + tax) * 100) / 100
 
+  // 跳转点餐页进行编辑/加单
   const goEdit = () => {
     navigate(`/employee/order?type=dinein&tableId=${tableId}&tableNo=${encodeURIComponent(tableNo)}`)
   }
 
+  // 打开结账弹窗：汇总该桌所有未完成订单金额
   const handleCheckout = () => {
     if (!tableId) { toast(t('employee.noTableInfo', '无法获取桌子信息'), 'error'); return }
     if (orders.length === 0) { toast(t('employee.noActiveOrders', '没有进行中的订单'), 'error'); return }
@@ -64,13 +68,17 @@ export default function EmployeeTableDetail() {
     setCheckoutDialog(true)
   }
 
+  // 确认结账：逐个订单结账，现金支付自动弹钱箱，完成后返回员工主页
   const confirmCheckout = async () => {
     if (!tableId || checkoutData.orders.length === 0) return
     setCheckingOut(true)
     try {
+      // 逐个订单结账
       for (const order of checkoutData.orders) {
         await api.checkoutOrder(order.id, paymentMethod)
       }
+      
+      // 现金结账自动打开钱箱
       if (paymentMethod === 'cash') {
         try {
           const result = await api.openCashDrawer()
@@ -88,6 +96,7 @@ export default function EmployeeTableDetail() {
           console.log('钱箱打开失败（需连接打印机）:', e.message)
         }
       }
+      
       const pmLabel = paymentMethod === 'cash' ? t('payment.cash', '现金') : paymentMethod === 'card' ? t('payment.card', '刷卡') : paymentMethod === 'apple_pay' ? t('payment.applePay', 'Apple Pay') : t('payment.platform', '外卖平台')
       toast(`${t('employee.checkoutSuccess', '结账成功')}（${pmLabel}），共 $${parseFloat(checkoutData.total).toFixed(2)}`)
       setCheckoutDialog(false)
@@ -208,6 +217,8 @@ export default function EmployeeTableDetail() {
               <span className="text-primary-600">${parseFloat(checkoutData.total).toFixed(2)}</span>
             </div>
           </div>
+          
+          {/* 付款方式选择 */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">{t('employee.selectPaymentMethod', '选择付款方式')}</p>
             <div className="grid grid-cols-2 gap-2">

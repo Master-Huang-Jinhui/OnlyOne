@@ -9,6 +9,7 @@ import { getStatusLabel, getStatusVariant, getNextStatus, getNextLabel, isActive
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 
 export default function EmployeeOrders() {
+  // 员工订单管理页：今日订单列表 + 状态筛选 + 自动刷新+新单声音提醒 + 订单详情弹窗
   const confirm = useConfirm()
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function EmployeeOrders() {
 
   useEffect(() => {
     load()
+    // 每15秒自动刷新，有新待处理订单时声音提醒
     const timer = setInterval(() => {
       api.getEmployeeTodayOrders(statusFilter).then(data => {
         const list = data?.orders || []
@@ -40,6 +42,7 @@ export default function EmployeeOrders() {
     return () => clearInterval(timer)
   }, [statusFilter])
 
+  // 加载今日订单列表及统计数据
   const load = () => {
     setLoading(true)
     api.getEmployeeTodayOrders(statusFilter).then(data => {
@@ -51,6 +54,7 @@ export default function EmployeeOrders() {
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
+  // 推进订单状态到下一阶段
   const updateStatus = async (id, status) => {
     try {
       await api.updateEmployeeOrderStatus(id, status)
@@ -67,6 +71,7 @@ export default function EmployeeOrders() {
     { key: 'cancelled', label: t('order.cancelled', '已取消') }
   ]
 
+  // 按筛选条件过滤订单
   const filteredOrders = orders.filter(o => {
     if (!statusFilter) return true
     if (statusFilter === 'active') return isActiveStatus(o.status)
@@ -75,6 +80,7 @@ export default function EmployeeOrders() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 顶部栏 */}
       <header className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -91,6 +97,7 @@ export default function EmployeeOrders() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* 状态筛选 */}
         <div className="flex gap-2 flex-wrap mb-6">
           {statusButtons.map(btn => (
             <button
@@ -112,6 +119,7 @@ export default function EmployeeOrders() {
           ))}
         </div>
 
+        {/* 订单列表 */}
         {loading ? (
           <div className="text-center py-12 text-gray-400">{t('common.loading', '加载中...')}</div>
         ) : orders.length === 0 ? (
@@ -137,6 +145,7 @@ export default function EmployeeOrders() {
                       </div>
                     </div>
 
+                    {/* 商品摘要 */}
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {order.items?.slice(0, 4).map((it, i) => (
                         <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -146,12 +155,14 @@ export default function EmployeeOrders() {
                       {order.items?.length > 4 && <span className="text-xs text-gray-400 py-1">+{order.items.length - 4} {t('employee.pieces', '件')}</span>}
                     </div>
 
+                    {/* 顾客信息 */}
                     <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                       {order.customer_name && <span>👤 {order.customer_name}</span>}
                       {order.customer_phone && <span>📞 {order.customer_phone}</span>}
                       {order.dining_type === 'delivery' && order.customer_address && <span className="truncate max-w-[200px]">📍 {order.customer_address}</span>}
                     </div>
 
+                    {/* 操作按钮 */}
                     <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                       <Button size="sm" variant="outline" onClick={() => setDetail(order)}>{t('employee.viewDetail', '查看详情')}</Button>
                       {nextStatus && (
@@ -173,6 +184,7 @@ export default function EmployeeOrders() {
         )}
       </div>
 
+      {/* 订单详情弹窗 */}
       <Dialog open={!!detail} onClose={() => setDetail(null)} title={`${t('employee.orderDetail', '订单详情')} - ${detail?.order_no || ''}`} width="max-w-lg">
         {detail && (
           <div className="space-y-4">

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '../context/LanguageContext'
 
 export default function LanguageSwitcher({ size = 'sm' }) {
+  // 语言切换下拉组件：点击展开语言列表，点击外部自动关闭
   const { language, setLanguage, supportedLanguages } = useLanguage()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)

@@ -18,6 +18,7 @@ const toppingOptions = [
 const teaColorPalette = ['#a97542', '#9fb555', '#b04d2a', '#6b5a44', '#7c3aed', '#0891b2', '#be185d', '#65a30d']
 
 export default function MilkTeaMaker({ teas }) {
+  // 奶茶制作互动组件：选茶底 → 加牛奶 → 加小料（多选）→ 加冰 → 封顶完成
   const { t, language } = useLanguage()
   const teaOptions = teas && teas.length > 0
     ? teas.map((tea, i) => ({ name: tea.name || tea, color: tea.color || teaColorPalette[i % teaColorPalette.length], label: language === 'en' ? (tea.name_en || tea.name || tea) : (tea.name || tea) }))
@@ -29,14 +30,16 @@ export default function MilkTeaMaker({ teas }) {
   const [hasIce, setHasIce] = useState(false)
   const [isFinish, setIsFinish] = useState(false)
 
+  // 切换小料选中状态（珍珠/布丁/椰果可多选）
   const toggleTopping = (name) => {
     if (toppings.includes(name)) {
-      setToppings(toppings.filter(item => item.name !== name))
+      setToppings(toppings.filter(item => item !== name))
     } else {
       setToppings([...toppings, name])
     }
   }
 
+  // 重置所有制作步骤
   const resetAll = () => {
     setTeaBase('')
     setHasMilk(false)
@@ -45,11 +48,13 @@ export default function MilkTeaMaker({ teas }) {
     setIsFinish(false)
   }
 
+  // 封顶完成（必须先选茶底）
   const finish = () => {
     if (!teaBase) return
     setIsFinish(true)
   }
 
+  // 生成当前配方的文字描述
   const getFormulaText = () => {
     const parts = []
     if (teaBase) {

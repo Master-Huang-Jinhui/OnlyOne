@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext'
 const ConfirmContext = createContext(null)
 
 export function ConfirmProvider({ children }) {
+  // 全局确认对话框Provider：通过useConfirm()调用，返回Promise<boolean>
   const { t } = useLanguage()
   const [state, setState] = useState({
     open: false,
@@ -16,6 +17,7 @@ export function ConfirmProvider({ children }) {
     resolve: null
   })
 
+  // 弹出确认对话框（支持字符串或对象参数），返回Promise
   const confirm = useCallback((options) => {
     return new Promise((resolve) => {
       setState({
@@ -30,11 +32,13 @@ export function ConfirmProvider({ children }) {
     })
   }, [t])
 
+  // 用户点击确认：resolve(true)并关闭对话框
   const handleConfirm = useCallback(() => {
     state.resolve?.(true)
     setState(s => ({ ...s, open: false }))
   }, [state.resolve])
 
+  // 用户点击取消：resolve(false)并关闭对话框
   const handleCancel = useCallback(() => {
     state.resolve?.(false)
     setState(s => ({ ...s, open: false }))
@@ -79,6 +83,7 @@ export function ConfirmProvider({ children }) {
   )
 }
 
+// Hook：获取全局confirm函数；若未包裹Provider则降级为window.confirm
 export function useConfirm() {
   const ctx = useContext(ConfirmContext)
   if (!ctx) {
