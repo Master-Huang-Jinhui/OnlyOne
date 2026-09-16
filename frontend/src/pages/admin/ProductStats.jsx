@@ -23,27 +23,32 @@ export default function ProductStats() {
   const [searchLoading, setSearchLoading] = useState(false)
   const searchTimer = useRef(null)
 
+  // 加载菜品销售统计数据（按热销阈值分类）
   const load = (thresh = threshold) => {
     setLoading(true)
     api.getProductStats(thresh).then(data => { setList(Array.isArray(data) ? data : []) }).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
+  // 按标签分类：热销/平销/滞销
   const hotList = useMemo(() => list.filter(i => i.tag === 'hot'), [list])
   const normalList = useMemo(() => list.filter(i => i.tag === 'normal'), [list])
   const coldList = useMemo(() => list.filter(i => i.tag === 'cold'), [list])
   const currentList = activeTab === 'hot' ? hotList : activeTab === 'normal' ? normalList : coldList
+  // 当前标签下按关键词过滤
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return currentList
     const q = searchQuery.toLowerCase()
     return currentList.filter(item => item.name?.toLowerCase().includes(q))
   }, [currentList, searchQuery])
+  // 分页
   const paginatedList = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filteredList.slice(start, start + pageSize)
   }, [filteredList, currentPage, pageSize])
   const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize))
 
+  // 利润计算：根据采购价/采购量/出份/售价自动计算单位成本、每份成本、每份利润、利润率
   const profitCalc = useMemo(() => {
     const price = parseFloat(profitForm.purchasePrice) || 0
     const qty = parseFloat(profitForm.purchaseQty) || 0
@@ -67,6 +72,7 @@ export default function ProductStats() {
     return { unitCost, portionCost, portionProfit, profitRate, totalPortions, totalRevenue, totalProfit, soldProfit }
   }, [profitForm, list])
 
+  // 搜索菜品（防抖300ms），用于利润计算器关联菜品
   const handleSearchChange = (e) => {
     const kw = e.target.value
     setSearchKeyword(kw)
@@ -83,6 +89,7 @@ export default function ProductStats() {
     }, 300)
   }
 
+  // 选中搜索结果后，自动填充该菜品的最新成本记录
   const handleSelectSearchResult = async (item) => {
     setSearchKeyword(item.name)
     setShowSearchDropdown(false)
@@ -99,6 +106,7 @@ export default function ProductStats() {
     } catch { /* 忽略 */ }
   }
 
+  // 保存当前成本记录到数据库
   const handleSaveRecord = async () => {
     if (!profitCalc) { toast(t('productStats.dataRequired', '请先填写完整成本数据'), 'error'); return }
     try {
@@ -107,10 +115,13 @@ export default function ProductStats() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 下载Excel模板
   const handleDownloadTemplate = async () => {
     try { await api.downloadProfitTemplate(); toast(t('productStats.templateDownloaded', '模板已下载')) } catch (e) { toast(e.message, 'error') }
   }
+  // 触发文件选择对话框
   const handleImportClick = () => fileInputRef.current?.click()
+  // 处理Excel文件导入，批量计算利润
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -123,6 +134,7 @@ export default function ProductStats() {
     } catch (e) { toast(e.message, 'error') }
     finally { setImportLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
+  // 导出批量计算结果为Excel
   const handleExportResult = async () => {
     if (importResults.length === 0) { toast(t('productStats.noExport', '没有可导出的数据'), 'error'); return }
     try { await api.exportProfitResult(importResults); toast(t('productStats.exported', '结果已导出')) } catch (e) { toast(e.message, 'error') }
