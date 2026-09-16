@@ -6,6 +6,7 @@ import { api } from '../../lib/api'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function AdminLayout() {
+  // 管理后台布局：左侧可折叠侧边栏 + 顶部栏（语言切换/夜间模式/退出）+ 内容区
   const { user, logout } = useAuth()
   const { t, language } = useLanguage()
   const navigate = useNavigate()
@@ -30,9 +31,12 @@ export default function AdminLayout() {
   useEffect(() => {
     api.getMenus().then(data => {
       let menuList = Array.isArray(data) ? data : []
+      // 非超级管理员都需要过滤菜单（基于角色权限或用户个人权限）
       if (user?.role !== 'admin') {
         try {
           const perms = user.permissions || {}
+          // 只有配置了 menus 字段才过滤（空数组表示无权限）
+          // 未配置 menus 字段的老数据保持全部可见
           if (perms.menus !== undefined) {
             const allowedIds = perms.menus || []
             const allowed = menuList.filter(m => allowedIds.includes(m.id))
@@ -46,15 +50,18 @@ export default function AdminLayout() {
     }).catch(() => {})
   }, [user])
 
+  // 退出登录并跳转回登录页
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
+  // 关闭移动端侧边栏抽屉
   const closeSidebar = () => setSidebarOpen(false)
 
   return (
     <div className={`flex min-h-screen bg-gray-50 ${darkMode ? 'dark-admin' : ''}`}>
+      {/* 移动端遮罩 */}
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
@@ -62,6 +69,7 @@ export default function AdminLayout() {
         />
       )}
 
+      {/* 侧边栏 - 手机端fixed抽屉，桌面端sticky固定 */}
       <aside className={`
         fixed top-0 left-0 h-full bg-white border-r border-gray-200 flex flex-col z-50
         transition-transform duration-300 lg:transition-none
@@ -107,40 +115,42 @@ export default function AdminLayout() {
         </nav>
       </aside>
 
+      {/* 主内容区 */}
       <div className="flex-1 min-w-0">
+        {/* 顶部栏 - 手机端显示汉堡按钮 */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700 p-2"
+              className="text-2xl text-gray-600 lg:hidden p-1"
             >
               ☰
             </button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-800">
-                {user?.role === 'admin' ? t('layout.superAdmin', '超级管理员') : user?.role === 'manager' ? t('layout.manager', '管理员') : user?.role === 'employee' ? t('layout.employee', '员工') : t('layout.user', '用户')}
-              </h1>
-              {user?.name && <p className="text-xs text-gray-400">{user.name}</p>}
-            </div>
+            <h1 className="text-lg font-semibold text-gray-800">
+              {user?.name || user?.username}
+              <span className="text-gray-300 mx-2">·</span>
+              <span className="text-sm font-normal text-gray-500">{user?.role === 'admin' ? t('role.admin', '超级管理员') : user?.role === 'manager' ? t('role.manager', '管理员') : t('role.user', '用户')}</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <LanguageSwitcher />
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="text-gray-500 hover:text-gray-700 p-2 text-lg"
-              title={t('layout.darkMode', '夜间模式')}
+              className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title={darkMode ? t('layout.switchToDay', '切换到日间模式') : t('layout.switchToNight', '切换到夜间模式')}
             >
-              {darkMode ? '☀️' : '🌙'}
+              <span className="text-lg">{darkMode ? '☀️' : '🌙'}</span>
             </button>
-            <Link to="/" target="_blank" className="text-sm text-gray-500 hover:text-primary-600 hidden sm:block">
-              {t('layout.viewStore', '查看前台')}
+            <Link to="/" target="_blank" className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1">
+              <span>🌐</span>{t('layout.viewFrontend', '查看前台')}
             </Link>
-            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-500">
-              {t('layout.logout', '退出')}
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-500 flex items-center gap-1">
+              <span>🚪</span>{t('login.logout', '退出登录')}
             </button>
           </div>
         </header>
 
+        {/* 页面内容 */}
         <main className="p-4 lg:p-6">
           <Outlet />
         </main>

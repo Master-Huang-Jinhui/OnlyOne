@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext'
 const emptyForm = { parent_id: 0, name: '', icon: '', path: '', sort_order: 0, enabled: true }
 
 export default function Menus() {
+  // 菜单管理：增删改查后台侧边栏菜单，支持一级/二级层级
   const { t } = useLanguage()
   const confirm = useConfirm()
   const [menus, setMenus] = useState([])
@@ -16,11 +17,16 @@ export default function Menus() {
 
   useEffect(() => { load() }, [])
 
+  // 加载全部菜单列表
   const load = () => api.getAllMenus().then(setMenus).catch(() => {})
 
+  // 打开添加菜单弹窗（可指定父级菜单ID）
   const openAdd = (parentId = 0) => { setEditing(null); setForm({ ...emptyForm, parent_id: parentId }); setDialog(true) }
+
+  // 打开编辑菜单弹窗
   const openEdit = (m) => { setEditing(m); setForm({ ...m, enabled: !!m.enabled }); setDialog(true) }
 
+  // 保存菜单：新增或更新
   const save = async () => {
     if (!form.name) { toast(t('menus.nameRequired', '菜单名称必填'), 'error'); return }
     try {
@@ -30,6 +36,7 @@ export default function Menus() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除菜单（需确认）
   const remove = async (id) => {
     if (!await confirm({ title: t('menus.confirmDeleteTitle', '删除菜单'), message: t('menus.confirmDeleteMsg', '确定删除？子菜单也会被删除'), variant: 'danger' })) return
     await api.deleteMenu(id); toast(t('menus.deleted', '已删除')); load()

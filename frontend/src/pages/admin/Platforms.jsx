@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext'
 const emptyForm = { name: '', logo: '', url: '', account: '', password: '', phone: '', note: '', enabled: true, sort_order: 0 }
 
 export default function Platforms() {
+  // 外卖平台管理：增删改查Uber Eats/DoorDash/Grubhub等平台账号密码及跳转链接
   const { t } = useLanguage()
   const confirm = useConfirm()
   const [platforms, setPlatforms] = useState([])
@@ -17,26 +18,54 @@ export default function Platforms() {
 
   useEffect(() => { load() }, [])
 
-  const load = () => { api.getPlatforms().then(setPlatforms).catch(() => {}) }
+  // 加载平台列表
+  const load = () => {
+    api.getPlatforms().then(setPlatforms).catch(() => {})
+  }
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
-  const openEdit = (p) => { setEditing(p); setForm({ ...p, enabled: !!p.enabled }); setDialog(true) }
+  // 打开添加平台弹窗
+  const openAdd = () => {
+    setEditing(null)
+    setForm(emptyForm)
+    setDialog(true)
+  }
 
+  // 打开编辑平台弹窗
+  const openEdit = (p) => {
+    setEditing(p)
+    setForm({ ...p, enabled: !!p.enabled })
+    setDialog(true)
+  }
+
+  // 保存平台：新增或更新
   const save = async () => {
     if (!form.name) { toast(t('platforms.nameRequired', '平台名称必填'), 'error'); return }
     try {
-      if (editing) { await api.updatePlatform(editing.id, form); toast(t('platforms.updated', '更新成功')) }
-      else { await api.createPlatform(form); toast(t('platforms.added', '添加成功')) }
-      setDialog(false); load()
+      if (editing) {
+        await api.updatePlatform(editing.id, form)
+        toast(t('platforms.updated', '更新成功'))
+      } else {
+        await api.createPlatform(form)
+        toast(t('platforms.added', '添加成功'))
+      }
+      setDialog(false)
+      load()
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除平台（需确认）
   const remove = async (id) => {
     if (!await confirm({ title: t('platforms.confirmDeleteTitle', '删除平台'), message: t('platforms.confirmDeleteMsg', '确定删除该平台？'), variant: 'danger' })) return
-    await api.deletePlatform(id); toast(t('platforms.deleted', '已删除')); load()
+    await api.deletePlatform(id)
+    toast(t('platforms.deleted', '已删除'))
+    load()
   }
 
-  const toggleEnabled = async (p) => { await api.updatePlatform(p.id, { enabled: !p.enabled }); load() }
+  // 切换平台启用/停用状态
+  const toggleEnabled = async (p) => {
+    await api.updatePlatform(p.id, { enabled: !p.enabled })
+    load()
+  }
 
   const columns = [
     { header: t('platforms.platformCol', '平台'), render: p => (
@@ -86,18 +115,28 @@ export default function Platforms() {
         {platforms.length === 0 ? (
           <Empty text={t('platforms.empty', '暂无平台，点击右上角添加')} icon="🛵" />
         ) : (
-          <Table columns={columns} data={platforms} actions={p => (
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
-              <button onClick={() => toggleEnabled(p)} className="text-gray-500 hover:text-gray-700 text-sm">{p.enabled ? t('platforms.disabled', '停用') : t('platforms.enabled', '启用')}</button>
-              <button onClick={() => remove(p.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
-            </div>
-          )} />
+          <Table
+            columns={columns}
+            data={platforms}
+            actions={p => (
+              <div className="flex gap-2">
+                <button onClick={() => openEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
+                <button onClick={() => toggleEnabled(p)} className="text-gray-500 hover:text-gray-700 text-sm">{p.enabled ? t('platforms.disabled', '停用') : t('platforms.enabled', '启用')}</button>
+                <button onClick={() => remove(p.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
+              </div>
+            )}
+          />
         )}
       </Card>
 
-      <Dialog open={dialog} onClose={() => setDialog(false)} title={editing ? t('platforms.editPlatform', '编辑平台') : t('platforms.addPlatform', '添加平台')} width="max-w-2xl"
-        footer={<><Button variant="outline" onClick={() => setDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={save}>{t('common.save', '保存')}</Button></>}>
+      {/* 添加/编辑对话框 */}
+      <Dialog
+        open={dialog}
+        onClose={() => setDialog(false)}
+        title={editing ? t('platforms.editPlatform', '编辑平台') : t('platforms.addPlatform', '添加平台')}
+        width="max-w-2xl"
+        footer={<><Button variant="outline" onClick={() => setDialog(false)}>{t('common.cancel', '取消')}</Button><Button onClick={save}>{t('common.save', '保存')}</Button></>}
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label={t('platforms.nameLabel', '平台名称 *')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('platforms.namePlaceholder', '如：DoorDash')} />
