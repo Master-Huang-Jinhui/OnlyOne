@@ -5,6 +5,7 @@ import { Button, Input, Dialog, toast, Badge, Select, Textarea } from '../../com
 import { useConfirm } from '../../components/ConfirmDialog'
 
 export default function Tables() {
+  // 餐桌管理：餐桌CRUD + 分区管理 + 预订管理 + 翻台统计 + 二维码 + 清桌/转桌/并桌/维护
   const { t } = useLanguage()
   const confirm = useConfirm()
   const [tables, setTables] = useState([])
@@ -48,6 +49,7 @@ export default function Tables() {
   // 统计
   const [turnoverStats, setTurnoverStats] = useState(null)
 
+  // 加载餐桌列表和分区列表
   const load = () => {
     setLoading(true)
     const params = activeZone !== '全部' ? { zone: activeZone } : {}
@@ -55,10 +57,12 @@ export default function Tables() {
     api.getTableZones().then(setZones).catch(() => {})
   }
 
+  // 加载预订列表
   const loadReservations = () => {
     api.getReservations().then(setReservations).catch(() => {})
   }
 
+  // 加载翻台统计数据
   const loadStats = () => {
     api.getTableTurnoverStats().then(setTurnoverStats).catch(() => {})
   }
@@ -67,6 +71,7 @@ export default function Tables() {
   useEffect(() => { if (tab === 'reservations') loadReservations() }, [tab])
   useEffect(() => { if (tab === 'stats') loadStats() }, [tab])
 
+  // 保存餐桌（新增或编辑）
   const handleSave = () => {
     if (!form.table_no.trim()) { toast(t('tables.tableNoRequired', '请输入桌号'), 'error'); return }
     if (editing) {
@@ -76,6 +81,7 @@ export default function Tables() {
     }
   }
 
+  // 批量生成餐桌（前缀+序号范围）
   const handleBatch = () => {
     api.batchCreateTables(batchForm).then(data => {
       toast(`${t('tables.batchAdded', '成功添加')} ${data.created_count} ${t('tables.tablesUnit', '桌')}${data.error_count > 0 ? `，${data.error_count} ${t('tables.skippedExist', '桌已存在跳过')}` : ''}`)
@@ -84,25 +90,30 @@ export default function Tables() {
     }).catch(e => toast(e.message, 'error'))
   }
 
+  // 清桌（合并结算当前订单，桌变为清理中）
   const handleClear = async (table) => {
     if (!await confirm({ title: t('tables.clearTitle', '清桌确认'), message: `${t('tables.clearMsgPrefix', '确定清桌')} ${table.table_no}${t('tables.clearMsgSuffix', '？清桌后当前订单将合并结算，下一桌扫码是全新的。')}`, variant: 'warning' })) return
     api.clearTable(table.id).then(() => { toast(t('tables.cleared', '已清桌，状态：清理中')); load() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 清理完成：桌变为空闲
   const handleCleanDone = (table) => {
     api.cleanDoneTable(table.id).then(() => { toast(t('tables.cleanDone', '清理完成，已设为空闲')); load() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 删除餐桌（需确认）
   const handleDelete = async (table) => {
     if (!await confirm({ title: t('tables.deleteTableTitle', '删除餐桌'), message: `${t('tables.deleteTableMsgPrefix', '确定删除餐桌')} ${table.table_no}${t('tables.deleteTableMsgSuffix', '？')}`, variant: 'danger' })) return
     api.deleteTable(table.id).then(() => { toast(t('tables.deleted', '已删除')); load() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 切换餐桌维护状态
   const handleMaintenance = (table) => {
     const isMaint = table.status === 'maintenance'
     api.setTableMaintenance(table.id, !isMaint).then(() => { toast(isMaint ? t('tables.restored', '已恢复使用') : t('tables.setMaintenance', '已设为维护中')); load() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 转桌：将订单和会话从源桌转移到目标桌
   const handleTransfer = () => {
     if (!transferTo) { toast(t('tables.targetRequired', '请选择目标桌'), 'error'); return }
     api.transferTable({ from_table_id: transferFrom.id, to_table_id: parseInt(transferTo) }).then(() => {
@@ -110,6 +121,7 @@ export default function Tables() {
     }).catch(e => toast(e.message, 'error'))
   }
 
+  // 并桌：将目标桌订单合并到主桌
   const handleMerge = () => {
     if (!mergeTarget) { toast(t('tables.mergeRequired', '请选择并桌'), 'error'); return }
     api.mergeTables({ main_table_id: mergeMain.id, merge_table_id: parseInt(mergeTarget) }).then(() => {
@@ -117,6 +129,7 @@ export default function Tables() {
     }).catch(e => toast(e.message, 'error'))
   }
 
+  // 保存餐桌自定义扫码URL
   const saveQrCustomUrl = () => {
     if (!qrTable) return
     api.updateTable(qrTable.id, { qr_custom_url: qrCustomUrl }).then(() => {
@@ -126,12 +139,14 @@ export default function Tables() {
     }).catch(e => toast(e.message, 'error'))
   }
 
+  // 获取餐桌扫码点餐链接（优先自定义URL）
   const getQrUrl = (table) => {
     if (table.qr_custom_url) return table.qr_custom_url
     const base = window.location.origin
     return `${base}/table?s=${encodeURIComponent(table.table_no)}`
   }
 
+  // 保存分区（新增或编辑）
   const handleZoneSave = () => {
     if (!zoneForm.name.trim()) { toast(t('tables.zoneNameRequired', '分区名称必填'), 'error'); return }
     if (editingZone) {
@@ -141,11 +156,13 @@ export default function Tables() {
     }
   }
 
+  // 删除分区（桌位移到大厅）
   const handleZoneDelete = async (zone) => {
     if (!await confirm({ title: t('tables.deleteZoneTitle', '删除分区'), message: `${t('tables.deleteZoneMsgPrefix', '确定删除分区')} ${zone.name}${t('tables.deleteZoneMsgSuffix', '？该分区下的桌子将移到"大厅"')}`, variant: 'danger' })) return
     api.deleteTableZone(zone.id).then(() => { toast(t('tables.deleted', '已删除')); load() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 保存预订（新增或编辑）
   const handleResSave = () => {
     if (!resForm.customer_name.trim()) { toast(t('tables.customerNameRequired', '客户姓名必填'), 'error'); return }
     if (!resForm.reserve_date || !resForm.reserve_time) { toast(t('tables.resDateTimeRequired', '预订日期和时间必填'), 'error'); return }
@@ -156,11 +173,13 @@ export default function Tables() {
     }
   }
 
+  // 删除预订（需确认）
   const handleResDelete = async (res) => {
     if (!await confirm({ title: t('tables.deleteResTitle', '删除预订'), message: t('tables.deleteResMsg', '确定删除此预订？'), variant: 'danger' })) return
     api.deleteReservation(res.id).then(() => { toast(t('tables.deleted', '已删除')); loadReservations() }).catch(e => toast(e.message, 'error'))
   }
 
+  // 格式化用餐时长为"X小时Y分"
   const formatOpenedTime = (openedAt) => {
     if (!openedAt) return '-'
     const start = new Date(openedAt.replace(' ', 'T'))
