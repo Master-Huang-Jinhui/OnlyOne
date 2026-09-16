@@ -4,6 +4,7 @@ import { Card, Button, Input, Select, Switch, Tabs, toast } from '../../componen
 import { useLanguage } from '../../context/LanguageContext'
 
 export default function Settings() {
+  // 系统设置：店铺信息/营业时间/税率配送/堂吃二维码 四个标签页
   const { t } = useLanguage()
   const [tab, setTab] = useState('basic')
   const [settings, setSettings] = useState({})
@@ -29,8 +30,10 @@ export default function Settings() {
     }).catch(() => {})
   }, [])
 
+  // 更新单个设置项
   const update = (key, value) => setSettings(prev => ({ ...prev, [key]: value }))
 
+  // 更新某一天的营业时间（开关/开/关时间）
   const updateHours = (day, field, value) => {
     const hours = { ...(settings.business_hours || {}) }
     if (!hours[day]) hours[day] = { open: false, open_time: '10:00', close_time: '21:00' }
@@ -38,6 +41,7 @@ export default function Settings() {
     update('business_hours', hours)
   }
 
+  // 保存全部设置到后端
   const save = async () => {
     setSaving(true)
     try {
@@ -47,6 +51,7 @@ export default function Settings() {
     finally { setSaving(false) }
   }
 
+  // 生成堂吃点餐二维码（调用qrserver API）
   const generateQR = () => {
     const address = qrAddress || `http://${window.location.hostname}:3000`
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(address)}`
@@ -95,9 +100,11 @@ export default function Settings() {
                   <Switch checked={!!h.open} onChange={v => updateHours(day.key, 'open', v)} label={h.open ? t('settings.open', '营业中') : t('settings.closed', '休息')} />
                   {h.open && (
                     <div className="flex items-center gap-2 ml-4">
-                      <input type="time" value={h.open_time} onChange={e => updateHours(day.key, 'open_time', e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                      <input type="time" value={h.open_time} onChange={e => updateHours(day.key, 'open_time', e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                       <span className="text-gray-400">{t('settings.to', '至')}</span>
-                      <input type="time" value={h.close_time} onChange={e => updateHours(day.key, 'close_time', e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                      <input type="time" value={h.close_time} onChange={e => updateHours(day.key, 'close_time', e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                     </div>
                   )}
                 </div>
@@ -108,7 +115,8 @@ export default function Settings() {
             <p className="text-sm font-medium text-gray-700 mb-2">{t('settings.bizDayStart', '营业日结算时间')}</p>
             <p className="text-xs text-gray-400 mb-3">{t('settings.bizDayStartDesc', '每天这个时间点之前的订单算前一天的营业日，之后算新的一天。比如设为04:00，则凌晨4点前的订单算前一天。')}</p>
             <div className="flex items-center gap-2">
-              <input type="time" value={settings.business_day_start || '04:00'} onChange={e => update('business_day_start', e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+              <input type="time" value={settings.business_day_start || '04:00'} onChange={e => update('business_day_start', e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
               <span className="text-xs text-gray-400">{t('settings.bizDayStartDefault', '默认 04:00（凌晨4点）')}</span>
             </div>
           </div>
@@ -146,7 +154,10 @@ export default function Settings() {
           <div className="flex items-center gap-2 mb-4 text-sm">
             <span className="text-gray-500">{t('settings.currentAddress', '当前地址：')}</span>
             <code className="bg-gray-100 px-2 py-1 rounded text-gray-700 flex-1 truncate">{qrAddress || window.location.origin}</code>
-            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(qrAddress || window.location.origin); toast(t('settings.copied', '地址已复制')) }}>{t('settings.copy', '复制')}</Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              navigator.clipboard.writeText(qrAddress || window.location.origin)
+              toast(t('settings.copied', '地址已复制'))
+            }}>{t('settings.copy', '复制')}</Button>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
             <p>⚠️ {t('settings.noteTitle', '注意：')}</p>
