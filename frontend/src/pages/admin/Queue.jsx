@@ -14,6 +14,7 @@ export default function Queue() {
   const [takeDialog, setTakeDialog] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // 加载排队列表和统计数据（支持按类型筛选）
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -25,8 +26,10 @@ export default function Queue() {
   }, [typeFilter])
 
   useEffect(() => { load() }, [load])
+  // 自动刷新：每5秒拉取一次最新排队状态
   useEffect(() => { if (!autoRefresh) return; const timer = setInterval(load, 5000); return () => clearInterval(timer) }, [autoRefresh, load])
 
+  // 顾客取号（生成排队号）
   const takeNumber = async () => {
     const { type, customer_name, people_count, note } = takeDialog
     if (!type) { toast(t('queue.typeRequired', '请选择类型'), 'error'); return }
@@ -37,8 +40,10 @@ export default function Queue() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 叫号（将等待中的号切换为叫号中）
   const callNumber = async (q) => { try { await api.callQueueNumber(q.id); toast(`${t('queue.calling', '正在叫号')} ${q.number}`); load() } catch (e) { toast(e.message, 'error') } }
 
+  // 再次叫号（重复叫同一个号）
   const recallNumber = async (q) => {
     try {
       const data = await api.recallQueueNumber(q.id)
@@ -47,25 +52,31 @@ export default function Queue() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 完成叫号（顾客已入座/取餐），需确认
   const completeNumber = async (q) => {
     if (!await confirm({ title: t('queue.completeTitle', '确认完成'), message: `${t('queue.completeMsgPrefix', '确认')} ${q.number} ${t('queue.completeMsgSuffix', '已完成？')}`, variant: 'success' })) return
     try { await api.completeQueueNumber(q.id); toast(t('queue.completed', '已完成')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 跳过当前叫号（顾客未到），需确认
   const skipNumber = async (q) => {
     if (!await confirm({ title: t('queue.skipTitle', '确认跳过'), message: `${t('queue.skipMsgPrefix', '确认跳过')} ${q.number}${t('queue.skipMsgSuffix', '？')}`, variant: 'danger' })) return
     try { await api.skipQueueNumber(q.id); toast(t('queue.skipped', '已跳过')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 自动叫下一个（从等待列表中按顺序叫号）
   const callNext = async () => {
     try { const data = await api.callNextQueue(typeFilter); toast(`${t('queue.calling', '正在叫号')} ${data.number}`); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 按状态分类排队号
   const waitingList = queues.filter(q => q.status === 'waiting')
   const callingList = queues.filter(q => q.status === 'calling')
   const completedList = queues.filter(q => q.status === 'completed' || q.status === 'skipped')
 
+  // 类型标签：堂吃/外带
   const typeLabel = (type) => type === 'dinein' ? t('queue.dinein', '堂吃') : t('queue.takeout', '外带')
+  // 状态徽章：等待中/叫号中/已完成/已跳过
   const statusBadge = (status) => {
     const map = {
       waiting: { label: t('queue.waiting', '等待中'), variant: 'warning' },
@@ -77,6 +88,7 @@ export default function Queue() {
     return <Badge variant={s.variant}>{s.label}</Badge>
   }
 
+  // 计算等待时长（分钟）
   const calcWait = (q) => {
     if (!q.created_at) return 0
     const start = new Date(q.created_at.replace(' ', 'T'))
