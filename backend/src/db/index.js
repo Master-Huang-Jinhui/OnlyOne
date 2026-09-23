@@ -342,6 +342,24 @@ try {
   db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run();
 } catch (e) { /* 列已存在忽略 */ }
 
+// ========== 外卖平台扩展字段迁移 ==========
+// 佣金比例（%）
+try { db.prepare("ALTER TABLE platforms ADD COLUMN commission_rate REAL DEFAULT 0").run(); } catch (e) {}
+// 结算周期: weekly/biweekly/monthly
+try { db.prepare("ALTER TABLE platforms ADD COLUMN payout_schedule TEXT DEFAULT 'weekly'").run(); } catch (e) {}
+// 配送方式: platform(平台配送)/self(自送)/pickup(仅自取)
+try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_type TEXT DEFAULT 'platform'").run(); } catch (e) {}
+// 最低订单额 ($)
+try { db.prepare("ALTER TABLE platforms ADD COLUMN min_order REAL DEFAULT 0").run(); } catch (e) {}
+// 配送范围（英里）
+try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_radius REAL DEFAULT 0").run(); } catch (e) {}
+// 平台对接人
+try { db.prepare("ALTER TABLE platforms ADD COLUMN contact_person TEXT DEFAULT ''").run(); } catch (e) {}
+// 店铺评分（1-5）
+try { db.prepare("ALTER TABLE platforms ADD COLUMN rating REAL DEFAULT 0").run(); } catch (e) {}
+// 上线日期
+try { db.prepare("ALTER TABLE platforms ADD COLUMN launch_date TEXT DEFAULT ''").run(); } catch (e) {}
+
 // ========== 运行各模块初始化数据 ==========
 require('./seeds/users')(db);
 require('./seeds/menus')(db);
