@@ -19,34 +19,22 @@ export default function PlatformReports() {
     note: ''
   })
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [reportsRes, platformsRes] = await Promise.all([
-        api.getPlatformReports(),
-        api.getPlatforms()
-      ])
+      const [reportsRes, platformsRes] = await Promise.all([api.getPlatformReports(), api.getPlatforms()])
       const list = reportsRes?.reports || (Array.isArray(reportsRes) ? reportsRes : [])
       setReports(list)
       setPlatforms(Array.isArray(platformsRes) ? platformsRes : (platformsRes?.platforms || []))
-    } catch (e) {
-      toast('加载失败：' + e.message, 'error')
-    } finally {
-      setLoading(false)
-    }
+    } catch (e) { toast('加载失败：' + e.message, 'error') }
+    finally { setLoading(false) }
   }
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    uploadFile(file)
-  }
+  const handleFileSelect = (e) => { const file = e.target.files?.[0]; if (file) uploadFile(file) }
 
-  const uploadFile = async (file) => {
+  const uploadFile = async (file, force = false) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('platform_id', form.platform_id)
@@ -55,58 +43,47 @@ export default function PlatformReports() {
     formData.append('order_count', form.order_count)
     formData.append('platform_fee', form.platform_fee)
     formData.append('net_revenue', form.net_revenue)
+    if (force) formData.append('force', 'true')
     try {
       await api.uploadPlatformReport(formData)
       toast('上传成功')
       loadData()
     } catch (e) {
+      if (e.duplicate) {
+        if (await confirm({ title: '重复月份确认', message: `这个平台 ${form.month} 已经有报表了，确定还要重复添加吗？`, variant: 'warning' })) {
+          uploadFile(file, true)
+        }
+        return
+      }
       toast('上传失败：' + e.message, 'error')
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.platform_id) {
-      toast('请选择外卖平台', 'error')
-      return
-    }
-    if (!form.month) {
-      toast('请选择月份', 'error')
-      return
-    }
+    if (!form.platform_id) { toast('请选择外卖平台', 'error'); return }
+    if (!form.month) { toast('请选择月份', 'error'); return }
     try {
       await api.createPlatformReport(form)
       toast('添加成功')
-      setForm({
-        platform_id: '',
-        month: new Date().toISOString().slice(0, 7),
-        total_sales: '',
-        order_count: '',
-        platform_fee: '',
-        net_revenue: '',
-        note: ''
-      })
+      setForm({ platform_id: '', month: new Date().toISOString().slice(0, 7), total_sales: '', order_count: '', platform_fee: '', net_revenue: '', note: '' })
       loadData()
-    } catch (e) {
-      toast('添加失败：' + e.message, 'error')
-    }
+    } catch (e) { toast('添加失败：' + e.message, 'error') }
   }
 
   const handleDelete = async (id) => {
     if (!await confirm({ title: '删除报表', message: '确定删除这条报表记录吗？此操作不可恢复。', variant: 'danger' })) return
-    try {
-      await api.deletePlatformReport(id)
-      toast('删除成功')
-      loadData()
-    } catch (e) {
-      toast('删除失败：' + e.message, 'error')
-    }
+    try { await api.deletePlatformReport(id); toast('删除成功'); loadData() }
+    catch (e) { toast('删除失败：' + e.message, 'error') }
   }
 
-  const getPlatformName = (id) => {
-    const p = platforms.find(p => p.id === id)
-    return p ? p.name : '未知'
-  }
+  const getPlatformName = (id) => platforms.find(p => p.id === id)?.name || '未知'
+
+  // 找出重复的平台+月份
+  const duplicateKeys = new Set()
+  const countMap = {}
+  reports.forEach(r => { const key = `${r.platform_id}_${r.month}`; countMap[key] = (countMap[key] || 0) + 1 })
+  Object.keys(countMap).forEach(key => { if (countMap[key] > 1) duplicateKeys.add(key) })
 
   return (
     <div className="space-y-6">
@@ -120,100 +97,39 @@ export default function PlatformReports() {
         <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm text-gray-600 mb-1">外卖平台</label>
-            <select
-              value={form.platform_id}
-              onChange={e => setForm({ ...form, platform_id: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
+            <select value={form.platform_id} onChange={e => setForm({ ...form, platform_id: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
               <option value="">请选择（上传PDF可自动识别）</option>
-              {platforms.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">月份</label>
-            <input
-              type="month"
-              value={form.month}
-              onChange={e => setForm({ ...form, month: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="month" value={form.month} onChange={e => setForm({ ...form, month: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">总销售额</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.total_sales}
-              onChange={e => setForm({ ...form, total_sales: e.target.value })}
-              placeholder="0.00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="number" step="0.01" value={form.total_sales} onChange={e => setForm({ ...form, total_sales: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">订单数</label>
-            <input
-              type="number"
-              value={form.order_count}
-              onChange={e => setForm({ ...form, order_count: e.target.value })}
-              placeholder="0"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="number" value={form.order_count} onChange={e => setForm({ ...form, order_count: e.target.value })} placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">平台佣金</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.platform_fee}
-              onChange={e => setForm({ ...form, platform_fee: e.target.value })}
-              placeholder="0.00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="number" step="0.01" value={form.platform_fee} onChange={e => setForm({ ...form, platform_fee: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">净收入</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.net_revenue}
-              onChange={e => setForm({ ...form, net_revenue: e.target.value })}
-              placeholder="0.00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="number" step="0.01" value={form.net_revenue} onChange={e => setForm({ ...form, net_revenue: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div className="col-span-2">
             <label className="block text-sm text-gray-600 mb-1">备注</label>
-            <input
-              type="text"
-              value={form.note}
-              onChange={e => setForm({ ...form, note: e.target.value })}
-              placeholder="备注说明"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
+            <input type="text" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="备注说明" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div className="col-span-2 md:col-span-4 flex gap-2">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700"
-            >
-              添加报表
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
-            >
-              上传报表文件（CSV/PDF）
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.pdf"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
+            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">添加报表</button>
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">上传报表文件（CSV/PDF）</button>
+            <input ref={fileInputRef} type="file" accept=".csv,.pdf" onChange={handleFileSelect} className="hidden" />
           </div>
         </form>
       </div>
@@ -222,11 +138,9 @@ export default function PlatformReports() {
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-800">报表列表</h2>
         </div>
-        {loading ? (
-          <div className="p-8 text-center text-gray-400">加载中...</div>
-        ) : reports.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">暂无报表数据</div>
-        ) : (
+        {loading ? <div className="p-8 text-center text-gray-400">加载中...</div>
+        : reports.length === 0 ? <div className="p-8 text-center text-gray-400">暂无报表数据</div>
+        : (
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -248,38 +162,24 @@ export default function PlatformReports() {
               {reports.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3 text-sm text-gray-800">{r.platform_name || getPlatformName(r.platform_id)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{r.month}</td>
+                  <td className="px-6 py-3 text-sm text-gray-600">
+                    {duplicateKeys.has(`${r.platform_id}_${r.month}`) ? (
+                      <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">{r.month} ⚠️重复</span>
+                    ) : r.month}
+                  </td>
                   <td className="px-6 py-3 text-sm text-right text-gray-800">${r.total_sales?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-right text-gray-600">{r.order_count}</td>
                   <td className="px-6 py-3 text-sm text-right text-red-500">{r.refund_count || 0}</td>
                   <td className="px-6 py-3 text-sm text-right text-red-500">${(r.refund_amount || 0).toFixed(2)}</td>
-                  <td className="px-6 py-3 text-sm text-right text-gray-600">
-                    {r.order_count > 0 ? '$' + (r.total_sales / r.order_count).toFixed(2) : '-'}
-                  </td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-600">{r.order_count > 0 ? '$' + (r.total_sales / r.order_count).toFixed(2) : '-'}</td>
                   <td className="px-6 py-3 text-sm text-right text-red-600">-${r.platform_fee?.toFixed(2)}</td>
-                  <td className="px-6 py-3 text-sm text-right text-gray-500">
-                    {r.total_sales > 0 ? ((r.platform_fee / r.total_sales) * 100).toFixed(1) + '%' : '-'}
-                  </td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-500">{r.total_sales > 0 ? ((r.platform_fee / r.total_sales) * 100).toFixed(1) + '%' : '-'}</td>
                   <td className="px-6 py-3 text-sm text-right text-green-600 font-medium">${r.net_revenue?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{r.note || '-'}</td>
                   <td className="px-6 py-3 text-center">
                     <div className="flex gap-2 justify-center">
-                      {r.file_path && (
-                        <a
-                          href={r.file_path}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary-600 text-sm hover:text-primary-700"
-                        >
-                          在线查看
-                        </a>
-                      )}
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="text-red-600 text-sm hover:text-red-700"
-                      >
-                        删除
-                      </button>
+                      {r.file_path && <a href={r.file_path} target="_blank" rel="noreferrer" className="text-primary-600 text-sm hover:text-primary-700">在线查看</a>}
+                      <button onClick={() => handleDelete(r.id)} className="text-red-600 text-sm hover:text-red-700">删除</button>
                     </div>
                   </td>
                 </tr>
