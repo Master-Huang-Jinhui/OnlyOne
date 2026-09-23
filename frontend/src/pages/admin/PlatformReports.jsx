@@ -28,9 +28,10 @@ export default function PlatformReports() {
         api.getPlatformReports(),
         api.getPlatforms()
       ])
-      // 确保是数组，防止接口返回对象导致 .map 报错
-      setReports(Array.isArray(reportsRes) ? reportsRes : [])
-      setPlatforms(Array.isArray(platformsRes) ? platformsRes : [])
+      // 后端返回 { reports: [...] }，取 reports 字段；如果直接是数组也兼容
+      const list = reportsRes?.reports || (Array.isArray(reportsRes) ? reportsRes : [])
+      setReports(list)
+      setPlatforms(Array.isArray(platformsRes) ? platformsRes : (platformsRes?.platforms || []))
     } catch (e) {
       toast('加载失败：' + e.message, 'error')
     } finally {
