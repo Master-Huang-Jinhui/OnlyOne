@@ -1,3 +1,5 @@
+import { handleApiError, setToastFn } from './errorHandler'
+
 const BASE = '/api'
 
 // 从localStorage获取JWT token
@@ -6,14 +8,30 @@ function getToken() {
 }
 
 // POST请求封装（默认POST方法，自动携带token和Content-Type）
+// 自动捕获错误并弹出提示，除非传入 options.silent = true
 async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${BASE}${path}`, { method: 'POST', ...options, headers })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || '请求失败')
-  return data
+  try {
+    const res = await fetch(`${BASE}${path}`, { method: 'POST', ...options, headers })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const err = new Error(data.error || '请求失败')
+      err.status = res.status
+      err.__handled = true  // 标记已处理，避免全局监听器重复弹提示
+      handleApiError(err, path, options.silent)
+      throw err
+    }
+    return data
+  } catch (err) {
+    // 网络错误（fetch本身失败，服务器没响应）
+    if (err.name === 'TypeError') {
+      err.__handled = true
+      handleApiError(err, path, options.silent)
+    }
+    throw err
+  }
 }
 
 // GET请求封装（用于翻译等公开接口，避免POST认证拦截）
@@ -21,14 +39,31 @@ async function getRequest(path) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${BASE}${path}`, { method: 'GET', headers })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || '请求失败')
-  return data
+  try {
+    const res = await fetch(`${BASE}${path}`, { method: 'GET', headers })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const err = new Error(data.error || '请求失败')
+      err.status = res.status
+      err.__handled = true
+      handleApiError(err, path)
+      throw err
+    }
+    return data
+  } catch (err) {
+    if (err.name === 'TypeError') {
+      err.__handled = true
+      handleApiError(err, path)
+    }
+    throw err
+  }
 }
 
 // ========== API 接口集合 ==========
 export const api = {
+  // 初始化错误处理：注册toast函数到errorHandler
+  initErrorHandler: (toastFn) => setToastFn(toastFn),
+
   // 认证相关
   login: (username, password) => request('/auth/login', { body: JSON.stringify({ username, password }) }),
   getMe: () => request('/auth/me'),
@@ -64,7 +99,13 @@ export const api = {
       body: formData
     }).then(async res => {
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '上传失败')
+      if (!res.ok) {
+        const err = new Error(data.error || '上传失败')
+        err.status = res.status
+        err.__handled = true
+        handleApiError(err, '/platform-reports/upload')
+        throw err
+      }
       return data
     })
   },
@@ -187,7 +228,7 @@ export const api = {
   downloadProfitTemplate: async () => {
     const token = getToken()
     const res = await fetch(`${BASE}/stats/profit/template`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
-    if (!res.ok) throw new Error('下载失败')
+    if (!res.ok) { const err = new Error('下载失败'); err.status = res.status; err.__handled = true; handleApiError(err, '/stats/profit/template'); throw err }
     const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -202,7 +243,7 @@ export const api = {
     const token = getToken()
     const res = await fetch(`${BASE}/stats/profit/import`, { method: 'POST', body: formData, headers: { 'Authorization': `Bearer ${token}` } })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error || '导入失败')
+    if (!res.ok) { const err = new Error(data.error || '导入失败'); err.status = res.status; err.__handled = true; handleApiError(err, '/stats/profit/import'); throw err }
     return data
   },
   exportProfitResult: async (results) => {
@@ -212,7 +253,7 @@ export const api = {
       body: JSON.stringify({ results }),
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
     })
-    if (!res.ok) throw new Error('导出失败')
+    if (!res.ok) { const err = new Error('导出失败'); err.status = res.status; err.__handled = true; handleApiError(err, '/stats/profit/export'); throw err }
     const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -279,10 +320,24 @@ export const api = {
     const token = getToken()
     const headers = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch(`${BASE}/upload/image`, { method: 'POST', body: formData, headers })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error || '上传失败')
-    return data
+    try {
+      const res = await fetch(`${BASE}/upload/image`, { method: 'POST', body: formData, headers })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const err = new Error(data.error || '上传失败')
+        err.status = res.status
+        err.__handled = true
+        handleApiError(err, '/upload/image')
+        throw err
+      }
+      return data
+    } catch (err) {
+      if (err.name === 'TypeError') {
+        err.__handled = true
+        handleApiError(err, '/upload/image')
+      }
+      throw err
+    }
   },
 
   getTodayAttendance: () => request('/attendance/today'),
