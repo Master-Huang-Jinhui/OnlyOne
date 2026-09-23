@@ -19,18 +19,24 @@ module.exports = function(db) {
       commission_rate: 0, payout_schedule: 'monthly', delivery_type: 'self', min_order: 0, delivery_radius: 0, contact_person: '', rating: 0, launch_date: '' }
   ];
 
-  const insertPlatform = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order,
+  // 18列对应18个?，全部用参数传入，避免硬编码数量不对
+  const insertPlatform = db.prepare(`INSERT INTO platforms (
+    name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order,
     commission_rate, payout_schedule, delivery_type, min_order, delivery_radius, contact_person, rating, launch_date
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, '{}', ?, ?, ?, ?, ?, ?, ?, ?)`);
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
   const updatePlatformAccount = db.prepare("UPDATE platforms SET account = ?, password = ?, url = COALESCE(NULLIF(url, ''), ?), phone = COALESCE(NULLIF(phone, ''), ?), note = COALESCE(NULLIF(note, ''), ?) WHERE name = ? AND (account IS NULL OR account = '')");
   const updatePlatformUrlAndLogo = db.prepare("UPDATE platforms SET url = ?, logo = ? WHERE name = ?");
 
   defaultPlatforms.forEach(p => {
     const exists = db.prepare('SELECT id FROM platforms WHERE name = ?').get(p.name);
     if (!exists) {
-      insertPlatform.run(p.name, p.logo || '', p.url || '', p.account || '', p.password || '', p.phone || '', p.note || '', p.sort_order,
+      insertPlatform.run(
+        p.name, p.logo || '', p.url || '', p.account || '', p.password || '', p.phone || '', p.note || '',
+        1, '{}', p.sort_order,
         p.commission_rate || 0, p.payout_schedule || 'weekly', p.delivery_type || 'platform', p.min_order || 0,
-        p.delivery_radius || 0, p.contact_person || '', p.rating || 0, p.launch_date || '');
+        p.delivery_radius || 0, p.contact_person || '', p.rating || 0, p.launch_date || ''
+      );
     } else {
       updatePlatformAccount.run(p.account || '', p.password || '', p.url || '', p.phone || '', p.note || '', p.name);
       updatePlatformUrlAndLogo.run(p.url || '', p.logo || '', p.name);
