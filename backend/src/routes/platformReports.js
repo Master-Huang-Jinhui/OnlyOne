@@ -23,14 +23,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /csv|pdf/
     const ext = path.extname(file.originalname).toLowerCase().slice(1)
     if (allowed.test(ext)) cb(null, true)
     else cb(new Error('只支持 CSV 或 PDF 文件'))
   }
-}); // 支持 CSV 和 PDF
+});
 
 // 从 PDF 文本中提取关键数据
 function extractDataFromText(text) {
@@ -38,7 +38,6 @@ function extractDataFromText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const fullText = text.toLowerCase();
   
-  // ===== 自动识别平台 =====
   if (fullText.includes('grubhub') || fullText.includes('seamless')) {
     result.platform_name = 'Grubhub';
   } else if (fullText.includes('uber eats') || fullText.includes('uber technologies') || fullText.includes('ubereats')) {
@@ -51,10 +50,8 @@ function extractDataFromText(text) {
     result.platform_name = 'ChowNow';
   }
   
-  // 找第 i 行后面最近的一个金额数字（支持负数括号格式 $(15.41)）
   const findNextAmount = (startIdx) => {
     for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
-      // 匹配 $88.01 或 $(15.41) 或 (15.41)
       let m = lines[i].match(/\$\(([0-9,]+\.\d{2})\)/);
       if (m) return -parseFloat(m[1].replace(/,/g, ''));
       m = lines[i].match(/\$?\(?([0-9,]+\.\d{2})\)?/);
@@ -63,7 +60,6 @@ function extractDataFromText(text) {
     return null;
   };
   
-  // 找第 i 行后面最近的一个纯数字
   const findNextNumber = (startIdx) => {
     for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
       const m = lines[i].match(/^(\d+)$/) || lines[i].match(/[^0-9.](\d+)[^0-9.]/);
@@ -76,10 +72,7 @@ function extractDataFromText(text) {
     const line = lines[i];
     const lower = line.toLowerCase();
     
-    // ===== 总销售额 =====
-    // Grubhub: "Restaurant sales for 2 orders" 右边 $88.01
     if (!result.total_sales && /restaurant sales|gross sales|total sales|total revenue/i.test(lower)) {
-      // 先在同一行找金额
       let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?([0-9,]+\.\d{2})/);
       if (m && /\$/.test(line)) {
         result.total_sales = parseFloat(m[1].replace(/,/g, ''));
@@ -89,8 +82,6 @@ function extractDataFromText(text) {
       }
     }
     
-    // ===== 订单数 =====
-    // Grubhub: "Restaurant sales for 2 orders" 里的 2
     if (!result.order_count) {
       const m = line.match(/for\s+(\d+)\s+orders/i);
       if (m) {
@@ -101,8 +92,6 @@ function extractDataFromText(text) {
       }
     }
     
-    // ===== 平台总手续费 =====
-    // Grubhub: "Grubhub order services" 右边 $(15.41)
     if (!result.platform_fee && /grubhub order services|platform fee|total fees|service fees|commission/i.test(lower)) {
       let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?\(?([0-9,]+\.\d{2})\)?/);
       if (m && (/\$|\(/.test(line))) {
@@ -113,8 +102,6 @@ function extractDataFromText(text) {
       }
     }
     
-    // ===== 净收入 / 打款 =====
-    // Grubhub: "Balance" 右边 $72.60
     if (!result.net_revenue && /balance|net revenue|payout|total payout|net earnings|total payments to you/i.test(lower)) {
       let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?([0-9,]+\.\d{2})/);
       if (m && /\$/.test(line)) {
@@ -125,8 +112,6 @@ function extractDataFromText(text) {
       }
     }
     
-    // ===== 月份 =====
-    // Grubhub: "Your June statement" 或 "June 2026"
     if (!result.month) {
       const monthNames = {
         january: '01', february: '02', march: '03', april: '04',
@@ -147,7 +132,7 @@ function extractDataFromText(text) {
   return result;
 }
 
-// 解析CSV报表（DoorDash/Uber Eats交易明细格式）
+// 解析CSV报表
 function parseCSVReport(filePath, fileName) {
   const result = {};
   const workbook = xlsx.readFile(filePath);
@@ -160,7 +145,6 @@ function parseCSVReport(filePath, fileName) {
   const firstRow = rows[0];
   const headers = Object.keys(firstRow);
   
-  // 自动识别平台
   if (fileName.toLowerCase().includes('doordash') || headers.some(h => h.toLowerCase().includes('doordash'))) {
     result.platform_name = 'DoorDash';
   } else if (fileName.toLowerCase().includes('ubereats') || fileName.toLowerCase().includes('uber eats')) {
@@ -169,20 +153,15 @@ function parseCSVReport(filePath, fileName) {
     result.platform_name = 'Grubhub';
   }
   
-  // 找列名映射（兼容不同大小写和空格）
   const findCol = (keywords) => {
     return headers.find(h => keywords.some(k => h.toLowerCase().includes(k)));
   };
   
   const subtotalCol = findCol(['subtotal', 'sub total', 'restaurant sales', 'gross sales']);
-  const commissionCol = findCol(['commission', 'platform fee', 'service fee', 'grubhub order services']);
-  const merchantFeesCol = findCol(['merchant fee', 'merchant fees']);
-  const marketingFeesCol = findCol(['marketing fee', 'marketing fees', 'promotion']);
   const netCol = findCol(['net total', 'net revenue', 'balance', 'payout', 'total payout']);
   const typeCol = findCol(['transaction type', 'order type', 'type']);
   const timeCol = findCol(['timestamp', 'date', 'time', 'payout date']);
   
-  // 聚合计算
   let totalSales = 0;
   let orderCount = 0;
   let refundCount = 0;
@@ -190,10 +169,8 @@ function parseCSVReport(filePath, fileName) {
   let totalNet = 0;
   
   for (const row of rows) {
-    // 订单类型
     const rowType = typeCol ? String(row[typeCol]).toLowerCase() : '';
     
-    // 累加 Net total（净收入，所有行加起来就是实际打款）
     if (netCol) {
       const val = parseFloat(String(row[netCol]).replace(/[$,]/g, ''));
       if (!isNaN(val)) totalNet += val;
@@ -201,14 +178,12 @@ function parseCSVReport(filePath, fileName) {
     
     if (rowType === 'order') {
       orderCount++;
-      // 正常订单的销售额
       if (subtotalCol) {
         const val = parseFloat(String(row[subtotalCol]).replace(/[$,]/g, ''));
         if (!isNaN(val)) totalSales += val;
       }
     } else if (rowType.includes('error') || rowType.includes('refund') || rowType.includes('chargeback')) {
       refundCount++;
-      // 退款金额（负的 Net total 取绝对值）
       if (netCol) {
         const val = parseFloat(String(row[netCol]).replace(/[$,]/g, ''));
         if (!isNaN(val) && val < 0) refundAmount += Math.abs(val);
@@ -216,8 +191,6 @@ function parseCSVReport(filePath, fileName) {
     }
   }
   
-  // 平台佣金 = 总销售额 - 退款金额 - 实际净收入
-  // （总销售额里扣掉退给客人的钱，再扣掉平台抽成，剩下的就是我们到手的）
   let totalFees = totalSales - refundAmount - totalNet;
   if (totalFees < 0) totalFees = 0;
   
@@ -228,7 +201,6 @@ function parseCSVReport(filePath, fileName) {
   if (totalFees > 0) result.platform_fee = Math.round(totalFees * 100) / 100;
   result.net_revenue = Math.round(totalNet * 100) / 100;
   
-  // 从文件名提取月份（如 2026-07-01_2026-07-31）
   const monthMatch = fileName.match(/(\d{4})-(\d{2})-\d{2}_\d{4}-\d{2}-\d{2}/);
   if (monthMatch) {
     result.month = `${monthMatch[1]}-${monthMatch[2]}`;
@@ -241,7 +213,6 @@ function parseCSVReport(filePath, fileName) {
   return result;
 }
 
-// 获取报表列表
 router.get('/', auth, (req, res) => {
   const reports = db.prepare(`
     SELECT r.*, p.name as platform_name 
@@ -252,7 +223,6 @@ router.get('/', auth, (req, res) => {
   res.json({ reports });
 });
 
-// 上传报表
 router.post('/upload', auth, managerAccess, upload.single('file'), async (req, res) => {
   const { platform_id, month, total_sales, order_count, platform_fee, net_revenue } = req.body;
   if (!req.file) return res.status(400).json({ error: '请上传报表文件' });
@@ -269,7 +239,6 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
 
   const ext = path.extname(req.file.originalname).toLowerCase();
   
-  // PDF 自动解析
   if (ext === '.pdf') {
     try {
       const dataBuffer = fs.readFileSync(req.file.path);
@@ -282,7 +251,6 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
       if (!finalMonth && extracted.month) finalMonth = extracted.month;
       
-      // 自动识别平台
       if (!finalPlatformId && extracted.platform_name) {
         const platform = db.prepare('SELECT id FROM platforms WHERE name = ?').get(extracted.platform_name);
         if (platform) {
@@ -297,7 +265,6 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     }
   }
   
-  // CSV 自动解析
   else if (ext === '.csv') {
     try {
       const extracted = parseCSVReport(req.file.path, req.file.originalname);
@@ -310,7 +277,6 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
       if (!finalMonth && extracted.month) finalMonth = extracted.month;
       
-      // 自动识别平台
       if (!finalPlatformId && extracted.platform_name) {
         const platform = db.prepare('SELECT id FROM platforms WHERE name = ?').get(extracted.platform_name);
         if (platform) {
@@ -325,10 +291,8 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     }
   }
 
-  // 平台最后检查
   if (!finalPlatformId) return res.status(400).json({ error: '请选择外卖平台（或上传包含平台名称的报表文件）' });
   
-  // 月份最后兜底
   if (!finalMonth) {
     const now = new Date();
     finalMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -340,7 +304,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   `).run(
     finalPlatformId,
     finalMonth,
-    req.file.path,
+    `/uploads/reports/${path.basename(req.file.path)}`,
     req.file.originalname,
     finalTotalSales,
     finalOrderCount,
@@ -366,13 +330,12 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   });
 });
 
-// 删除报表
 router.delete('/:id', auth, managerAccess, (req, res) => {
   const report = db.prepare('SELECT * FROM platform_reports WHERE id = ?').get(req.params.id);
   if (!report) return res.status(404).json({ error: '报表不存在' });
 
-  // 删除文件
-  if (fs.existsSync(report.file_path)) fs.unlinkSync(report.file_path);
+  const absolutePath = path.join(__dirname, '../../', report.file_path);
+  if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
 
   db.prepare('DELETE FROM platform_reports WHERE id = ?').run(req.params.id);
   auditLog(req, 'DELETE_REPORT', `删除报表: ${report.month}`, { reportId: req.params.id });

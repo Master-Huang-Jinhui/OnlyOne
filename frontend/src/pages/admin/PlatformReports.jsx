@@ -30,7 +30,6 @@ export default function PlatformReports() {
         api.getPlatformReports(),
         api.getPlatforms()
       ])
-      // 后端返回 { reports: [...] }，取 reports 字段；如果直接是数组也兼容
       const list = reportsRes?.reports || (Array.isArray(reportsRes) ? reportsRes : [])
       setReports(list)
       setPlatforms(Array.isArray(platformsRes) ? platformsRes : (platformsRes?.platforms || []))
@@ -44,7 +43,6 @@ export default function PlatformReports() {
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // 上传PDF不需要先选平台和月份，后端自动识别
     uploadFile(file)
   }
 
@@ -117,7 +115,6 @@ export default function PlatformReports() {
         <p className="text-sm text-gray-500 mt-1">上传和管理各外卖平台的月度报表</p>
       </div>
 
-      {/* 添报表表单 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">添加月报</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -221,7 +218,6 @@ export default function PlatformReports() {
         </form>
       </div>
 
-      {/* 报表列表 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-800">报表列表</h2>
@@ -270,12 +266,12 @@ export default function PlatformReports() {
                     <div className="flex gap-2 justify-center">
                       {r.file_path && (
                         <a
-                          href={'/' + r.file_path.replace(/\\/g, '/').replace(/.*uploads\//, 'uploads/')}
+                          href={r.file_path}
                           target="_blank"
                           rel="noreferrer"
                           className="text-primary-600 text-sm hover:text-primary-700"
                         >
-                          查看文件
+                          在线查看
                         </a>
                       )}
                       <button
