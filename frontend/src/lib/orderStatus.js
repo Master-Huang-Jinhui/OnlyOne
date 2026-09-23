@@ -12,7 +12,7 @@ const DINING_LABELS = {
   delivery: '配送'
 }
 
-// 获取状态显示文字
+// 根据订单类型和底层状态获取状态显示文字
 export function getStatusLabel(diningType, status) {
   if (status === 'completed') return '已完成'
   if (status === 'cancelled') return '已取消'
@@ -37,7 +37,7 @@ export function getStatusLabel(diningType, status) {
   return defaultMap[status] || status
 }
 
-// 获取状态标签颜色 variant
+// 获取状态标签颜色 variant（用于Badge组件）
 export function getStatusVariant(diningType, status) {
   if (status === 'completed') return 'success'
   if (status === 'cancelled') return 'danger'
@@ -60,7 +60,7 @@ export function getStatusVariant(diningType, status) {
   return defaultMap[status] || 'default'
 }
 
-// 获取下一个状态（推进进程）
+// 获取下一个状态（推进进程用），终态返回null
 export function getNextStatus(diningType, status) {
   if (status === 'completed' || status === 'cancelled') return null
 
@@ -91,7 +91,7 @@ export function getNextStatus(diningType, status) {
   return defaultNext[status] || null
 }
 
-// 获取下一个状态的按钮文字
+// 获取下一个状态的按钮文字（如"制作完成""确认取餐"）
 export function getNextLabel(diningType, status) {
   const next = getNextStatus(diningType, status)
   if (!next) return null
@@ -114,7 +114,7 @@ export function getNextLabel(diningType, status) {
   return defaultLabels[next] || '推进'
 }
 
-// 获取订单类型的筛选标签列表
+// 获取订单类型的筛选标签列表（用于订单管理页的状态筛选tab）
 export function getStatusFilters(diningType) {
   if (diningType === 'dinein') {
     return [
@@ -165,7 +165,7 @@ export function getDiningLabel(diningType) {
   return DINING_LABELS[diningType] || diningType
 }
 
-// 获取订单流程步骤（用于详情页时间线）
+// 获取订单流程步骤（用于详情页时间线，含图标和对应数据库字段）
 export function getOrderSteps(diningType) {
   if (diningType === 'dinein') {
     return [
