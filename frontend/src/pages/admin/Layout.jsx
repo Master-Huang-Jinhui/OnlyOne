@@ -53,7 +53,8 @@ export default function AdminLayout() {
       }
       setMenus(menuList)
       // 默认展开所有有子菜单的一级菜单
-      const parentIds = menuList.filter(m => m.parent_id === 0 && menuList.some(child => child.parent_id === m.id)).map(m => m.id)
+      const toNum = (v) => v == null ? 0 : Number(v)
+      const parentIds = menuList.filter(m => toNum(m.parent_id) === 0 && menuList.some(child => toNum(child.parent_id) === toNum(m.id))).map(m => m.id)
       setExpandedMenus(parentIds)
     }).catch(() => {})
   }, [user])
@@ -104,9 +105,10 @@ export default function AdminLayout() {
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           {(() => {
-            // 构建树形菜单
-            const parents = menus.filter(m => m.parent_id === 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-            const childrenOf = (pid) => menus.filter(m => m.parent_id === pid).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            // 构建树形菜单（兼容 parent_id 为 0/NULL/字符串/数字）
+            const toNum = (v) => v == null ? 0 : Number(v)
+            const parents = menus.filter(m => toNum(m.parent_id) === 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            const childrenOf = (pid) => menus.filter(m => toNum(m.parent_id) === toNum(pid) && toNum(m.parent_id) !== 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
 
             return parents.map(menu => {
               const children = childrenOf(menu.id)
