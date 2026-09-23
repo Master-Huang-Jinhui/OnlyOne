@@ -44,14 +44,7 @@ export default function PlatformReports() {
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!form.platform_id) {
-      toast('请先选择外卖平台', 'error')
-      return
-    }
-    if (!form.month) {
-      toast('请先选择月份', 'error')
-      return
-    }
+    // 上传PDF不需要先选平台和月份，后端自动识别
     uploadFile(file)
   }
 
@@ -129,20 +122,20 @@ export default function PlatformReports() {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">添加月报</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">外卖平台 *</label>
+            <label className="block text-sm text-gray-600 mb-1">外卖平台</label>
             <select
               value={form.platform_id}
               onChange={e => setForm({ ...form, platform_id: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             >
-              <option value="">请选择</option>
+              <option value="">请选择（上传PDF可自动识别）</option>
               {platforms.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">月份 *</label>
+            <label className="block text-sm text-gray-600 mb-1">月份</label>
             <input
               type="month"
               value={form.month}
