@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
+const xlsx = require('xlsx');
 
 const router = express.Router();
 
@@ -146,6 +147,95 @@ function extractDataFromText(text) {
   return result;
 }
 
+// 解析CSV报表（DoorDash/Uber Eats交易明细格式）
+function parseCSVReport(filePath, fileName) {
+  const result = {};
+  const workbook = xlsx.readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = xlsx.utils.sheet_to_json(sheet);
+  
+  if (rows.length === 0) return result;
+  
+  const firstRow = rows[0];
+  const headers = Object.keys(firstRow);
+  
+  // 自动识别平台
+  if (fileName.toLowerCase().includes('doordash') || headers.some(h => h.toLowerCase().includes('doordash'))) {
+    result.platform_name = 'DoorDash';
+  } else if (fileName.toLowerCase().includes('ubereats') || fileName.toLowerCase().includes('uber eats')) {
+    result.platform_name = 'Uber Eats';
+  } else if (fileName.toLowerCase().includes('grubhub')) {
+    result.platform_name = 'Grubhub';
+  }
+  
+  // 找列名映射（兼容不同大小写和空格）
+  const findCol = (keywords) => {
+    return headers.find(h => keywords.some(k => h.toLowerCase().includes(k)));
+  };
+  
+  const subtotalCol = findCol(['subtotal', 'sub total', 'restaurant sales', 'gross sales']);
+  const commissionCol = findCol(['commission', 'platform fee', 'service fee', 'grubhub order services']);
+  const merchantFeesCol = findCol(['merchant fee', 'merchant fees']);
+  const marketingFeesCol = findCol(['marketing fee', 'marketing fees', 'promotion']);
+  const netCol = findCol(['net total', 'net revenue', 'balance', 'payout', 'total payout']);
+  const typeCol = findCol(['transaction type', 'order type', 'type']);
+  const timeCol = findCol(['timestamp', 'date', 'time', 'payout date']);
+  
+  // 聚合计算
+  let totalSales = 0;
+  let orderCount = 0;
+  let totalFees = 0;
+  let totalNet = 0;
+  
+  for (const row of rows) {
+    // 订单数：只统计 Order 类型的行
+    const rowType = typeCol ? String(row[typeCol]).toLowerCase() : '';
+    if (!typeCol || rowType === 'order' || rowType.includes('order')) {
+      orderCount++;
+    }
+    
+    // 累加金额
+    if (subtotalCol) {
+      const val = parseFloat(row[subtotalCol]);
+      if (!isNaN(val)) totalSales += val;
+    }
+    if (commissionCol) {
+      const val = parseFloat(row[commissionCol]);
+      if (!isNaN(val)) totalFees += Math.abs(val);
+    }
+    if (merchantFeesCol) {
+      const val = parseFloat(row[merchantFeesCol]);
+      if (!isNaN(val)) totalFees += Math.abs(val);
+    }
+    if (marketingFeesCol) {
+      const val = parseFloat(row[marketingFeesCol]);
+      if (!isNaN(val)) totalFees += Math.abs(val);
+    }
+    if (netCol) {
+      const val = parseFloat(row[netCol]);
+      if (!isNaN(val)) totalNet += val;
+    }
+  }
+  
+  if (totalSales > 0) result.total_sales = Math.round(totalSales * 100) / 100;
+  if (orderCount > 0) result.order_count = orderCount;
+  if (totalFees > 0) result.platform_fee = Math.round(totalFees * 100) / 100;
+  if (totalNet !== 0) result.net_revenue = Math.round(totalNet * 100) / 100;
+  
+  // 从文件名提取月份（如 2026-07-01_2026-07-31）
+  const monthMatch = fileName.match(/(\d{4})-(\d{2})-\d{2}_\d{4}-\d{2}-\d{2}/);
+  if (monthMatch) {
+    result.month = `${monthMatch[1]}-${monthMatch[2]}`;
+  } else if (timeCol && rows[0][timeCol]) {
+    const dateStr = String(rows[0][timeCol]);
+    const m = dateStr.match(/(\d{4})-(\d{2})-\d{2}/);
+    if (m) result.month = `${m[1]}-${m[2]}`;
+  }
+  
+  return result;
+}
+
 // 获取报表列表
 router.get('/', auth, (req, res) => {
   const reports = db.prepare(`
@@ -170,14 +260,15 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   let finalPlatformId = platform_id ? parseInt(platform_id) : null;
   let extractedNote = '';
 
-  // 如果是 PDF，自动解析提取
-  if (path.extname(req.file.originalname).toLowerCase() === '.pdf') {
+  const ext = path.extname(req.file.originalname).toLowerCase();
+  
+  // PDF 自动解析
+  if (ext === '.pdf') {
     try {
       const dataBuffer = fs.readFileSync(req.file.path);
       const pdfData = await pdfParse(dataBuffer);
       const extracted = extractDataFromText(pdfData.text);
       
-      // 用户没填的字段用解析出来的补
       if (!total_sales && extracted.total_sales) finalTotalSales = extracted.total_sales;
       if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
       if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
@@ -198,9 +289,35 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       console.error('PDF 解析失败:', e);
     }
   }
+  
+  // CSV 自动解析
+  else if (ext === '.csv') {
+    try {
+      const extracted = parseCSVReport(req.file.path, req.file.originalname);
+      
+      if (!total_sales && extracted.total_sales) finalTotalSales = extracted.total_sales;
+      if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
+      if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
+      if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
+      if (!finalMonth && extracted.month) finalMonth = extracted.month;
+      
+      // 自动识别平台
+      if (!finalPlatformId && extracted.platform_name) {
+        const platform = db.prepare('SELECT id FROM platforms WHERE name = ?').get(extracted.platform_name);
+        if (platform) {
+          finalPlatformId = platform.id;
+          extractedNote = '（自动识别平台）';
+        }
+      }
+      
+      extractedNote = extractedNote || '（自动提取）';
+    } catch (e) {
+      console.error('CSV 解析失败:', e);
+    }
+  }
 
   // 平台最后检查
-  if (!finalPlatformId) return res.status(400).json({ error: '请选择外卖平台（或上传包含平台名称的PDF）' });
+  if (!finalPlatformId) return res.status(400).json({ error: '请选择外卖平台（或上传包含平台名称的报表文件）' });
   
   // 月份最后兜底
   if (!finalMonth) {
