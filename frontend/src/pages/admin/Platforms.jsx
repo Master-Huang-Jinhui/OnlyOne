@@ -63,13 +63,12 @@ export default function Platforms() {
         </div>
         <div>
           <p className="font-medium text-gray-800">{p.name}</p>
-          <p className="text-xs text-gray-400">
-            {p.commission_rate ? `${p.commission_rate}%佣金` : ''}
-            {p.commission_rate && p.rating ? ' · ' : ''}
-            {p.rating ? `⭐${p.rating}` : ''}
-          </p>
+          <p className="text-xs text-gray-400">{p.contact_person || ''}</p>
         </div>
       </div>
+    )},
+    { header: '佣金', render: p => (
+      <span className="text-sm font-medium text-orange-600">{p.commission_rate ? `${p.commission_rate}%` : '-'}</span>
     )},
     { header: t('platforms.accountCol', '账号'), render: p => (
       <div className="text-sm">
@@ -83,6 +82,9 @@ export default function Platforms() {
           </p>
         )}
       </div>
+    )},
+    { header: '电话', render: p => (
+      <span className="text-sm text-gray-600">{p.phone || '-'}</span>
     )},
     { header: '配送/结算', render: p => (
       <div className="text-xs text-gray-500 space-y-0.5">
