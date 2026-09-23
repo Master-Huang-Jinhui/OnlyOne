@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../../lib/api'
 import { toast } from '../../components/ui'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 export default function PlatformReports() {
+  const confirm = useConfirm()
   const [reports, setReports] = useState([])
   const [platforms, setPlatforms] = useState([])
   const [loading, setLoading] = useState(false)
@@ -100,7 +102,7 @@ export default function PlatformReports() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('确定删除这条报表记录吗？')) return
+    if (!await confirm({ title: '删除报表', message: '确定删除这条报表记录吗？此操作不可恢复。', variant: 'danger' })) return
     try {
       await api.deletePlatformReport(id)
       toast('删除成功')
@@ -112,26 +114,26 @@ export default function PlatformReports() {
 
   const getPlatformName = (id) => {
     const p = platforms.find(p => p.id === id)
-    return p?.name || '未知平台'
+    return p ? p.name : '未知'
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-800">外卖报表</h2>
-        <p className="text-sm text-gray-500 mt-1">上传或手动录入各外卖平台的月度报表</p>
+        <h1 className="text-2xl font-bold text-gray-800">外卖报表月报</h1>
+        <p className="text-sm text-gray-500 mt-1">上传和管理各外卖平台的月度报表</p>
       </div>
 
-      {/* 添加表单 */}
-      <div className="bg-white rounded-lg border p-6">
-        <h3 className="font-semibold text-gray-800 mb-4">添加报表</h3>
+      {/* 添报表表单 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">添加月报</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm text-gray-600 mb-1">外卖平台 *</label>
             <select
               value={form.platform_id}
               onChange={e => setForm({ ...form, platform_id: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             >
               <option value="">请选择</option>
               {platforms.map(p => (
@@ -145,18 +147,18 @@ export default function PlatformReports() {
               type="month"
               value={form.month}
               onChange={e => setForm({ ...form, month: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">总销售额 ($)</label>
+            <label className="block text-sm text-gray-600 mb-1">总销售额</label>
             <input
               type="number"
               step="0.01"
               value={form.total_sales}
               onChange={e => setForm({ ...form, total_sales: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="0.00"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -165,30 +167,30 @@ export default function PlatformReports() {
               type="number"
               value={form.order_count}
               onChange={e => setForm({ ...form, order_count: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">平台手续费 ($)</label>
+            <label className="block text-sm text-gray-600 mb-1">平台佣金</label>
             <input
               type="number"
               step="0.01"
               value={form.platform_fee}
               onChange={e => setForm({ ...form, platform_fee: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="0.00"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">净收入 ($)</label>
+            <label className="block text-sm text-gray-600 mb-1">净收入</label>
             <input
               type="number"
               step="0.01"
               value={form.net_revenue}
               onChange={e => setForm({ ...form, net_revenue: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="0.00"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div className="col-span-2">
@@ -197,21 +199,21 @@ export default function PlatformReports() {
               type="text"
               value={form.note}
               onChange={e => setForm({ ...form, note: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="备注说明"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <div className="col-span-2 md:col-span-4 flex gap-2">
             <button
               type="submit"
-              className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700"
             >
               添加报表
             </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
             >
               上传报表文件（CSV/PDF）
             </button>
@@ -227,41 +229,37 @@ export default function PlatformReports() {
       </div>
 
       {/* 报表列表 */}
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h3 className="font-semibold text-gray-800">报表记录</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800">报表列表</h2>
         </div>
         {loading ? (
-          <div className="p-6 text-center text-gray-500 text-sm">加载中...</div>
+          <div className="p-8 text-center text-gray-400">加载中...</div>
         ) : reports.length === 0 ? (
-          <div className="p-12 text-center text-gray-400">
-            <div className="text-4xl mb-2">📊</div>
-            <p>暂无报表记录</p>
-            <p className="text-xs mt-1">上传 CSV/PDF 或手动添加</p>
-          </div>
+          <div className="p-8 text-center text-gray-400">暂无报表数据</div>
         ) : (
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">平台</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">月份</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">销售额</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">总销售额</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">订单数</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">手续费</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">平台佣金</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">净收入</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">备注</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
               {reports.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-sm">{getPlatformName(r.platform_id)}</td>
-                  <td className="px-6 py-3 text-sm">{r.month}</td>
-                  <td className="px-6 py-3 text-sm text-right">${Number(r.total_sales || 0).toFixed(2)}</td>
-                  <td className="px-6 py-3 text-sm text-right">{r.order_count || 0}</td>
-                  <td className="px-6 py-3 text-sm text-right">${Number(r.platform_fee || 0).toFixed(2)}</td>
-                  <td className="px-6 py-3 text-sm text-right font-medium">${Number(r.net_revenue || 0).toFixed(2)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-800">{getPlatformName(r.platform_id)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-600">{r.month}</td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-800">${r.total_sales?.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-600">{r.order_count}</td>
+                  <td className="px-6 py-3 text-sm text-right text-red-600">-${r.platform_fee?.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-sm text-right text-green-600 font-medium">${r.net_revenue?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{r.note || '-'}</td>
                   <td className="px-6 py-3 text-center">
                     <div className="flex gap-2 justify-center">
@@ -277,7 +275,7 @@ export default function PlatformReports() {
                       )}
                       <button
                         onClick={() => handleDelete(r.id)}
-                        className="text-red-600 hover:text-red-700 text-sm"
+                        className="text-red-600 text-sm hover:text-red-700"
                       >
                         删除
                       </button>

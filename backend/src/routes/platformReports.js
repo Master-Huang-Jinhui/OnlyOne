@@ -109,6 +109,24 @@ function extractDataFromText(text) {
         if (amount) result.net_revenue = amount;
       }
     }
+    
+    // ===== 月份 =====
+    // Grubhub: "Your June statement" 或 "June 2026"
+    if (!result.month) {
+      const monthNames = {
+        january: '01', february: '02', march: '03', april: '04',
+        may: '05', june: '06', july: '07', august: '08',
+        september: '09', october: '10', november: '11', december: '12'
+      };
+      const m = line.match(/(your\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s+(statement|20\d{2})/i);
+      if (m) {
+        const monthName = m[2].toLowerCase();
+        let year = new Date().getFullYear();
+        const yearMatch = line.match(/20(\d{2})/);
+        if (yearMatch) year = parseInt('20' + yearMatch[1]);
+        result.month = `${year}-${monthNames[monthName]}`;
+      }
+    }
   }
   
   return result;
@@ -128,16 +146,17 @@ router.get('/', auth, (req, res) => {
 // 上传报表
 router.post('/upload', auth, managerAccess, upload.single('file'), async (req, res) => {
   const { platform_id, month, total_sales, order_count, platform_fee, net_revenue } = req.body;
-  if (!platform_id || !month) return res.status(400).json({ error: '请选择平台和月份' });
+  if (!platform_id) return res.status(400).json({ error: '请选择平台' });
   if (!req.file) return res.status(400).json({ error: '请上传报表文件' });
 
   let finalTotalSales = parseFloat(total_sales) || 0;
   let finalOrderCount = parseInt(order_count) || 0;
   let finalPlatformFee = parseFloat(platform_fee) || 0;
   let finalNetRevenue = parseFloat(net_revenue) || 0;
+  let finalMonth = month;
   let extractedNote = '';
 
-  // 如果是 PDF 且用户没填数字，自动解析提取
+  // 如果是 PDF，自动解析提取
   if (path.extname(req.file.originalname).toLowerCase() === '.pdf') {
     try {
       const dataBuffer = fs.readFileSync(req.file.path);
@@ -149,6 +168,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
       if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
+      if (!finalMonth && extracted.month) finalMonth = extracted.month;
       
       extractedNote = '（自动提取）';
     } catch (e) {
@@ -156,12 +176,18 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     }
   }
 
+  // 月份最后兜底
+  if (!finalMonth) {
+    const now = new Date();
+    finalMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
   const result = db.prepare(`
     INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     platform_id,
-    month,
+    finalMonth,
     req.file.path,
     req.file.originalname,
     finalTotalSales,
@@ -171,7 +197,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     req.body.note ? req.body.note + extractedNote : extractedNote
   );
 
-  auditLog(req, 'UPLOAD_REPORT', `上传报表: ${month} 平台ID ${platform_id}`, { reportId: result.lastInsertRowid });
+  auditLog(req, 'UPLOAD_REPORT', `上传报表: ${finalMonth} 平台ID ${platform_id}`, { reportId: result.lastInsertRowid });
   res.json({ 
     id: result.lastInsertRowid, 
     message: '报表上传成功',
