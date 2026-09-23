@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { ToastContainer } from './components/ui'
+import { useEffect, Component } from 'react'
+import { ToastContainer, ErrorDialogContainer, toast } from './components/ui'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { useAuth } from './context/AuthContext'
 import { LanguageProvider, useLanguage } from './context/LanguageContext'
+import { initGlobalErrorHandlers, setToastFn } from './lib/errorHandler'
 
 // 前台
 import Home from './pages/customer/Home'
@@ -45,6 +47,60 @@ import EmployeeOrder from './pages/employee/EmployeeOrder'
 import EmployeeOrders from './pages/employee/EmployeeOrders'
 import EmployeeTableDetail from './pages/employee/EmployeeTableDetail'
 
+// ============================================================
+// ErrorBoundary：React渲染错误边界
+// 捕获子组件树中的JavaScript错误，显示降级UI而不是白屏
+// ============================================================
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  // 捕获子组件渲染错误
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  // 记录错误日志
+  componentDidCatch(error, errorInfo) {
+    console.error('[渲染错误]', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">页面出现错误</h2>
+            <p className="text-sm text-gray-500 mb-4">很抱歉，页面加载时遇到了问题。</p>
+            <div className="bg-red-50 rounded-lg p-3 mb-4 text-left">
+              <p className="text-xs text-red-600 font-mono break-all">{this.state.error?.message || '未知错误'}</p>
+            </div>
+            <p className="text-xs text-amber-600 mb-4">该功能尚未完善，请联系管理员</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/' }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700"
+              >
+                返回首页
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+              >
+                刷新页面
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, employeeOnly = false }) {
   const { user, loading } = useAuth()
   const { t } = useLanguage()
@@ -58,11 +114,17 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
   return children
 }
 
-export default function App() {
+// 应用内部组件：初始化全局错误处理
+function AppInner() {
+  useEffect(() => {
+    // 注册toast函数到errorHandler模块，让API错误能自动弹提示
+    setToastFn((message, type) => toast(message, type))
+    // 初始化全局错误监听（未捕获Promise rejection + 运行时错误）
+    initGlobalErrorHandlers()
+  }, [])
+
   return (
-    <LanguageProvider>
-      <ConfirmProvider>
-        <ToastContainer />
+    <>
       <Routes>
         {/* 前台公开页面 */}
         <Route path="/" element={<Home />} />
@@ -110,6 +172,19 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <ConfirmProvider>
+        <ToastContainer />
+        <ErrorDialogContainer />
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
       </ConfirmProvider>
     </LanguageProvider>
   )
