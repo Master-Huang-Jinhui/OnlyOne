@@ -54,6 +54,23 @@ export const api = {
   updatePlatform: (id, data) => request(`/platforms/update/${id}`, { body: JSON.stringify(data) }),
   deletePlatform: (id) => request(`/platforms/delete/${id}`),
 
+  // 外卖报表
+  getPlatformReports: () => getRequest('/platform-reports'),
+  uploadPlatformReport: (formData) => {
+    const token = getToken()
+    return fetch(`${BASE}/platform-reports/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    }).then(async res => {
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '上传失败')
+      return data
+    })
+  },
+  createPlatformReport: (data) => request('/platform-reports', { body: JSON.stringify(data) }),
+  deletePlatformReport: (id) => request(`/platform-reports/${id}`, { method: 'DELETE' }),
+
   // 商品管理
   getProducts: (categoryId) => request(`/products/list${categoryId ? `?category_id=${categoryId}` : ''}`),
   getAllProducts: () => request('/products/all'),
