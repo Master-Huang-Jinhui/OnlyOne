@@ -3,22 +3,25 @@ import { api } from '../../lib/api'
 import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Badge, Table, Dialog, Input, Textarea, Empty, toast } from '../../components/ui'
 
+// 内容管理页面：新品上市/轮播图/品牌故事/茶品溯源/工艺理念/关于我们/自定义区块
 export default function Content() {
   const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState('new')
-  const [newProducts, setNewProducts] = useState([])
-  const [carousel, setCarousel] = useState([])
-  const [settings, setSettings] = useState({})
-  const [contentSections, setContentSections] = useState([])
+  const [newProducts, setNewProducts] = useState([])      // 新品列表
+  const [carousel, setCarousel] = useState([])              // 轮播图列表
+  const [settings, setSettings] = useState({})               // 全局设置（品牌故事/茶品等）
+  const [contentSections, setContentSections] = useState([]) // 自定义区块列表
   const [editDialog, setEditDialog] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [uploading, setUploading] = useState(false)
 
+  // 页面加载时获取所有内容数据
   useEffect(() => {
     loadData()
   }, [])
 
+  // 并行加载4类内容数据
   const loadData = () => {
     api.getNewProducts().then(d => setNewProducts(Array.isArray(d) ? d : [])).catch(() => {})
     api.getCarousel().then(d => setCarousel(Array.isArray(d) ? d : [])).catch(() => {})
@@ -26,6 +29,7 @@ export default function Content() {
     api.getContentSections().then(d => setContentSections(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
+  // 标签页配置
   const tabs = [
     { id: 'new', label: t('content.newTab', '新品上市') },
     { id: 'carousel', label: t('content.carouselTab', '轮播图') },
@@ -36,6 +40,7 @@ export default function Content() {
     { id: 'sections', label: t('content.sectionsTab', '自定义区块') },
   ]
 
+  // 上传图片到服务器，返回URL并填入表单
   const handleUpload = async (e, field = 'image') => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -51,6 +56,7 @@ export default function Content() {
     }
   }
 
+  // 打开添加对话框，根据类型初始化表单
   const openAdd = (type) => {
     setEditing(null)
     if (type === 'new') setForm({ name: '', name_en: '', description: '', description_en: '', image: '', sort_order: newProducts.length + 1, enabled: 1 })
@@ -59,12 +65,14 @@ export default function Content() {
     setEditDialog(true)
   }
 
+  // 打开编辑对话框
   const openEdit = (item, type) => {
     setEditing({ item, type })
     setForm({ ...item })
     setEditDialog(true)
   }
 
+  // 保存内容（根据当前标签页调用不同API）
   const save = async () => {
     try {
       if (activeTab === 'new') {
@@ -85,6 +93,7 @@ export default function Content() {
     }
   }
 
+  // 删除内容（根据类型调用不同API）
   const remove = async (id, type) => {
     if (!confirm(t('content.confirmDelete', '确定删除？'))) return
     try {
@@ -98,6 +107,7 @@ export default function Content() {
     }
   }
 
+  // 保存设置项到后端（品牌故事/茶品配置等）
   const saveSettings = async (key, value) => {
     try {
       await api.updateSettings({ [key]: value })
@@ -108,36 +118,43 @@ export default function Content() {
     }
   }
 
+  // 从settings中获取茶品溯源和工艺理念数组
   const teaSourcing = settings.tea_sourcing || []
   const craftPhilosophy = settings.craft_philosophy || []
 
+  // 更新指定索引的茶品字段
   const updateTea = (index, field, value) => {
     const updated = [...teaSourcing]
     updated[index] = { ...updated[index], [field]: value }
     saveSettings('tea_sourcing', updated)
   }
 
+  // 添加新茶品到数组末尾
   const addTea = () => {
     const updated = [...teaSourcing, { name: '', name_en: '', desc: '', desc_en: '', image: '', enabled: true }]
     saveSettings('tea_sourcing', updated)
   }
 
+  // 删除指定索引的茶品
   const removeTea = (index) => {
     const updated = teaSourcing.filter((_, i) => i !== index)
     saveSettings('tea_sourcing', updated)
   }
 
+  // 更新指定索引的工艺理念字段
   const updateCraft = (index, field, value) => {
     const updated = [...craftPhilosophy]
     updated[index] = { ...updated[index], [field]: value }
     saveSettings('craft_philosophy', updated)
   }
 
+  // 添加新工艺理念
   const addCraft = () => {
     const updated = [...craftPhilosophy, { name: '', name_en: '' }]
     saveSettings('craft_philosophy', updated)
   }
 
+  // 删除指定索引的工艺理念
   const removeCraft = (index) => {
     const updated = craftPhilosophy.filter((_, i) => i !== index)
     saveSettings('craft_philosophy', updated)
