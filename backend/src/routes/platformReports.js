@@ -5,6 +5,7 @@ const { auditLog } = require('../utils/audit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 const router = express.Router();
 
@@ -30,6 +31,37 @@ const upload = multer({
   }
 }); // 支持 CSV 和 PDF
 
+// 从 PDF 文本中提取关键数据
+function extractDataFromText(text) {
+  const result = {};
+  
+  // 总销售额 / Gross Sales / Total Sales
+  if (/total sales|gross sales|total revenue/i.test(text)) {
+    const match = text.match(/(?:total sales|gross sales|total revenue)[^\d$]*\$?([0-9,]+\.\d{2})/i);
+    if (match) result.total_sales = parseFloat(match[1].replace(/,/g, ''));
+  }
+  
+  // 订单数 / Orders
+  if (/order/i.test(text)) {
+    const match = text.match(/(?:orders?|total orders?)[^\d]*(\d+)/i);
+    if (match) result.order_count = parseInt(match[1]);
+  }
+  
+  // 平台费用 / Commission / Fees
+  if (/commission|platform fee|service fee|processing fee/i.test(text)) {
+    const match = text.match(/(?:commission|platform fee|service fee|processing fee)[^\d$]*\$?([0-9,]+\.\d{2})/i);
+    if (match) result.platform_fee = parseFloat(match[1].replace(/,/g, ''));
+  }
+  
+  // 净收入 / Net Revenue / Payout
+  if (/net revenue|payout|net sales/i.test(text)) {
+    const match = text.match(/(?:net revenue|payout|net sales)[^\d$]*\$?([0-9,]+\.\d{2})/i);
+    if (match) result.net_revenue = parseFloat(match[1].replace(/,/g, ''));
+  }
+  
+  return result;
+}
+
 // 获取报表列表
 router.get('/', auth, (req, res) => {
   const reports = db.prepare(`
@@ -42,27 +74,62 @@ router.get('/', auth, (req, res) => {
 });
 
 // 上传报表
-router.post('/upload', auth, managerAccess, upload.single('file'), (req, res) => {
+router.post('/upload', auth, managerAccess, upload.single('file'), async (req, res) => {
   const { platform_id, month, total_sales, order_count, platform_fee, net_revenue } = req.body;
   if (!platform_id || !month) return res.status(400).json({ error: '请选择平台和月份' });
   if (!req.file) return res.status(400).json({ error: '请上传报表文件' });
 
+  let finalTotalSales = parseFloat(total_sales) || 0;
+  let finalOrderCount = parseInt(order_count) || 0;
+  let finalPlatformFee = parseFloat(platform_fee) || 0;
+  let finalNetRevenue = parseFloat(net_revenue) || 0;
+  let extractedNote = '';
+
+  // 如果是 PDF 且用户没填数字，自动解析提取
+  if (path.extname(req.file.originalname).toLowerCase() === '.pdf') {
+    try {
+      const dataBuffer = fs.readFileSync(req.file.path);
+      const pdfData = await pdfParse(dataBuffer);
+      const extracted = extractDataFromText(pdfData.text);
+      
+      // 用户没填的字段用解析出来的补
+      if (!total_sales && extracted.total_sales) finalTotalSales = extracted.total_sales;
+      if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
+      if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
+      if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
+      
+      extractedNote = '（自动提取）';
+    } catch (e) {
+      console.error('PDF 解析失败:', e);
+    }
+  }
+
   const result = db.prepare(`
-    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue, note)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     platform_id,
     month,
     req.file.path,
     req.file.originalname,
-    parseFloat(total_sales) || 0,
-    parseInt(order_count) || 0,
-    parseFloat(platform_fee) || 0,
-    parseFloat(net_revenue) || 0
+    finalTotalSales,
+    finalOrderCount,
+    finalPlatformFee,
+    finalNetRevenue,
+    req.body.note ? req.body.note + extractedNote : extractedNote
   );
 
   auditLog(req, 'UPLOAD_REPORT', `上传报表: ${month} 平台ID ${platform_id}`, { reportId: result.lastInsertRowid });
-  res.json({ id: result.lastInsertRowid, message: '报表上传成功' });
+  res.json({ 
+    id: result.lastInsertRowid, 
+    message: '报表上传成功',
+    extracted: {
+      total_sales: finalTotalSales,
+      order_count: finalOrderCount,
+      platform_fee: finalPlatformFee,
+      net_revenue: finalNetRevenue
+    }
+  });
 });
 
 // 删除报表
