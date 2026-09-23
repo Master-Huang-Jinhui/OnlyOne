@@ -23,6 +23,11 @@ export default function Menus() {
 
   const save = async () => {
     if (!form.name) { toast(t('menus.nameRequired', '菜单名称必填'), 'error'); return }
+    // 二级菜单必须填路径；一级菜单如果没有子菜单也建议填路径
+    if (form.parent_id !== 0 && !form.path.trim()) {
+      toast('二级菜单的路由路径必填，否则点击后无法跳转', 'error')
+      return
+    }
     try {
       if (editing) { await api.updateMenu(editing.id, form); toast(t('menus.updated', '更新成功')) }
       else { await api.createMenu(form); toast(t('menus.added', '添加成功')) }
@@ -87,7 +92,15 @@ export default function Menus() {
             <Input label={t('menus.nameLabel', '菜单名称 *')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             <Input label={t('menus.iconLabel', '图标（emoji）')} value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} placeholder="如 📋" />
           </div>
-          <Input label={t('menus.routePath', '路由路径')} value={form.path} onChange={e => setForm({ ...form, path: e.target.value })} placeholder="/admin/xxx" />
+          <Input
+            label={form.parent_id !== 0 ? t('menus.routePathRequired', '路由路径 *') : t('menus.routePathOptional', '路由路径（有子菜单可留空）')}
+            value={form.path}
+            onChange={e => setForm({ ...form, path: e.target.value })}
+            placeholder="/admin/xxx"
+          />
+          {form.parent_id !== 0 && (
+            <p className="text-xs text-gray-400 -mt-2">二级菜单必须填路径，比如 /admin/platforms</p>
+          )}
           <Input label={t('menus.sortLabel', '排序')} type="number" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} />
           <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label={t('menus.enableLabel', '启用')} />
         </div>
