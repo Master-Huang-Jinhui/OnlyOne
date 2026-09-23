@@ -6,15 +6,20 @@ import { api } from '../../lib/api'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function AdminLayout() {
-  // 管理后台布局：左侧可折叠侧边栏 + 顶部栏（语言切换/夜间模式/退出）+ 内容区
   const { user, logout } = useAuth()
-  const { t, language } = useLanguage()
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
   const [menus, setMenus] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
-  const [expandedMenus, setExpandedMenus] = useState({})
+  const [expandedMenus, setExpandedMenus] = useState([])
+
+  const toggleMenu = (id) => {
+    setExpandedMenus(prev =>
+      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    )
+  }
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('darkMode')
@@ -50,13 +55,11 @@ export default function AdminLayout() {
     }).catch(() => {})
   }, [user])
 
-  // 退出登录并跳转回登录页
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
-  // 关闭移动端侧边栏抽屉
   const closeSidebar = () => setSidebarOpen(false)
 
   return (
@@ -97,21 +100,73 @@ export default function AdminLayout() {
           </button>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
-          {(menus || []).map(menu => (
-            <NavLink
-              key={menu.id}
-              to={menu.path}
-              onClick={closeSidebar}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
-                  isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
-                }`
+          {(() => {
+            // 构建树形菜单
+            const parents = menus.filter(m => m.parent_id === 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            const childrenOf = (pid) => menus.filter(m => m.parent_id === pid).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+
+            return parents.map(menu => {
+              const children = childrenOf(menu.id)
+              const hasChildren = children.length > 0
+
+              // 有子菜单的一级菜单：只展开/收起，不跳转
+              if (hasChildren) {
+                return (
+                  <div key={menu.id} className="mb-1">
+                    <button
+                      onClick={() => toggleMenu(menu.id)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-lg">{menu.icon || '📄'}</span>
+                      {!desktopCollapsed && (
+                        <>
+                          <span className="flex-1 text-left">{menu.name}</span>
+                          <span className="text-xs text-gray-400">{expandedMenus.includes(menu.id) ? '▼' : '▶'}</span>
+                        </>
+                      )}
+                    </button>
+                    {/* 子菜单 */}
+                    {expandedMenus.includes(menu.id) && !desktopCollapsed && (
+                      <div className="mt-1">
+                        {children.map(child => (
+                          <NavLink
+                            key={child.id}
+                            to={child.path}
+                            onClick={closeSidebar}
+                            className={({ isActive }) =>
+                              `flex items-center gap-2 pl-12 pr-4 py-2 mx-2 rounded-lg text-sm transition-colors ${
+                                isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-50'
+                              }`
+                            }
+                          >
+                            <span className="text-xs">└</span>
+                            <span>{child.name}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
               }
-            >
-              <span className="text-lg">{menu.icon || '📄'}</span>
-              {!desktopCollapsed && <span>{language === 'en' ? (menu.name_en || menu.name) : menu.name}</span>}
-            </NavLink>
-          ))}
+
+              // 没有子菜单的一级菜单：直接跳转
+              return (
+                <NavLink
+                  key={menu.id}
+                  to={menu.path}
+                  onClick={closeSidebar}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
+                      isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                    }`
+                  }
+                >
+                  <span className="text-lg">{menu.icon || '📄'}</span>
+                  {!desktopCollapsed && <span>{menu.name}</span>}
+                </NavLink>
+              )
+            })
+          })()}
         </nav>
       </aside>
 
