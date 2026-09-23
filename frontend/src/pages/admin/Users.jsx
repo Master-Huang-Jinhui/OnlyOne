@@ -5,8 +5,10 @@ import { useConfirm } from '../../components/ConfirmDialog'
 import { formatDateTime, formatTime, formatDate, formatClockTime, formatRelative, formatDateTimeCN } from '../../utils/format'
 import { useLanguage } from '../../context/LanguageContext'
 
+// 空用户表单
 const emptyForm = { username: '', password: '', role: 'user', role_id: null, name: '', phone: '', email: '', enabled: true }
 
+// 系统角色徽章颜色映射
 const SYSTEM_ROLE_COLOR_MAP = {
   admin: 'primary',
   manager: 'success',
@@ -14,6 +16,7 @@ const SYSTEM_ROLE_COLOR_MAP = {
   user: 'default'
 }
 
+// 用户管理页面：用户CRUD、角色分配、批量操作、密码重置
 export default function Users() {
   const { t } = useLanguage()
   const confirm = useConfirm()
@@ -23,15 +26,16 @@ export default function Users() {
   const [dialog, setDialog] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
-  const [keyword, setKeyword] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [keyword, setKeyword] = useState('')           // 搜索关键词
+  const [roleFilter, setRoleFilter] = useState('')      // 角色筛选
+  const [statusFilter, setStatusFilter] = useState('')   // 状态筛选
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [selectedIds, setSelectedIds] = useState([])
-  const [resetPwdUser, setResetPwdUser] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])     // 批量选中ID
+  const [resetPwdUser, setResetPwdUser] = useState(null) // 正在重置密码的用户
   const [newPassword, setNewPassword] = useState('')
 
+  // 加载用户列表和角色列表
   useEffect(() => { load() }, [])
 
   const load = () => {
@@ -40,6 +44,7 @@ export default function Users() {
     api.getRoles().then(data => setRoles(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
   }
 
+  // 获取系统角色显示名称
   const getSystemRoleLabel = (role) => {
     const map = {
       admin: t('users.superAdmin', '超级管理员'),
@@ -50,6 +55,7 @@ export default function Users() {
     return map[role] || role
   }
 
+  // 获取用户角色标签（优先自定义角色，否则系统角色）
   const getUserRoleLabel = (u) => {
     if (u.role_id) {
       const role = roles.find(r => r.id === u.role_id)
@@ -57,6 +63,8 @@ export default function Users() {
     }
     return getSystemRoleLabel(u.role)
   }
+
+  // 获取用户角色徽章颜色
   const getUserRoleColor = (u) => {
     if (u.role_id) {
       const role = roles.find(r => r.id === u.role_id)
@@ -65,6 +73,7 @@ export default function Users() {
     return SYSTEM_ROLE_COLOR_MAP[u.role] || 'default'
   }
 
+  // 角色下拉选项（系统角色 + 自定义角色）
   const roleSelectOptions = [
     { value: '', label: t('users.selectRolePlaceholder', '请选择角色') },
     { value: 'system:admin', label: t('users.systemAdmin', '超级管理员（系统）') },
@@ -74,6 +83,7 @@ export default function Users() {
     ...roles.filter(r => !r.is_system).map(r => ({ value: `custom:${r.id}`, label: `${r.name}${t('users.customSuffix', '（自定义）')}` }))
   ]
 
+  // 根据关键词、角色、状态筛选用户
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       if (keyword) {
@@ -97,10 +107,12 @@ export default function Users() {
     })
   }, [users, keyword, roleFilter, statusFilter])
 
+  // 分页计算
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
   const currentPage = Math.min(page, totalPages)
   const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
+  // 统计卡片数据
   const stats = useMemo(() => ({
     total: users.length,
     admin: users.filter(u => u.role === 'admin').length,
@@ -111,12 +123,15 @@ export default function Users() {
     disabled: users.filter(u => !u.enabled).length
   }), [users])
 
+  // 打开添加用户对话框
   const openAdd = () => { setEditing(null); setForm({ ...emptyForm, roleSelect: '' }); setDialog(true) }
+  // 打开编辑用户对话框
   const openEdit = (u) => {
     const roleSelect = u.role_id ? `custom:${u.role_id}` : `system:${u.role}`
     setEditing(u); setForm({ ...u, password: '', enabled: !!u.enabled, roleSelect }); setDialog(true)
   }
 
+  // 保存用户（新建或更新），处理系统角色/自定义角色映射
   const save = async () => {
     if (!form.username) { toast(t('users.accountRequired', '账号必填'), 'error'); return }
     if (!editing && !form.password) { toast(t('users.passwordRequired', '密码必填'), 'error'); return }
@@ -144,11 +159,13 @@ export default function Users() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除用户（admin账号不可删除）
   const remove = async (id) => {
     if (!await confirm({ title: t('users.confirmDeleteTitle', '删除用户'), message: t('users.confirmDeleteMsg', '确定删除该用户？此操作不可恢复。'), variant: 'danger' })) return
     try { await api.deleteUser(id); toast(t('users.deletedToast', '已删除')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 启用/禁用用户账号
   const toggleEnabled = async (u) => {
     try {
       await api.updateUser(u.id, { enabled: !u.enabled })
@@ -157,11 +174,13 @@ export default function Users() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 打开重置密码对话框
   const openResetPassword = (u) => {
     setResetPwdUser(u)
     setNewPassword('')
   }
 
+  // 确认重置密码
   const confirmResetPassword = async () => {
     if (!newPassword || newPassword.length < 6) { toast(t('users.passwordMin6', '密码至少6位'), 'error'); return }
     try {
@@ -172,6 +191,7 @@ export default function Users() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 全选/取消全选当前页用户
   const allSelected = pagedUsers.length > 0 && pagedUsers.every(u => selectedIds.includes(u.id))
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -180,10 +200,12 @@ export default function Users() {
       setSelectedIds(prev => [...new Set([...prev, ...pagedUsers.map(u => u.id)])])
     }
   }
+  // 勾选单个用户
   const toggleSelect = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
+  // 批量禁用选中用户（admin账号跳过）
   const batchDisable = async () => {
     if (selectedIds.length === 0) { toast(t('users.pleaseSelectFirst', '请先选择用户'), 'error'); return }
     if (!await confirm({ title: t('users.batchDisableTitle', '批量禁用'), message: `${t('users.confirmBatchDisableStart', '确定禁用选中的')} ${selectedIds.length} ${t('users.confirmBatchDisableEnd', '个用户？')}`, variant: 'warning' })) return
@@ -198,6 +220,7 @@ export default function Users() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 批量删除选中用户（admin账号跳过）
   const batchDelete = async () => {
     if (selectedIds.length === 0) { toast(t('users.pleaseSelectFirst', '请先选择用户'), 'error'); return }
     if (!await confirm({ title: t('users.batchDeleteTitle', '批量删除'), message: `${t('users.confirmBatchDeleteStart', '确定删除选中的')} ${selectedIds.length} ${t('users.confirmBatchDeleteEnd', '个用户？此操作不可恢复！')}`, variant: 'danger' })) return
