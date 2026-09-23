@@ -34,8 +34,10 @@ export default function AdminLayout() {
   }, [darkMode])
 
   useEffect(() => {
-    api.getMenus().then(data => {
+    api.getAllMenus().then(data => {
       let menuList = Array.isArray(data) ? data : []
+      // 只显示启用的菜单
+      menuList = menuList.filter(m => m.enabled === 1 || m.enabled === true)
       // 非超级管理员都需要过滤菜单（基于角色权限或用户个人权限）
       if (user?.role !== 'admin') {
         try {
