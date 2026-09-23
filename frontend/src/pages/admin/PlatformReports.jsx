@@ -9,15 +9,6 @@ export default function PlatformReports() {
   const [platforms, setPlatforms] = useState([])
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef(null)
-  const [form, setForm] = useState({
-    platform_id: '',
-    month: new Date().toISOString().slice(0, 7),
-    total_sales: '',
-    order_count: '',
-    platform_fee: '',
-    net_revenue: '',
-    note: ''
-  })
 
   useEffect(() => { loadData() }, [])
 
@@ -37,12 +28,6 @@ export default function PlatformReports() {
   const uploadFile = async (file, force = false) => {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('platform_id', form.platform_id)
-    formData.append('month', form.month)
-    formData.append('total_sales', form.total_sales)
-    formData.append('order_count', form.order_count)
-    formData.append('platform_fee', form.platform_fee)
-    formData.append('net_revenue', form.net_revenue)
     if (force) formData.append('force', 'true')
     try {
       await api.uploadPlatformReport(formData)
@@ -50,25 +35,13 @@ export default function PlatformReports() {
       loadData()
     } catch (e) {
       if (e.duplicate) {
-        if (await confirm({ title: '重复月份确认', message: `这个平台 ${form.month} 已经有报表了，确定还要重复添加吗？`, variant: 'warning' })) {
+        if (await confirm({ title: '重复月份确认', message: '这个月份已经有报表了，确定还要重复添加吗？', variant: 'warning' })) {
           uploadFile(file, true)
         }
         return
       }
       toast('上传失败：' + e.message, 'error')
     }
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!form.platform_id) { toast('请选择外卖平台', 'error'); return }
-    if (!form.month) { toast('请选择月份', 'error'); return }
-    try {
-      await api.createPlatformReport(form)
-      toast('添加成功')
-      setForm({ platform_id: '', month: new Date().toISOString().slice(0, 7), total_sales: '', order_count: '', platform_fee: '', net_revenue: '', note: '' })
-      loadData()
-    } catch (e) { toast('添加失败：' + e.message, 'error') }
   }
 
   const handleDelete = async (id) => {
@@ -89,51 +62,26 @@ export default function PlatformReports() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">外卖报表月报</h1>
-        <p className="text-sm text-gray-500 mt-1">上传和管理各外卖平台的月度报表</p>
+        <p className="text-sm text-gray-500 mt-1">上传和管理各外卖平台的月度报表（自动识别平台和提取数据）</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">添加月报</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">外卖平台</label>
-            <select value={form.platform_id} onChange={e => setForm({ ...form, platform_id: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">请选择（上传PDF可自动识别）</option>
-              {platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">月份</label>
-            <input type="month" value={form.month} onChange={e => setForm({ ...form, month: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">总销售额</label>
-            <input type="number" step="0.01" value={form.total_sales} onChange={e => setForm({ ...form, total_sales: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">订单数</label>
-            <input type="number" value={form.order_count} onChange={e => setForm({ ...form, order_count: e.target.value })} placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">平台佣金</label>
-            <input type="number" step="0.01" value={form.platform_fee} onChange={e => setForm({ ...form, platform_fee: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">净收入</label>
-            <input type="number" step="0.01" value={form.net_revenue} onChange={e => setForm({ ...form, net_revenue: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-sm text-gray-600 mb-1">备注</label>
-            <input type="text" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="备注说明" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div className="col-span-2 md:col-span-4 flex gap-2">
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">添加报表</button>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">上传报表文件（CSV/PDF）</button>
-            <input ref={fileInputRef} type="file" accept=".csv,.pdf" onChange={handleFileSelect} className="hidden" />
-          </div>
-        </form>
+      {/* 上传按钮 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">上传月报表</h2>
+          <p className="text-sm text-gray-500 mt-1">支持 Grubhub/Uber Eats/DoorDash 的 PDF 或 CSV 报表，自动识别平台和数据</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 font-medium"
+        >
+          选择文件上传
+        </button>
+        <input ref={fileInputRef} type="file" accept=".csv,.pdf" onChange={handleFileSelect} className="hidden" />
       </div>
 
+      {/* 报表列表 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-800">报表列表</h2>
