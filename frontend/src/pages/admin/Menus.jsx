@@ -7,7 +7,6 @@ import { useLanguage } from '../../context/LanguageContext'
 const emptyForm = { parent_id: 0, name: '', icon: '', path: '', sort_order: 0, enabled: true }
 
 export default function Menus() {
-  // 菜单管理：增删改查后台侧边栏菜单，支持一级/二级层级
   const { t } = useLanguage()
   const confirm = useConfirm()
   const [menus, setMenus] = useState([])
@@ -17,16 +16,11 @@ export default function Menus() {
 
   useEffect(() => { load() }, [])
 
-  // 加载全部菜单列表
   const load = () => api.getAllMenus().then(setMenus).catch(() => {})
 
-  // 打开添加菜单弹窗（可指定父级菜单ID）
   const openAdd = (parentId = 0) => { setEditing(null); setForm({ ...emptyForm, parent_id: parentId }); setDialog(true) }
-
-  // 打开编辑菜单弹窗
   const openEdit = (m) => { setEditing(m); setForm({ ...m, enabled: !!m.enabled }); setDialog(true) }
 
-  // 保存菜单：新增或更新
   const save = async () => {
     if (!form.name) { toast(t('menus.nameRequired', '菜单名称必填'), 'error'); return }
     try {
@@ -36,13 +30,18 @@ export default function Menus() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 删除菜单（需确认）
   const remove = async (id) => {
     if (!await confirm({ title: t('menus.confirmDeleteTitle', '删除菜单'), message: t('menus.confirmDeleteMsg', '确定删除？子菜单也会被删除'), variant: 'danger' })) return
     await api.deleteMenu(id); toast(t('menus.deleted', '已删除')); load()
   }
 
   const parents = menus.filter(m => m.parent_id === 0)
+  const childrenOf = (pid) => menus.filter(m => m.parent_id === pid)
+
+  // 构建树形数据：一级菜单 + 它的二级菜单
+  const treeData = parents
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .flatMap(p => [p, ...childrenOf(p.id).sort((a, b) => a.sort_order - b.sort_order)])
 
   return (
     <div className="space-y-6">
@@ -55,19 +54,21 @@ export default function Menus() {
       </div>
 
       <Card>
-        {menus.length === 0 ? <Empty text={t('menus.empty', '暂无菜单')} /> : (
+        {treeData.length === 0 ? <Empty text={t('menus.empty', '暂无菜单')} /> : (
           <Table columns={[
             { header: t('menus.nameCol', '菜单名称'), render: m => (
               <div className="flex items-center gap-2">
                 <span className="text-lg">{m.icon || '📄'}</span>
-                <span className={`font-medium ${m.parent_id === 0 ? 'text-gray-800' : 'text-gray-600 ml-4'}`}>{m.parent_id !== 0 && '└ '}{m.name}</span>
+                <span className={`font-medium ${m.parent_id === 0 ? 'text-gray-800 font-semibold' : 'text-gray-600 ml-8'}`}>
+                  {m.parent_id !== 0 && <span className="text-gray-400 mr-1">└─</span>}
+                  {m.name}
+                </span>
               </div>
             )},
             { header: t('menus.levelCol', '层级'), render: m => <Badge variant={m.parent_id === 0 ? 'primary' : 'default'}>{m.parent_id === 0 ? t('menus.level1', '一级') : t('menus.level2', '二级')}</Badge> },
-            { header: t('menus.pathCol', '路径'), render: m => <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{m.path || '-'}</code> },
             { header: t('menus.sortCol', '排序'), key: 'sort_order' },
             { header: t('common.status', '状态'), render: m => <Badge variant={m.enabled ? 'success' : 'default'}>{m.enabled ? t('menus.enabled', '启用') : t('menus.disabled', '停用')}</Badge> }
-          ]} data={menus} actions={m => (
+          ]} data={treeData} actions={m => (
             <div className="flex gap-2">
               {m.parent_id === 0 && <button onClick={() => openAdd(m.id)} className="text-green-500 hover:text-green-700 text-sm">{t('menus.addSubmenu', '加子菜单')}</button>}
               <button onClick={() => openEdit(m)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
