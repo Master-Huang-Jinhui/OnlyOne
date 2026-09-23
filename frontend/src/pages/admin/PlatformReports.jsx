@@ -32,7 +32,7 @@ export default function PlatformReports() {
       setReports(Array.isArray(reportsRes) ? reportsRes : [])
       setPlatforms(Array.isArray(platformsRes) ? platformsRes : [])
     } catch (e) {
-      toast.error('加载失败')
+      toast('加载失败：' + e.message, 'error')
     } finally {
       setLoading(false)
     }
@@ -42,11 +42,11 @@ export default function PlatformReports() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!form.platform_id) {
-      toast.error('请先选择外卖平台')
+      toast('请先选择外卖平台', 'error')
       return
     }
     if (!form.month) {
-      toast.error('请先选择月份')
+      toast('请先选择月份', 'error')
       return
     }
     uploadFile(file)
@@ -63,26 +63,26 @@ export default function PlatformReports() {
     formData.append('net_revenue', form.net_revenue)
     try {
       await api.uploadPlatformReport(formData)
-      toast.success('上传成功')
+      toast('上传成功')
       loadData()
     } catch (e) {
-      toast.error('上传失败：' + e.message)
+      toast('上传失败：' + e.message, 'error')
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.platform_id) {
-      toast.error('请选择外卖平台')
+      toast('请选择外卖平台', 'error')
       return
     }
     if (!form.month) {
-      toast.error('请选择月份')
+      toast('请选择月份', 'error')
       return
     }
     try {
       await api.createPlatformReport(form)
-      toast.success('添加成功')
+      toast('添加成功')
       setForm({
         platform_id: '',
         month: new Date().toISOString().slice(0, 7),
@@ -94,7 +94,7 @@ export default function PlatformReports() {
       })
       loadData()
     } catch (e) {
-      toast.error('添加失败：' + e.message)
+      toast('添加失败：' + e.message, 'error')
     }
   }
 
@@ -102,10 +102,10 @@ export default function PlatformReports() {
     if (!confirm('确定删除这条报表记录吗？')) return
     try {
       await api.deletePlatformReport(id)
-      toast.success('删除成功')
+      toast('删除成功')
       loadData()
     } catch (e) {
-      toast.error('删除失败：' + e.message)
+      toast('删除失败：' + e.message, 'error')
     }
   }
 
