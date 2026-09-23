@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 
+// 商品口味选择弹窗组件：辣度/冰度/甜度单选，配料/其他多选
 export default function ProductVariantModal({ visible, onClose, onConfirm, initData }) {
   const { t } = useLanguage();
   // 单选组：辣度、冰度、甜度
@@ -47,20 +48,23 @@ export default function ProductVariantModal({ visible, onClose, onConfirm, initD
     { value: "打包", key: "variant.toGo" },
   ];
 
-  // 单选赋值
+  // 单选赋值：设置辣度
   const handleSpicy = (v) => setSpicy(v);
+  // 单选赋值：设置冰度
   const handleIce = (v) => setIce(v);
+  // 单选赋值：设置甜度
   const handleSugar = (v) => setSugar(v);
 
-  // 多选切换
+  // 多选切换：添加或移除配料
   const toggleTopping = (v) => {
     setToppings(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   };
+  // 多选切换：添加或移除其他要求
   const toggleOther = (v) => {
     setOthers(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   };
 
-  // 确认
+  // 确认选择：将所有选项组合成对象回调给父组件，然后关闭弹窗
   const handleConfirm = () => {
     const selectResult = {
       spicy,
@@ -73,7 +77,7 @@ export default function ProductVariantModal({ visible, onClose, onConfirm, initD
     onClose();
   };
 
-  // 清空重置
+  // 清空重置：恢复所有选项到默认值
   const handleClear = () => {
     setSpicy("不辣");
     setIce("正常冰");
