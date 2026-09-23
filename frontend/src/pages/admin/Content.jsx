@@ -190,7 +190,11 @@ export default function Content() {
             <Button onClick={() => openAdd('carousel')}>+ {t('content.addCarousel', '添加轮播')}</Button>
           </div>
           <Table columns={[
-            { header: t('content.previewCol', '预览'), render: c => c.image ? <img src={c.image} alt="" className="w-20 h-12 object-cover rounded" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} /><div className="w-20 h-12 bg-gray-100 rounded items-center justify-center text-gray-300 hidden">{t('content.noImg', '无图')}</div> : <div className="w-20 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-300">{t('content.noImg', '无图')}</div> },
+            { header: t('content.previewCol', '预览'), render: c => c.image ? (
+              <img src={c.image} alt="" className="w-20 h-12 object-cover rounded" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
+            ) : (
+              <div className="w-20 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-300">{t('content.noImg', '无图')}</div>
+            ) },
             { header: t('content.titleCol', '标题'), key: 'title' },
             { header: t('content.linkCol', '链接'), render: c => c.link ? <a href={`/go?carousel=${c.id}`} target="_blank" rel="noreferrer" className="text-primary-500 text-sm hover:underline truncate block max-w-[200px]">{c.link}</a> : <span className="text-gray-300">-</span> },
             { header: t('content.sortCol', '排序'), key: 'sort_order' },
