@@ -19,7 +19,16 @@ const storage = multer.diskStorage({
     cb(null, 'report-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    const allowed = /csv|pdf/
+    const ext = path.extname(file.originalname).toLowerCase().slice(1)
+    if (allowed.test(ext)) cb(null, true)
+    else cb(new Error('只支持 CSV 或 PDF 文件'))
+  }
+}); // 支持 CSV 和 PDF
 
 // 获取报表列表
 router.get('/', auth, (req, res) => {
@@ -34,9 +43,9 @@ router.get('/', auth, (req, res) => {
 
 // 上传报表
 router.post('/upload', auth, managerAccess, upload.single('file'), (req, res) => {
-  const { platform_id, month } = req.body;
+  const { platform_id, month, total_sales, order_count, platform_fee, net_revenue } = req.body;
   if (!platform_id || !month) return res.status(400).json({ error: '请选择平台和月份' });
-  if (!req.file) return res.status(400).json({ error: '请上传CSV文件' });
+  if (!req.file) return res.status(400).json({ error: '请上传报表文件' });
 
   const result = db.prepare(`
     INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue)
@@ -46,7 +55,10 @@ router.post('/upload', auth, managerAccess, upload.single('file'), (req, res) =>
     month,
     req.file.path,
     req.file.originalname,
-    0, 0, 0, 0 // 后续CSV解析填充
+    parseFloat(total_sales) || 0,
+    parseInt(order_count) || 0,
+    parseFloat(platform_fee) || 0,
+    parseFloat(net_revenue) || 0
   );
 
   auditLog(req, 'UPLOAD_REPORT', `上传报表: ${month} 平台ID ${platform_id}`, { reportId: result.lastInsertRowid });
