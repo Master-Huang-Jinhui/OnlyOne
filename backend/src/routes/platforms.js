@@ -6,6 +6,10 @@ const { auditLog } = require('../utils/audit');
 
 const router = express.Router();
 
+// 所有允许更新的平台字段
+const PLATFORM_FIELDS = ['name', 'logo', 'url', 'account', 'password', 'phone', 'note', 'enabled', 'weekly_status', 'sort_order',
+  'commission_rate', 'payout_schedule', 'delivery_type', 'min_order', 'delivery_radius', 'contact_person', 'rating', 'launch_date'];
+
 router.post('/list', auth, (req, res) => {
   const platforms = db.prepare('SELECT * FROM platforms ORDER BY sort_order, id').all();
   platforms.forEach(p => {
@@ -25,11 +29,16 @@ router.post('/public', (req, res) => {
 });
 
 router.post('/', auth, managerAccess, (req, res) => {
-  const { name, logo, url, account, password, phone, note, enabled = 1, weekly_status = {}, sort_order = 0 } = req.body;
+  const { name, logo, url, account, password, phone, note, enabled = 1, weekly_status = {}, sort_order = 0,
+    commission_rate = 0, payout_schedule = 'weekly', delivery_type = 'platform', min_order = 0,
+    delivery_radius = 0, contact_person = '', rating = 0, launch_date = '' } = req.body;
   if (!name) return res.status(400).json({ error: '平台名称必填' });
   const encryptedPassword = password ? encrypt(password) : '';
-  const result = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    name, logo, url, account, encryptedPassword, phone, note, enabled ? 1 : 0, JSON.stringify(weekly_status), sort_order
+  const result = db.prepare(`INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order,
+    commission_rate, payout_schedule, delivery_type, min_order, delivery_radius, contact_person, rating, launch_date
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    name, logo, url, account, encryptedPassword, phone, note, enabled ? 1 : 0, JSON.stringify(weekly_status), sort_order,
+    commission_rate, payout_schedule, delivery_type, min_order, delivery_radius, contact_person, rating, launch_date
   );
   auditLog(req, 'CREATE_PLATFORM', `创建平台: ${name}`, { platformId: result.lastInsertRowid, name });
   res.json({ id: result.lastInsertRowid });
@@ -38,8 +47,7 @@ router.post('/', auth, managerAccess, (req, res) => {
 router.post('/update/:id', auth, managerAccess, (req, res) => {
   const fields = [];
   const values = [];
-  const allowed = ['name', 'logo', 'url', 'account', 'password', 'phone', 'note', 'enabled', 'weekly_status', 'sort_order'];
-  for (const key of allowed) {
+  for (const key of PLATFORM_FIELDS) {
     if (req.body[key] !== undefined) {
       fields.push(`${key} = ?`);
       if (key === 'password') {
