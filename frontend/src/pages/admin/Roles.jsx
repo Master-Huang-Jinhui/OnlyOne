@@ -3,20 +3,23 @@ import { api } from '../../lib/api'
 import { Card, Button, Badge, Dialog, Input, Empty, toast } from '../../components/ui'
 import { useLanguage } from '../../context/LanguageContext'
 
+// 角色管理页面：创建自定义角色、配置菜单权限、一键应用角色模板
 export default function Roles() {
   const { t, language } = useLanguage()
   const [roles, setRoles] = useState([])
   const [menus, setMenus] = useState([])
   const [loading, setLoading] = useState(false)
-  const [editDialog, setEditDialog] = useState(false)
-  const [permDialog, setPermDialog] = useState(false)
+  const [editDialog, setEditDialog] = useState(false)       // 编辑角色名称对话框
+  const [permDialog, setPermDialog] = useState(false)       // 配置权限对话框
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', sort_order: 0 })
-  const [selectedMenus, setSelectedMenus] = useState([])
-  const [permRole, setPermRole] = useState(null)
+  const [selectedMenus, setSelectedMenus] = useState([])   // 当前选中的菜单ID列表
+  const [permRole, setPermRole] = useState(null)            // 正在配置权限的角色
 
+  // 加载角色列表和菜单列表
   useEffect(() => { load() }, [])
 
+  // 加载角色（过滤掉系统内置角色的显示）和全部菜单
   const load = () => {
     setLoading(true)
     api.getRoles().then(data => {
@@ -27,9 +30,12 @@ export default function Roles() {
     api.getAllMenus().then(data => setMenus(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false))
   }
 
+  // 打开新建角色对话框
   const openAdd = () => { setEditing(null); setForm({ name: '', description: '', sort_order: roles.length + 1 }); setEditDialog(true) }
+  // 打开编辑角色对话框
   const openEdit = (r) => { setEditing(r); setForm({ name: r.name, description: r.description || '', sort_order: r.sort_order || 0 }); setEditDialog(true) }
 
+  // 保存角色（新建或更新）
   const save = async () => {
     if (!form.name) { toast(t('roles.nameRequired', '角色名称必填'), 'error'); return }
     try {
@@ -45,12 +51,14 @@ export default function Roles() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 删除角色（系统内置角色不可删除）
   const remove = async (r) => {
     if (r.is_system) { toast(t('roles.systemNotDeletable', '系统内置角色不可删除'), 'error'); return }
     if (!confirm(`${t('roles.confirmDelete', '确定删除角色「')}${r.name}${t('roles.confirmDeleteEnd', '」？')}`)) return
     try { await api.deleteRole(r.id); toast(t('roles.deleted', '已删除')); load() } catch (e) { toast(e.message, 'error') }
   }
 
+  // 打开权限配置对话框，解析角色已有的菜单权限
   const openPerm = (r) => {
     setPermRole(r)
     try {
@@ -60,16 +68,19 @@ export default function Roles() {
     setPermDialog(true)
   }
 
+  // 切换单个菜单的选中状态
   const toggleMenu = (menuId) => {
     setSelectedMenus(prev => prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId])
   }
 
+  // 全选/全不选/反选
   const allMenuIds = useMemo(() => menus.map(m => m.id), [menus])
   const allSelected = allMenuIds.length > 0 && allMenuIds.every(id => selectedMenus.includes(id))
   const selectAll = () => setSelectedMenus(allMenuIds)
   const selectNone = () => setSelectedMenus([])
   const invertSelection = () => setSelectedMenus(allMenuIds.filter(id => !selectedMenus.includes(id)))
 
+  // 保存角色权限到后端
   const savePerm = async () => {
     if (!permRole) return
     try {
@@ -80,10 +91,13 @@ export default function Roles() {
     } catch (e) { toast(e.message, 'error') }
   }
 
+  // 获取一级菜单和子菜单
   const parentMenus = useMemo(() => menus.filter(m => m.parent_id === 0 || !m.parent_id), [menus])
   const getChildren = (parentId) => menus.filter(m => m.parent_id === parentId)
+  // 根据菜单ID获取菜单名称（支持中英文）
   const getMenuName = (menuId) => { const m = menus.find(m => m.id === menuId); return m ? (language === 'en' ? (m.name_en || m.name) : m.name) : `${t('roles.menu', '菜单')}${menuId}` }
 
+  // 角色快速模板：一键勾选对应角色的菜单权限
   const roleTemplates = useMemo(() => [
     { name: t('roles.tplOwner', '老板/店长'), desc: t('roles.tplOwnerDesc', '全部权限'), icon: '👑', match: () => allMenuIds },
     { name: t('roles.tplManager', '经理'), desc: t('roles.tplManagerDesc', '运营+营销+报表'), icon: '📊', match: () => menus.filter(m => !['/admin/permissions','/admin/roles','/admin/menus','/admin/settings','/admin/users'].includes(m.path)).map(m => m.id) },
@@ -96,6 +110,7 @@ export default function Roles() {
     { name: t('roles.tplReadonly', '只读权限'), desc: t('roles.tplReadonlyDesc', '查看全部菜单'), icon: '👁️', match: () => allMenuIds },
   ], [menus, allMenuIds, t])
 
+  // 应用角色模板：自动勾选对应菜单
   const applyTemplate = (template) => {
     const ids = template.match()
     setSelectedMenus(ids)
