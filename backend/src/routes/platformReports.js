@@ -36,11 +36,14 @@ function extractDataFromText(text) {
   const result = {};
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   
-  // 找第 i 行后面最近的一个金额数字
+  // 找第 i 行后面最近的一个金额数字（支持负数括号格式 $(15.41)）
   const findNextAmount = (startIdx) => {
     for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
-      const m = lines[i].match(/\$?([0-9,]+\.\d{2})/);
-      if (m) return parseFloat(m[1].replace(/,/g, ''));
+      // 匹配 $88.01 或 $(15.41) 或 (15.41)
+      let m = lines[i].match(/\$\(([0-9,]+\.\d{2})\)/);
+      if (m) return -parseFloat(m[1].replace(/,/g, ''));
+      m = lines[i].match(/\$?\(?([0-9,]+\.\d{2})\)?/);
+      if (m && /\$|\(/.test(lines[i])) return parseFloat(m[1].replace(/,/g, ''));
     }
     return null;
   };
@@ -48,7 +51,6 @@ function extractDataFromText(text) {
   // 找第 i 行后面最近的一个纯数字
   const findNextNumber = (startIdx) => {
     for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
-      // 纯数字，不要匹配金额里的小数
       const m = lines[i].match(/^(\d+)$/) || lines[i].match(/[^0-9.](\d+)[^0-9.]/);
       if (m) return parseInt(m[1]);
     }
@@ -56,30 +58,56 @@ function extractDataFromText(text) {
   };
   
   for (let i = 0; i < lines.length; i++) {
-    const lower = lines[i].toLowerCase();
+    const line = lines[i];
+    const lower = line.toLowerCase();
     
-    // 总销售额 / Gross Sales / Total Sales
-    if (!result.total_sales && /total sales|gross sales|total revenue|gross revenue/i.test(lower)) {
-      const amount = findNextAmount(i);
-      if (amount) result.total_sales = amount;
+    // ===== 总销售额 =====
+    // Grubhub: "Restaurant sales for 2 orders" 右边 $88.01
+    if (!result.total_sales && /restaurant sales|gross sales|total sales|total revenue/i.test(lower)) {
+      // 先在同一行找金额
+      let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?([0-9,]+\.\d{2})/);
+      if (m && /\$/.test(line)) {
+        result.total_sales = parseFloat(m[1].replace(/,/g, ''));
+      } else {
+        const amount = findNextAmount(i);
+        if (amount) result.total_sales = amount;
+      }
     }
     
-    // 订单数 / Orders
-    if (!result.order_count && /^(orders?|total orders?|number of orders|order count)/i.test(lower)) {
-      const num = findNextNumber(i);
-      if (num && num > 0 && num < 10000) result.order_count = num;
+    // ===== 订单数 =====
+    // Grubhub: "Restaurant sales for 2 orders" 里的 2
+    if (!result.order_count) {
+      const m = line.match(/for\s+(\d+)\s+orders/i);
+      if (m) {
+        result.order_count = parseInt(m[1]);
+      } else if (/^(orders?|total orders?|number of orders)/i.test(lower)) {
+        const num = findNextNumber(i);
+        if (num && num > 0 && num < 10000) result.order_count = num;
+      }
     }
     
-    // 平台费用 / Commission / Fees
-    if (!result.platform_fee && /commission|platform fee|service fee|processing fee|marketplace fee|grubhub fee/i.test(lower)) {
-      const amount = findNextAmount(i);
-      if (amount) result.platform_fee = amount;
+    // ===== 平台总手续费 =====
+    // Grubhub: "Grubhub order services" 右边 $(15.41)
+    if (!result.platform_fee && /grubhub order services|platform fee|total fees|service fees|commission/i.test(lower)) {
+      let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?\(?([0-9,]+\.\d{2})\)?/);
+      if (m && (/\$|\(/.test(line))) {
+        result.platform_fee = Math.abs(parseFloat(m[1].replace(/,/g, '')));
+      } else {
+        const amount = findNextAmount(i);
+        if (amount) result.platform_fee = Math.abs(amount);
+      }
     }
     
-    // 净收入 / Net Revenue / Payout
-    if (!result.net_revenue && /net revenue|payout|net sales|net earnings|total payout/i.test(lower)) {
-      const amount = findNextAmount(i);
-      if (amount) result.net_revenue = amount;
+    // ===== 净收入 / 打款 =====
+    // Grubhub: "Balance" 右边 $72.60
+    if (!result.net_revenue && /balance|net revenue|payout|total payout|net earnings|total payments to you/i.test(lower)) {
+      let m = line.match(/\$\(([0-9,]+\.\d{2})\)/) || line.match(/\$?([0-9,]+\.\d{2})/);
+      if (m && /\$/.test(line)) {
+        result.net_revenue = parseFloat(m[1].replace(/,/g, ''));
+      } else {
+        const amount = findNextAmount(i);
+        if (amount) result.net_revenue = amount;
+      }
     }
   }
   
