@@ -52,6 +52,9 @@ export default function AdminLayout() {
         } catch {}
       }
       setMenus(menuList)
+      // 默认展开所有有子菜单的一级菜单
+      const parentIds = menuList.filter(m => m.parent_id === 0 && menuList.some(child => child.parent_id === m.id)).map(m => m.id)
+      setExpandedMenus(parentIds)
     }).catch(() => {})
   }, [user])
 
