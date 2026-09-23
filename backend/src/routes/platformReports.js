@@ -34,29 +34,53 @@ const upload = multer({
 // 从 PDF 文本中提取关键数据
 function extractDataFromText(text) {
   const result = {};
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   
-  // 总销售额 / Gross Sales / Total Sales
-  if (/total sales|gross sales|total revenue/i.test(text)) {
-    const match = text.match(/(?:total sales|gross sales|total revenue)[^\d$]*\$?([0-9,]+\.\d{2})/i);
-    if (match) result.total_sales = parseFloat(match[1].replace(/,/g, ''));
-  }
+  // 找第 i 行后面最近的一个金额数字
+  const findNextAmount = (startIdx) => {
+    for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
+      const m = lines[i].match(/\$?([0-9,]+\.\d{2})/);
+      if (m) return parseFloat(m[1].replace(/,/g, ''));
+    }
+    return null;
+  };
   
-  // 订单数 / Orders
-  if (/order/i.test(text)) {
-    const match = text.match(/(?:orders?|total orders?)[^\d]*(\d+)/i);
-    if (match) result.order_count = parseInt(match[1]);
-  }
+  // 找第 i 行后面最近的一个纯数字
+  const findNextNumber = (startIdx) => {
+    for (let i = startIdx; i < Math.min(startIdx + 5, lines.length); i++) {
+      // 纯数字，不要匹配金额里的小数
+      const m = lines[i].match(/^(\d+)$/) || lines[i].match(/[^0-9.](\d+)[^0-9.]/);
+      if (m) return parseInt(m[1]);
+    }
+    return null;
+  };
   
-  // 平台费用 / Commission / Fees
-  if (/commission|platform fee|service fee|processing fee/i.test(text)) {
-    const match = text.match(/(?:commission|platform fee|service fee|processing fee)[^\d$]*\$?([0-9,]+\.\d{2})/i);
-    if (match) result.platform_fee = parseFloat(match[1].replace(/,/g, ''));
-  }
-  
-  // 净收入 / Net Revenue / Payout
-  if (/net revenue|payout|net sales/i.test(text)) {
-    const match = text.match(/(?:net revenue|payout|net sales)[^\d$]*\$?([0-9,]+\.\d{2})/i);
-    if (match) result.net_revenue = parseFloat(match[1].replace(/,/g, ''));
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    
+    // 总销售额 / Gross Sales / Total Sales
+    if (!result.total_sales && /total sales|gross sales|total revenue|gross revenue/i.test(lower)) {
+      const amount = findNextAmount(i);
+      if (amount) result.total_sales = amount;
+    }
+    
+    // 订单数 / Orders
+    if (!result.order_count && /^(orders?|total orders?|number of orders|order count)/i.test(lower)) {
+      const num = findNextNumber(i);
+      if (num && num > 0 && num < 10000) result.order_count = num;
+    }
+    
+    // 平台费用 / Commission / Fees
+    if (!result.platform_fee && /commission|platform fee|service fee|processing fee|marketplace fee|grubhub fee/i.test(lower)) {
+      const amount = findNextAmount(i);
+      if (amount) result.platform_fee = amount;
+    }
+    
+    // 净收入 / Net Revenue / Payout
+    if (!result.net_revenue && /net revenue|payout|net sales|net earnings|total payout/i.test(lower)) {
+      const amount = findNextAmount(i);
+      if (amount) result.net_revenue = amount;
+    }
   }
   
   return result;
