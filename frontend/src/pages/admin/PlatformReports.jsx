@@ -238,7 +238,10 @@ export default function PlatformReports() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">月份</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">总销售额</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">订单数</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">退菜数</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">客单价</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">平台佣金</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">佣金率</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">净收入</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">备注</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">操作</th>
@@ -247,11 +250,18 @@ export default function PlatformReports() {
             <tbody className="divide-y divide-gray-100">
               {reports.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-sm text-gray-800">{getPlatformName(r.platform_id)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-800">{r.platform_name || getPlatformName(r.platform_id)}</td>
                   <td className="px-6 py-3 text-sm text-gray-600">{r.month}</td>
                   <td className="px-6 py-3 text-sm text-right text-gray-800">${r.total_sales?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-right text-gray-600">{r.order_count}</td>
+                  <td className="px-6 py-3 text-sm text-right text-red-500">{r.refund_count || 0}</td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-600">
+                    {r.order_count > 0 ? '$' + (r.total_sales / r.order_count).toFixed(2) : '-'}
+                  </td>
                   <td className="px-6 py-3 text-sm text-right text-red-600">-${r.platform_fee?.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-500">
+                    {r.total_sales > 0 ? ((r.platform_fee / r.total_sales) * 100).toFixed(1) + '%' : '-'}
+                  </td>
                   <td className="px-6 py-3 text-sm text-right text-green-600 font-medium">${r.net_revenue?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{r.note || '-'}</td>
                   <td className="px-6 py-3 text-center">

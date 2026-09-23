@@ -334,6 +334,11 @@ db.exec(`
   );
 `);
 
+// ========== 自动迁移 ==========
+try {
+  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run();
+} catch (e) { /* 列已存在忽略 */ }
+
 // ========== 运行各模块初始化数据 ==========
 require('./seeds/users')(db);
 require('./seeds/menus')(db);

@@ -185,43 +185,39 @@ function parseCSVReport(filePath, fileName) {
   // 聚合计算
   let totalSales = 0;
   let orderCount = 0;
-  let totalFees = 0;
+  let refundCount = 0;
   let totalNet = 0;
   
   for (const row of rows) {
-    // 订单数：只统计 Order 类型的行
+    // 订单类型
     const rowType = typeCol ? String(row[typeCol]).toLowerCase() : '';
-    if (!typeCol || rowType === 'order' || rowType.includes('order')) {
+    if (rowType === 'order') {
       orderCount++;
+    } else if (rowType.includes('error') || rowType.includes('refund') || rowType.includes('chargeback')) {
+      refundCount++;
     }
     
-    // 累加金额
+    // 累加 Subtotal（总销售额）
     if (subtotalCol) {
-      const val = parseFloat(row[subtotalCol]);
+      const val = parseFloat(String(row[subtotalCol]).replace(/[$,]/g, ''));
       if (!isNaN(val)) totalSales += val;
     }
-    if (commissionCol) {
-      const val = parseFloat(row[commissionCol]);
-      if (!isNaN(val)) totalFees += Math.abs(val);
-    }
-    if (merchantFeesCol) {
-      const val = parseFloat(row[merchantFeesCol]);
-      if (!isNaN(val)) totalFees += Math.abs(val);
-    }
-    if (marketingFeesCol) {
-      const val = parseFloat(row[marketingFeesCol]);
-      if (!isNaN(val)) totalFees += Math.abs(val);
-    }
+    // 累加 Net total（净收入，所有行加起来就是实际打款）
     if (netCol) {
-      const val = parseFloat(row[netCol]);
+      const val = parseFloat(String(row[netCol]).replace(/[$,]/g, ''));
       if (!isNaN(val)) totalNet += val;
     }
   }
   
+  // 总手续费 = 总销售额 - 净收入（自动包含所有佣金、商家费、营销费）
+  let totalFees = totalSales - totalNet;
+  if (totalFees < 0) totalFees = 0; // 退款多的话手续费显示0
+  
   if (totalSales > 0) result.total_sales = Math.round(totalSales * 100) / 100;
   if (orderCount > 0) result.order_count = orderCount;
+  if (refundCount > 0) result.refund_count = refundCount;
   if (totalFees > 0) result.platform_fee = Math.round(totalFees * 100) / 100;
-  if (totalNet !== 0) result.net_revenue = Math.round(totalNet * 100) / 100;
+  result.net_revenue = Math.round(totalNet * 100) / 100;
   
   // 从文件名提取月份（如 2026-07-01_2026-07-31）
   const monthMatch = fileName.match(/(\d{4})-(\d{2})-\d{2}_\d{4}-\d{2}-\d{2}/);
@@ -256,6 +252,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   let finalOrderCount = parseInt(order_count) || 0;
   let finalPlatformFee = parseFloat(platform_fee) || 0;
   let finalNetRevenue = parseFloat(net_revenue) || 0;
+  let finalRefundCount = 0;
   let finalMonth = month;
   let finalPlatformId = platform_id ? parseInt(platform_id) : null;
   let extractedNote = '';
@@ -297,6 +294,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       
       if (!total_sales && extracted.total_sales) finalTotalSales = extracted.total_sales;
       if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
+      if (extracted.refund_count) finalRefundCount = extracted.refund_count;
       if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
       if (!finalMonth && extracted.month) finalMonth = extracted.month;
@@ -326,8 +324,8 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   }
 
   const result = db.prepare(`
-    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue, note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, refund_count, platform_fee, net_revenue, note)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     finalPlatformId,
     finalMonth,
@@ -335,6 +333,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     req.file.originalname,
     finalTotalSales,
     finalOrderCount,
+    finalRefundCount,
     finalPlatformFee,
     finalNetRevenue,
     req.body.note ? req.body.note + extractedNote : extractedNote
@@ -347,6 +346,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     extracted: {
       total_sales: finalTotalSales,
       order_count: finalOrderCount,
+      refund_count: finalRefundCount,
       platform_fee: finalPlatformFee,
       net_revenue: finalNetRevenue
     }
