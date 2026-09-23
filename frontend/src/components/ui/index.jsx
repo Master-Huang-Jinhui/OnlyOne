@@ -184,15 +184,15 @@ export function ToastContainer() {
   const [toasts, setToasts] = useState([])
   useEffect(() => {
     setToastFn((message, type) => {
-      const id = Date.now()
+      const id = Date.now() + Math.random()
       setToasts(prev => [...prev, { id, message, type }])
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000)
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
     })
   }, [])
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none">
       {toasts.map(t => (
-        <div key={t.id} className={`px-6 py-3 rounded-lg shadow-lg text-sm text-white animate-fade-in min-w-[200px] text-center ${t.type === 'success' ? 'bg-green-500' : t.type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`}>
+        <div key={t.id} className={`px-6 py-3 rounded-lg shadow-lg text-sm text-white animate-fade-in min-w-[200px] text-center pointer-events-auto ${t.type === 'success' ? 'bg-green-500' : t.type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`}>
           {t.message}
         </div>
       ))}
@@ -226,5 +226,52 @@ export function StatCard({ title, value, icon, color = 'blue' }) {
         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${colors[color]}`}>{icon}</div>
       </div>
     </Card>
+  )
+}
+
+// ===== ErrorDialog 错误弹窗组件 =====
+// 用于显示详细错误信息，带"联系管理员"提示
+// 通过setErrorDialogFn注册，showErrorDialog()调用
+let errorDialogFn = null
+export function setErrorDialogFn(fn) { errorDialogFn = fn }
+
+// 错误弹窗容器：在App中挂载一次即可
+export function ErrorDialogContainer() {
+  const [error, setError] = useState(null) // {title, detail, showContact}
+
+  useEffect(() => {
+    setErrorDialogFn(({ title, detail, showContact }) => {
+      setError({ title, detail, showContact })
+    })
+  }, [])
+
+  if (!error) return null
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={() => setError(null)} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md animate-fade-in">
+        {/* 错误标题栏 */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border-b border-red-100 rounded-t-xl">
+          <span className="text-2xl">⚠️</span>
+          <h3 className="text-lg font-semibold text-red-700">{error.title || '操作失败'}</h3>
+        </div>
+        {/* 错误详情 */}
+        <div className="p-5">
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap break-all">
+            {error.detail || '发生了未知错误，请稍后重试。'}
+          </p>
+          {error.showContact && (
+            <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <p className="text-sm text-amber-700">📞 该功能尚未完善，请联系管理员</p>
+            </div>
+          )}
+        </div>
+        {/* 底部按钮 */}
+        <div className="px-5 py-4 border-t flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setError(null)}>关闭</Button>
+        </div>
+      </div>
+    </div>
   )
 }
