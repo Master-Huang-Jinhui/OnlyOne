@@ -186,36 +186,45 @@ function parseCSVReport(filePath, fileName) {
   let totalSales = 0;
   let orderCount = 0;
   let refundCount = 0;
+  let refundAmount = 0;
   let totalNet = 0;
   
   for (const row of rows) {
     // 订单类型
     const rowType = typeCol ? String(row[typeCol]).toLowerCase() : '';
-    if (rowType === 'order') {
-      orderCount++;
-    } else if (rowType.includes('error') || rowType.includes('refund') || rowType.includes('chargeback')) {
-      refundCount++;
-    }
     
-    // 累加 Subtotal（总销售额）
-    if (subtotalCol) {
-      const val = parseFloat(String(row[subtotalCol]).replace(/[$,]/g, ''));
-      if (!isNaN(val)) totalSales += val;
-    }
     // 累加 Net total（净收入，所有行加起来就是实际打款）
     if (netCol) {
       const val = parseFloat(String(row[netCol]).replace(/[$,]/g, ''));
       if (!isNaN(val)) totalNet += val;
     }
+    
+    if (rowType === 'order') {
+      orderCount++;
+      // 正常订单的销售额
+      if (subtotalCol) {
+        const val = parseFloat(String(row[subtotalCol]).replace(/[$,]/g, ''));
+        if (!isNaN(val)) totalSales += val;
+      }
+    } else if (rowType.includes('error') || rowType.includes('refund') || rowType.includes('chargeback')) {
+      refundCount++;
+      // 退款金额（负的 Net total 取绝对值）
+      if (netCol) {
+        const val = parseFloat(String(row[netCol]).replace(/[$,]/g, ''));
+        if (!isNaN(val) && val < 0) refundAmount += Math.abs(val);
+      }
+    }
   }
   
-  // 总手续费 = 总销售额 - 净收入（自动包含所有佣金、商家费、营销费）
-  let totalFees = totalSales - totalNet;
-  if (totalFees < 0) totalFees = 0; // 退款多的话手续费显示0
+  // 平台佣金 = 总销售额 - 退款金额 - 实际净收入
+  // （总销售额里扣掉退给客人的钱，再扣掉平台抽成，剩下的就是我们到手的）
+  let totalFees = totalSales - refundAmount - totalNet;
+  if (totalFees < 0) totalFees = 0;
   
   if (totalSales > 0) result.total_sales = Math.round(totalSales * 100) / 100;
   if (orderCount > 0) result.order_count = orderCount;
   if (refundCount > 0) result.refund_count = refundCount;
+  if (refundAmount > 0) result.refund_amount = Math.round(refundAmount * 100) / 100;
   if (totalFees > 0) result.platform_fee = Math.round(totalFees * 100) / 100;
   result.net_revenue = Math.round(totalNet * 100) / 100;
   
@@ -253,6 +262,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   let finalPlatformFee = parseFloat(platform_fee) || 0;
   let finalNetRevenue = parseFloat(net_revenue) || 0;
   let finalRefundCount = 0;
+  let finalRefundAmount = 0;
   let finalMonth = month;
   let finalPlatformId = platform_id ? parseInt(platform_id) : null;
   let extractedNote = '';
@@ -295,6 +305,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       if (!total_sales && extracted.total_sales) finalTotalSales = extracted.total_sales;
       if (!order_count && extracted.order_count) finalOrderCount = extracted.order_count;
       if (extracted.refund_count) finalRefundCount = extracted.refund_count;
+      if (extracted.refund_amount) finalRefundAmount = extracted.refund_amount;
       if (!platform_fee && extracted.platform_fee) finalPlatformFee = extracted.platform_fee;
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
       if (!finalMonth && extracted.month) finalMonth = extracted.month;
@@ -324,8 +335,8 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   }
 
   const result = db.prepare(`
-    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, refund_count, platform_fee, net_revenue, note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, refund_count, refund_amount, platform_fee, net_revenue, note)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     finalPlatformId,
     finalMonth,
@@ -334,6 +345,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     finalTotalSales,
     finalOrderCount,
     finalRefundCount,
+    finalRefundAmount,
     finalPlatformFee,
     finalNetRevenue,
     req.body.note ? req.body.note + extractedNote : extractedNote
@@ -347,6 +359,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       total_sales: finalTotalSales,
       order_count: finalOrderCount,
       refund_count: finalRefundCount,
+      refund_amount: finalRefundAmount,
       platform_fee: finalPlatformFee,
       net_revenue: finalNetRevenue
     }

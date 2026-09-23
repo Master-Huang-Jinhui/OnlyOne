@@ -239,6 +239,7 @@ export default function PlatformReports() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">总销售额</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">订单数</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">退菜数</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">退菜金额</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">客单价</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">平台佣金</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500">佣金率</th>
@@ -255,6 +256,7 @@ export default function PlatformReports() {
                   <td className="px-6 py-3 text-sm text-right text-gray-800">${r.total_sales?.toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-right text-gray-600">{r.order_count}</td>
                   <td className="px-6 py-3 text-sm text-right text-red-500">{r.refund_count || 0}</td>
+                  <td className="px-6 py-3 text-sm text-right text-red-500">${(r.refund_amount || 0).toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-right text-gray-600">
                     {r.order_count > 0 ? '$' + (r.total_sales / r.order_count).toFixed(2) : '-'}
                   </td>

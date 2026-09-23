@@ -334,9 +334,12 @@ db.exec(`
   );
 `);
 
-// ========== 自动迁移 ==========
+// ========== 自动迁移：新增列 ==========
 try {
   db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run();
+} catch (e) { /* 列已存在忽略 */ }
+try {
+  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run();
 } catch (e) { /* 列已存在忽略 */ }
 
 // ========== 运行各模块初始化数据 ==========
