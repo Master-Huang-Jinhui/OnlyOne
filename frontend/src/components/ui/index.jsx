@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLanguage } from '../../context/LanguageContext'
 
-// ===== Button =====
+// ===== Button 按钮组件 =====
+// variant: primary/secondary/outline/danger/ghost/success，size: sm/md/lg
 export function Button({ children, variant = 'primary', size = 'md', className = '', ...props }) {
   const variants = {
     primary: 'bg-primary-600 hover:bg-primary-700 text-white',
@@ -19,7 +20,8 @@ export function Button({ children, variant = 'primary', size = 'md', className =
   )
 }
 
-// ===== Input =====
+// ===== Input 输入框组件 =====
+// 支持label标签和error错误提示
 export function Input({ label, error, className = '', ...props }) {
   return (
     <div className="w-full">
@@ -30,7 +32,7 @@ export function Input({ label, error, className = '', ...props }) {
   )
 }
 
-// ===== Textarea =====
+// ===== Textarea 多行文本框组件 =====
 export function Textarea({ label, className = '', ...props }) {
   return (
     <div className="w-full">
@@ -40,7 +42,8 @@ export function Textarea({ label, className = '', ...props }) {
   )
 }
 
-// ===== Select =====
+// ===== Select 下拉选择组件 =====
+// options: [{value, label}]
 export function Select({ label, options = [], className = '', ...props }) {
   return (
     <div className="w-full">
@@ -54,24 +57,28 @@ export function Select({ label, options = [], className = '', ...props }) {
   )
 }
 
-// ===== Card =====
+// ===== Card 卡片容器组件 =====
 export function Card({ children, className = '', ...props }) {
   return <div className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`} {...props}>{children}</div>
 }
 
+// 卡片头部
 export function CardHeader({ children, className = '' }) {
   return <div className={`px-5 py-4 border-b border-gray-100 ${className}`}>{children}</div>
 }
 
+// 卡片标题
 export function CardTitle({ children, className = '' }) {
   return <h3 className={`text-lg font-semibold text-gray-800 ${className}`}>{children}</h3>
 }
 
+// 卡片内容区
 export function CardContent({ children, className = '' }) {
   return <div className={`p-5 ${className}`}>{children}</div>
 }
 
-// ===== Badge =====
+// ===== Badge 徽章/标签组件 =====
+// variant: default/primary/success/warning/danger
 export function Badge({ children, variant = 'default', className = '' }) {
   const variants = {
     default: 'bg-gray-100 text-gray-700',
@@ -83,7 +90,8 @@ export function Badge({ children, variant = 'default', className = '' }) {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]} ${className}`}>{children}</span>
 }
 
-// ===== Dialog / Modal =====
+// ===== Dialog / Modal 弹窗组件 =====
+// open控制显示，onClose关闭回调，width控制宽度
 export function Dialog({ open, onClose, title, children, footer, width = 'max-w-lg' }) {
   if (!open) return null
   return (
@@ -101,7 +109,8 @@ export function Dialog({ open, onClose, title, children, footer, width = 'max-w-
   )
 }
 
-// ===== Table =====
+// ===== Table 表格组件 =====
+// columns: [{header, key, render}]，data: 行数据数组，actions: 操作列渲染函数
 export function Table({ columns = [], data = [], actions }) {
   const { t } = useLanguage()
   return (
@@ -132,7 +141,7 @@ export function Table({ columns = [], data = [], actions }) {
   )
 }
 
-// ===== Switch =====
+// ===== Switch 开关组件 =====
 export function Switch({ checked, onChange, label }) {
   return (
     <label className="inline-flex items-center cursor-pointer gap-2">
@@ -145,7 +154,7 @@ export function Switch({ checked, onChange, label }) {
   )
 }
 
-// ===== Tabs =====
+// ===== Tabs 标签页组件 =====
 export function Tabs({ tabs = [], active, onChange }) {
   return (
     <div className="flex gap-1 border-b border-gray-200 mb-4">
@@ -162,13 +171,15 @@ export function Tabs({ tabs = [], active, onChange }) {
   )
 }
 
-// ===== Toast =====
+// ===== Toast 轻提示组件 =====
+// 通过setToastFn注册全局toast函数，toast()调用即可显示
 let toastFn = null
 export function setToastFn(fn) { toastFn = fn }
 export function toast(message, type = 'success') {
   if (toastFn) toastFn(message, type)
 }
 
+// Toast容器：渲染在页面顶部居中，3秒自动消失
 export function ToastContainer() {
   const [toasts, setToasts] = useState([])
   useEffect(() => {
@@ -189,13 +200,14 @@ export function ToastContainer() {
   )
 }
 
-// ===== Empty =====
+// ===== Empty 空状态组件 =====
 export function Empty({ text, icon = '📭' }) {
   const { t } = useLanguage()
   return <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-2">{icon}</div><p>{text || t('common.noData', '暂无数据')}</p></div>
 }
 
-// ===== StatCard =====
+// ===== StatCard 统计卡片组件 =====
+// 用于Dashboard等页面的数字展示
 export function StatCard({ title, value, icon, color = 'blue' }) {
   const colors = {
     blue: 'bg-blue-50 text-blue-600',
