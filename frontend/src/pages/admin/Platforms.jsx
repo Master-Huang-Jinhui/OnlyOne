@@ -54,8 +54,9 @@ export default function Platforms() {
   const columns = [
     { header: t('platforms.platformCol', '平台'), render: p => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-xl border overflow-hidden">
-          {p.logo ? <img src={p.logo} alt="" className="w-full h-full object-cover" /> : '🛵'}
+        {/* Logo容器：白色背景 + padding，object-contain完整显示不裁剪 */}
+        <div className="w-14 h-10 bg-white rounded-lg flex items-center justify-center border overflow-hidden p-1.5">
+          {p.logo ? <img src={p.logo} alt="" className="max-w-full max-h-full object-contain" onError={(e) => { e.target.style.display = 'none' }} /> : <span className="text-xl">🛵</span>}
         </div>
         <div>
           <p className="font-medium text-gray-800">{p.name}</p>
@@ -117,7 +118,12 @@ export default function Platforms() {
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Logo</label>
           <div className="flex gap-2 items-center">
-            {form.logo && <img src={form.logo} alt="" className="w-10 h-10 rounded border object-cover" />}
+            {/* 编辑弹窗中的logo预览：白色背景 + object-contain自适应 */}
+            {form.logo && (
+              <div className="w-16 h-12 bg-white rounded border flex items-center justify-center p-1.5 shrink-0">
+                <img src={form.logo} alt="" className="max-w-full max-h-full object-contain" onError={(e) => { e.target.style.display = 'none' }} />
+              </div>
+            )}
             <input
               value={form.logo}
               onChange={e => setForm({ ...form, logo: e.target.value })}
