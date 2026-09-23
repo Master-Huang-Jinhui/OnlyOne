@@ -57,6 +57,10 @@ export default function PlatformReports() {
     formData.append('file', file)
     formData.append('platform_id', form.platform_id)
     formData.append('month', form.month)
+    formData.append('total_sales', form.total_sales)
+    formData.append('order_count', form.order_count)
+    formData.append('platform_fee', form.platform_fee)
+    formData.append('net_revenue', form.net_revenue)
     try {
       await api.uploadPlatformReport(formData)
       toast.success('上传成功')
@@ -208,12 +212,12 @@ export default function PlatformReports() {
               onClick={() => fileInputRef.current?.click()}
               className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200"
             >
-              上传 CSV 文件
+              上传报表文件（CSV/PDF）
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".csv,.pdf"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -232,7 +236,7 @@ export default function PlatformReports() {
           <div className="p-12 text-center text-gray-400">
             <div className="text-4xl mb-2">📊</div>
             <p>暂无报表记录</p>
-            <p className="text-xs mt-1">上传 CSV 或手动添加</p>
+            <p className="text-xs mt-1">上传 CSV/PDF 或手动添加</p>
           </div>
         ) : (
           <table className="w-full">
@@ -259,12 +263,24 @@ export default function PlatformReports() {
                   <td className="px-6 py-3 text-sm text-right font-medium">${Number(r.net_revenue || 0).toFixed(2)}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{r.note || '-'}</td>
                   <td className="px-6 py-3 text-center">
-                    <button
-                      onClick={() => handleDelete(r.id)}
-                      className="text-red-600 hover:text-red-700 text-sm"
-                    >
-                      删除
-                    </button>
+                    <div className="flex gap-2 justify-center">
+                      {r.file_path && (
+                        <a
+                          href={'/' + r.file_path.replace(/\\/g, '/').replace(/.*uploads\//, 'uploads/')}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary-600 text-sm hover:text-primary-700"
+                        >
+                          查看文件
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleDelete(r.id)}
+                        className="text-red-600 hover:text-red-700 text-sm"
+                      >
+                        删除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
