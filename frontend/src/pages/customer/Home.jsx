@@ -7,7 +7,6 @@ import { Button, Badge } from '../../components/ui'
 import MilkTeaMaker from '../../components/MilkTeaMaker'
 
 export default function Home() {
-  // 前台首页：轮播图 + 新品上市 + 品牌故事 + 茶品溯源 + 奶茶制作互动 + 商品推荐 + 联系信息
   const navigate = useNavigate()
   const { addItem, totalCount } = useCart()
   const { language, setLanguage, supportedLanguages, t } = useLanguage()
@@ -20,6 +19,7 @@ export default function Home() {
   const [business, setBusiness] = useState({ open: true })
   const [contentSections, setContentSections] = useState([])
   const [newProducts, setNewProducts] = useState([])
+  const [platforms, setPlatforms] = useState([])
   const [langMenuOpen, setLangMenuOpen] = useState(false)
 
   const teaSourcing = settings.tea_sourcing || [
@@ -40,7 +40,6 @@ export default function Home() {
     { id: 'contact', label: t('nav.contact') }
   ]
 
-  // 页面加载：同时拉取轮播、商品、分类、设置、营业状态、内容板块、新品
   useEffect(() => {
     api.getCarousel().then(setCarousel).catch(() => {})
     api.getProducts().then(setProducts).catch(() => {})
@@ -49,18 +48,16 @@ export default function Home() {
     api.getTodayBusiness().then(setBusiness).catch(() => {})
     api.getContentSections().then(data => setContentSections(Array.isArray(data) ? data : [])).catch(() => {})
     api.getNewProducts().then(data => setNewProducts(Array.isArray(data) ? data : [])).catch(() => {})
+    api.getPublicPlatforms().then(data => setPlatforms(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
-  // 轮播自动播放
   useEffect(() => {
     if (carousel.length <= 1) return
     const timer = setInterval(() => setCurrentSlide(p => (p + 1) % carousel.length), 4000)
     return () => clearInterval(timer)
   }, [carousel.length])
 
-  // 滚动监听
   useEffect(() => {
-    // 区块导航高亮（只处理进入）
     const sectionObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
@@ -76,38 +73,30 @@ export default function Home() {
       if (el) sectionObserver.observe(el)
     })
 
-    // 淡入动画（只添加visible，不删除，确保内容不会消失）
     const revealObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             entry.target.classList.add('visible')
-            revealObserver.unobserve(entry.target)
+          } else {
+            entry.target.classList.remove('visible')
           }
         })
       },
-      { threshold: 0.1 }
+      { threshold: 0.15 }
     )
     document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el))
-
-    // 兜底：2秒后强制显示所有reveal元素，防止Observer漏检导致内容不可见
-    const fallbackTimer = setTimeout(() => {
-      document.querySelectorAll('.reveal:not(.visible)').forEach(el => el.classList.add('visible'))
-    }, 2000)
 
     return () => {
       sectionObserver.disconnect()
       revealObserver.disconnect()
-      clearTimeout(fallbackTimer)
     }
-  }, [products, settings, newProducts, contentSections, showTea])
+  }, [products])
 
-  // 平滑滚动到指定区块
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // 添加商品到购物车并跳转购物车页
   const handleAddToCart = (product) => {
     addItem(product)
     navigate('/cart')
@@ -122,7 +111,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 导航栏 */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -136,7 +124,6 @@ export default function Home() {
             ))}
           </div>
           <div className="flex items-center gap-3">
-            {/* 语言切换 */}
             <div className="relative">
               <button onClick={() => setLangMenuOpen(!langMenuOpen)} className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600 font-medium px-2 py-1 rounded hover:bg-gray-100">
                 <span>{supportedLanguages.find(l => l.code === language)?.flag || '🌐'}</span>
@@ -168,7 +155,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 悬浮侧边导航 */}
       <div className="float-nav">
         {sections.map(s => (
           <div key={s.id} className={`float-nav-dot ${activeSection === s.id ? 'active' : ''}`} onClick={() => scrollTo(s.id)}>
@@ -177,7 +163,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* 轮播图 */}
       <section className="pt-16">
         <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden bg-gradient-to-br from-primary-100 via-blue-50 to-white">
           {carousel.length > 0 ? carousel.map((item, i) => (
@@ -203,7 +188,6 @@ export default function Home() {
               </div>
             </div>
           )}
-          {/* 轮播指示器 */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
             {carousel.map((_, i) => (
               <button key={i} onClick={() => setCurrentSlide(i)} className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentSlide ? 'bg-primary-600 w-8' : 'bg-white/60'}`} />
@@ -212,8 +196,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 品牌故事 */}
-      {/* 新品上市 */}
       <section id="new" className="py-16 bg-gradient-to-br from-amber-50 to-orange-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-10 reveal">
@@ -229,9 +211,9 @@ export default function Home() {
                     <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium">{t('home.newBadge', 'NEW')}</span>
                   </div>
                   <div className="p-5">
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">{language === 'en' ? (p.name_en || p.name) : p.name}</h3>
-                    {language !== 'en' && p.name_en && <p className="text-xs text-gray-400 mb-2 tracking-wider">{p.name_en}</p>}
-                    {p.description && <p className="text-sm text-gray-500 leading-relaxed">{language === 'en' ? (p.description_en || p.description) : p.description}</p>}
+                    <h3 className="text-lg font-bold text-gray-800 mb-1">{p.name}</h3>
+                    {p.name_en && <p className="text-xs text-gray-400 mb-2 tracking-wider">{p.name_en}</p>}
+                    {p.description && <p className="text-sm text-gray-500 leading-relaxed">{p.description}</p>}
                   </div>
                 </div>
               ))}
@@ -249,9 +231,9 @@ export default function Home() {
       <section id="brand" className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">{t('nav.brand')}</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">{settings.brand_story ? (language === 'en' ? (settings.brand_story_en || settings.brand_story).split(/[，,]/)[0] : settings.brand_story.split('，')[0]) : t('home.flushingStore', '法拉盛门店')}</h2>
-          <p className="text-lg text-gray-600 leading-relaxed">{settings.brand_story ? (language === 'en' ? (settings.brand_story_en || settings.brand_story) : settings.brand_story) : t('home.flushingStoreDesc', '法拉盛门店，烧烤 + 新式茶饮定位')}</p>
-          {language !== 'en' && settings.brand_story_en && <p className="text-md text-gray-400 mt-3 italic">{settings.brand_story_en}</p>}
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">{settings.brand_story ? settings.brand_story.split('，')[0] : t('home.flushingStore', '法拉盛门店')}</h2>
+          <p className="text-lg text-gray-600 leading-relaxed">{settings.brand_story || t('home.flushingStoreDesc', '法拉盛门店，烧烤 + 新式茶饮定位')}</p>
+          {settings.brand_story_en && <p className="text-md text-gray-400 mt-3 italic">{settings.brand_story_en}</p>}
         </div>
       </section>
 
@@ -268,9 +250,9 @@ export default function Home() {
                 <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto overflow-hidden">
                   {tea.image ? <img src={tea.image} alt={tea.name} className="w-full h-full object-cover" /> : ['🍂', '🌿', '🍃', '🌱', '🍵'][i % 5]}
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{language === 'en' ? (tea.name_en || tea.name) : tea.name}</h3>
-                {language !== 'en' && tea.name_en && <p className="text-sm text-gray-400 mb-3">{tea.name_en}</p>}
-                <p className="text-gray-600">{language === 'en' ? (tea.desc_en || tea.desc) : tea.desc}</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{tea.name}</h3>
+                <p className="text-sm text-gray-400 mb-3">{tea.name_en}</p>
+                <p className="text-gray-600">{tea.desc}</p>
               </div>
             ))}
           </div>
@@ -278,7 +260,6 @@ export default function Home() {
       </section>
       )}
 
-      {/* 奶茶工艺理念 */}
       <section id="craft" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
@@ -289,15 +270,14 @@ export default function Home() {
             {craftPhilosophy.map((item, i) => (
               <div key={i} className="text-center p-6 rounded-xl bg-gradient-to-br from-primary-50 to-blue-50 reveal" style={{ transitionDelay: `${i * 100}ms` }}>
                 <div className="text-4xl mb-3">{i === 0 ? '🫖' : i === 1 ? '🍓' : i === 2 ? '📏' : '⚡'}</div>
-                <h3 className="font-bold text-gray-800 mb-1">{language === 'en' ? (item.name_en || item.name) : item.name}</h3>
-                {language !== 'en' && item.name_en && <p className="text-xs text-gray-400">{item.name_en}</p>}
+                <h3 className="font-bold text-gray-800 mb-1">{item.name}</h3>
+                <p className="text-xs text-gray-400">{item.name_en}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 奶茶制作互动体验 */}
       <section className="py-20 bg-gradient-to-br from-primary-50 via-white to-blue-50">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="reveal">
@@ -311,7 +291,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 关于区块 */}
       <section id="about" className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <Badge variant="primary" className="mb-4">{t('nav.about')}</Badge>
@@ -322,46 +301,35 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 自定义内容板块 */}
       {contentSections.map((section, idx) => (
         <section key={section.id} className={`py-20 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} section-hover`}>
           <div className="max-w-6xl mx-auto px-4">
             <div className={`flex flex-col md:flex-row items-center gap-10 ${section.layout === 'right' ? 'md:flex-row-reverse' : ''}`}>
-              {/* 图片区域 */}
               {section.image ? (
                 <div className="w-full md:w-1/2 relative group">
                   <div className="relative overflow-hidden rounded-2xl shadow-xl aspect-[4/3]">
                     <img src={section.image} alt={section.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
-                  {/* 奶茶制作过程动画 - 悬停显示 */}
                   <div className="tea-animation absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
                     <div className="relative w-32 h-40">
-                      {/* 杯子 */}
                       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-24 bg-white/90 rounded-b-3xl rounded-t-lg border-2 border-white/50 overflow-hidden shadow-lg">
-                        {/* 奶茶液体 */}
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-700 to-amber-500 tea-fill" />
-                        {/* 珍珠 */}
                         <div className="absolute bottom-1 left-2 w-2 h-2 bg-gray-800 rounded-full pearl-1" />
                         <div className="absolute bottom-2 left-5 w-2 h-2 bg-gray-800 rounded-full pearl-2" />
                         <div className="absolute bottom-1 right-3 w-2 h-2 bg-gray-800 rounded-full pearl-3" />
                         <div className="absolute bottom-3 right-5 w-2 h-2 bg-gray-800 rounded-full pearl-4" />
                       </div>
-                      {/* 杯盖 */}
                       <div className="absolute bottom-[92px] left-1/2 -translate-x-1/2 w-24 h-3 bg-white rounded-full shadow" />
-                      {/* 吸管 */}
                       <div className="absolute bottom-[85px] left-1/2 translate-x-2 w-2 h-16 bg-pink-400 rounded-full transform rotate-12 straw" />
-                      {/* 蒸汽 */}
                       <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
                         <span className="steam-1">💨</span>
                         <span className="steam-2">💨</span>
                         <span className="steam-3">💨</span>
                       </div>
-                      {/* 飘落的茶叶 */}
                       <span className="leaf-1 absolute top-0 left-4 text-lg">🍃</span>
                       <span className="leaf-2 absolute top-0 right-4 text-lg">🍂</span>
                       <span className="leaf-3 absolute top-4 left-8 text-sm">🌿</span>
-                      {/* 水滴 */}
                       <span className="drop-1 absolute top-8 left-1/2 text-sm">💧</span>
                       <span className="drop-2 absolute top-12 left-1/3 text-xs">💧</span>
                     </div>
@@ -372,20 +340,18 @@ export default function Home() {
                   <div className="text-8xl">{section.icon || '📌'}</div>
                 </div>
               )}
-              {/* 文字区域 */}
               <div className="w-full md:w-1/2 text-center md:text-left reveal">
                 {section.icon && !section.image && <div className="text-4xl mb-4">{section.icon}</div>}
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">{language === 'en' ? (section.title_en || section.title) : section.title}</h2>
-                {language !== 'en' && section.title_en && <p className="text-sm text-gray-400 mb-6 tracking-wider uppercase">{section.title_en}</p>}
-                {section.content && <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">{language === 'en' ? (section.content_en || section.content) : section.content}</p>}
-                {language !== 'en' && section.content_en && <p className="text-gray-400 text-sm leading-relaxed mt-4">{section.content_en}</p>}
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">{section.title}</h2>
+                {section.title_en && <p className="text-sm text-gray-400 mb-6 tracking-wider uppercase">{section.title_en}</p>}
+                {section.content && <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">{section.content}</p>}
+                {section.content_en && <p className="text-gray-400 text-sm leading-relaxed mt-4">{section.content_en}</p>}
               </div>
             </div>
           </div>
         </section>
       ))}
 
-      {/* 商品菜单 */}
       <section id="menu" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12 reveal">
@@ -407,9 +373,9 @@ export default function Home() {
                   {product.is_recommend && <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">{t('home.recommend')}</span>}
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold text-gray-800 mb-1">{language === 'en' ? (product.name_en || product.name) : product.name}</h3>
-                  {language !== 'en' && product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{language === 'en' ? (product.description_en || product.description) : product.description}</p>
+                  <h3 className="font-bold text-gray-800 mb-1">{product.name}</h3>
+                  {product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{product.description}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-primary-600">${product.price?.toFixed(2)}</span>
                     <Button size="sm" onClick={() => handleAddToCart(product)} disabled={!business.open}>
@@ -423,7 +389,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 联系 */}
       <section id="contact" className="py-20 bg-gradient-to-br from-primary-600 to-primary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 text-center reveal">
           <h2 className="text-3xl font-bold mb-8">{t('nav.contact')}</h2>
@@ -449,9 +414,32 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 页脚 */}
-      <footer className="bg-gray-900 text-gray-400 py-8">
+      <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-6xl mx-auto px-4 text-center">
+          {/* 外卖平台 Logo */}
+          {platforms.length > 0 && (
+            <div className="mb-8">
+              <p className="text-sm text-gray-500 mb-4">{t('home.availableOn', '也可以在以下平台点单')}</p>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                {platforms.map(p => (
+                  <a
+                    key={p.id}
+                    href={p.url || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-14 h-14 bg-white rounded-xl p-2 flex items-center justify-center hover:scale-105 transition-transform"
+                    title={p.name}
+                  >
+                    {p.logo ? (
+                      <img src={p.logo} alt={p.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-xl">🛵</span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="text-2xl">🍵</span>
             <span className="text-lg font-bold text-white">Only One BBQ & Tea</span>
