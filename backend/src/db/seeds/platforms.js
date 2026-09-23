@@ -8,7 +8,7 @@ module.exports = function(db) {
     { name: 'HungerPanda', logo: 'https://www.hungrypanda.co/assets/images/logo-400.png', url: 'https://merchant-usa.hungrypanda.co/login', account: '', password: '', phone: '', note: '熊猫外卖', sort_order: 5 },
     { name: '小灰云', logo: 'https://www.led-cloud.com/static/img/xiaohuiyun.png', url: 'https://www.led-cloud.com/#/Account/Login', account: 'OnlyOneBBQandTea', password: '121227jJ162', phone: '', note: '', sort_order: 6 },
     { name: 'Yelp', logo: 'https://cdn.simpleicons.org/yelp', url: 'https://www.yelp.com/account/summary', account: '', password: '', phone: '6307763590', note: '', sort_order: 7 },
-    { name: 'BeyondMenu', logo: 'https://www.beyondmenu.com/favicon.ico', url: 'https://www.beyondmenu.com/', account: '', password: '', phone: '6307763590', note: '', sort_order: 8 }
+    { name: 'BeyondMenu', logo: 'https://get.beyondmenu.com/_emdash/api/media/file/01KR2A23NBP8X7B17APP7BT17B.svg', url: 'https://www.beyondmenu.com/', account: '', password: '', phone: '6307763590', note: '', sort_order: 8 }
   ];
 
   const insertPlatform = db.prepare('INSERT INTO platforms (name, logo, url, account, password, phone, note, enabled, weekly_status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)');
