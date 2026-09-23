@@ -3,19 +3,22 @@ import { api } from '../../lib/api'
 import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Select, Empty } from '../../components/ui'
 
+// 深度报表页面：多维度销售数据分析（订单数/营收/趋势/品类/时段/热销榜）
 export default function Reports() {
   const { t, language } = useLanguage()
   const [dateRange, setDateRange] = useState('7')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  // 概览数据：总订单/总营收/客单价/总销量
   const [overview, setOverview] = useState({ totalOrders: 0, totalRevenue: 0, avgOrder: 0, totalQty: 0, todayOrders: 0, todayRevenue: 0 })
-  const [trend, setTrend] = useState([])
-  const [categorySales, setCategorySales] = useState([])
-  const [hourlySales, setHourlySales] = useState([])
-  const [diningTypeSales, setDiningTypeSales] = useState([])
-  const [topProducts, setTopProducts] = useState([])
+  const [trend, setTrend] = useState([])           // 每日销售趋势
+  const [categorySales, setCategorySales] = useState([]) // 品类销售占比
+  const [hourlySales, setHourlySales] = useState([])      // 每小时订单量
+  const [diningTypeSales, setDiningTypeSales] = useState([]) // 堂吃/外带/配送占比
+  const [topProducts, setTopProducts] = useState([])     // TOP10热销商品
   const [loading, setLoading] = useState(false)
 
+  // 根据选择生成日期参数（快捷范围或自定义起止日期）
   const getDateParams = () => {
     if (startDate && endDate) return { start_date: startDate, end_date: endDate }
     const days = parseInt(dateRange) || 7
@@ -24,6 +27,7 @@ export default function Reports() {
     return { start_date: start.toISOString().split('T')[0], end_date: end.toISOString().split('T')[0] }
   }
 
+  // 并行加载6个报表接口数据
   const load = async () => {
     setLoading(true)
     const params = getDateParams()
@@ -46,14 +50,17 @@ export default function Reports() {
     setLoading(false)
   }
 
+  // 日期变化时自动重新加载
   useEffect(() => { load() }, [dateRange, startDate, endDate])
 
+  // 计算各图表的最大值用于柱状图比例
   const maxTrendRevenue = Math.max(...trend.map(item => item.revenue), 1)
   const maxCategoryRevenue = Math.max(...categorySales.map(c => c.revenue), 1)
   const maxHourlyOrders = Math.max(...hourlySales.map(h => h.orders), 1)
   const maxTopQty = Math.max(...topProducts.map(p => p.quantity), 1)
   const totalDiningRevenue = diningTypeSales.reduce((s, d) => s + (d.revenue || 0), 0)
 
+  // 订单类型颜色映射
   const diningColors = { dinein: 'bg-blue-500', dine_in: 'bg-blue-500', takeout: 'bg-green-500', delivery: 'bg-orange-500' }
 
   return (
