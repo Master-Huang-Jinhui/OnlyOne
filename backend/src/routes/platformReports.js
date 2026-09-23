@@ -35,6 +35,20 @@ const upload = multer({
 function extractDataFromText(text) {
   const result = {};
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const fullText = text.toLowerCase();
+  
+  // ===== 自动识别平台 =====
+  if (fullText.includes('grubhub') || fullText.includes('seamless')) {
+    result.platform_name = 'Grubhub';
+  } else if (fullText.includes('uber eats') || fullText.includes('uber technologies') || fullText.includes('ubereats')) {
+    result.platform_name = 'Uber Eats';
+  } else if (fullText.includes('doordash') || fullText.includes('door dash')) {
+    result.platform_name = 'DoorDash';
+  } else if (fullText.includes('postmates')) {
+    result.platform_name = 'Postmates';
+  } else if (fullText.includes('chownow') || fullText.includes('chow now')) {
+    result.platform_name = 'ChowNow';
+  }
   
   // 找第 i 行后面最近的一个金额数字（支持负数括号格式 $(15.41)）
   const findNextAmount = (startIdx) => {
@@ -146,7 +160,6 @@ router.get('/', auth, (req, res) => {
 // 上传报表
 router.post('/upload', auth, managerAccess, upload.single('file'), async (req, res) => {
   const { platform_id, month, total_sales, order_count, platform_fee, net_revenue } = req.body;
-  if (!platform_id) return res.status(400).json({ error: '请选择平台' });
   if (!req.file) return res.status(400).json({ error: '请上传报表文件' });
 
   let finalTotalSales = parseFloat(total_sales) || 0;
@@ -154,6 +167,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   let finalPlatformFee = parseFloat(platform_fee) || 0;
   let finalNetRevenue = parseFloat(net_revenue) || 0;
   let finalMonth = month;
+  let finalPlatformId = platform_id ? parseInt(platform_id) : null;
   let extractedNote = '';
 
   // 如果是 PDF，自动解析提取
@@ -170,12 +184,24 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
       if (!net_revenue && extracted.net_revenue) finalNetRevenue = extracted.net_revenue;
       if (!finalMonth && extracted.month) finalMonth = extracted.month;
       
-      extractedNote = '（自动提取）';
+      // 自动识别平台
+      if (!finalPlatformId && extracted.platform_name) {
+        const platform = db.prepare('SELECT id FROM platforms WHERE name = ?').get(extracted.platform_name);
+        if (platform) {
+          finalPlatformId = platform.id;
+          extractedNote = '（自动识别平台）';
+        }
+      }
+      
+      extractedNote = extractedNote || '（自动提取）';
     } catch (e) {
       console.error('PDF 解析失败:', e);
     }
   }
 
+  // 平台最后检查
+  if (!finalPlatformId) return res.status(400).json({ error: '请选择外卖平台（或上传包含平台名称的PDF）' });
+  
   // 月份最后兜底
   if (!finalMonth) {
     const now = new Date();
@@ -186,7 +212,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     INSERT INTO platform_reports (platform_id, month, file_path, original_name, total_sales, order_count, platform_fee, net_revenue, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    platform_id,
+    finalPlatformId,
     finalMonth,
     req.file.path,
     req.file.originalname,
@@ -197,7 +223,7 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
     req.body.note ? req.body.note + extractedNote : extractedNote
   );
 
-  auditLog(req, 'UPLOAD_REPORT', `上传报表: ${finalMonth} 平台ID ${platform_id}`, { reportId: result.lastInsertRowid });
+  auditLog(req, 'UPLOAD_REPORT', `上传报表: ${finalMonth} 平台ID ${finalPlatformId}`, { reportId: result.lastInsertRowid });
   res.json({ 
     id: result.lastInsertRowid, 
     message: '报表上传成功',
