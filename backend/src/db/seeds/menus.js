@@ -1,8 +1,7 @@
 // 菜单初始化数据
 module.exports = function(db) {
-  // 清理旧的一级菜单，重新按分类来
-  db.prepare(`DELETE FROM menus WHERE parent_id = 0`).run();
-  db.prepare(`DELETE FROM menus WHERE parent_id NOT IN (SELECT id FROM menus)`).run();
+  // 每次启动都强制重置菜单为新的7大类结构
+  db.prepare(`DELETE FROM menus`).run();
 
   // 7个一级菜单大类
   const parentMenus = [
