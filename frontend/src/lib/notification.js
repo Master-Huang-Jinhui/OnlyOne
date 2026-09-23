@@ -1,6 +1,7 @@
 // 新订单提示音（用 Web Audio API 生成，无需音频文件）
 let audioCtx = null;
 
+// 获取或创建AudioContext（浏览器音频上下文）
 function getAudioContext() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -8,12 +9,13 @@ function getAudioContext() {
   return audioCtx;
 }
 
-// 播放"叮-叮"双音提示
+// 播放"叮-叮"双音提示（880Hz + 1100Hz，正弦波）
 export function playOrderSound() {
   try {
     const ctx = getAudioContext();
     if (ctx.state === 'suspended') ctx.resume();
 
+    // 播放单个音符：指定频率、开始时间、持续时长
     const playTone = (freq, startTime, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -21,8 +23,8 @@ export function playOrderSound() {
       gain.connect(ctx.destination);
       osc.frequency.value = freq;
       osc.type = 'sine';
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
+      osc.gain.setValueAtTime(0, startTime);
+      osc.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
       osc.start(startTime);
       osc.stop(startTime + duration);
@@ -34,6 +36,7 @@ export function playOrderSound() {
   } catch (e) {}
 }
 
+// 手机震动反馈（新订单到达时）
 export function vibrate() {
   try {
     if (navigator.vibrate) {
