@@ -19,13 +19,12 @@ async function request(path, options = {}) {
     if (!res.ok) {
       const err = new Error(data.error || '请求失败')
       err.status = res.status
-      err.__handled = true  // 标记已处理，避免全局监听器重复弹提示
+      err.__handled = true
       handleApiError(err, path, options.silent)
       throw err
     }
     return data
   } catch (err) {
-    // 网络错误（fetch本身失败，服务器没响应）
     if (err.name === 'TypeError') {
       err.__handled = true
       handleApiError(err, path, options.silent)
@@ -61,28 +60,23 @@ async function getRequest(path) {
 
 // ========== API 接口集合 ==========
 export const api = {
-  // 初始化错误处理：注册toast函数到errorHandler
   initErrorHandler: (toastFn) => setToastFn(toastFn),
 
-  // 认证相关
   login: (username, password) => request('/auth/login', { body: JSON.stringify({ username, password }) }),
   getMe: () => request('/auth/me'),
   changePassword: (oldPassword, newPassword) => request('/auth/change-password', { body: JSON.stringify({ oldPassword, newPassword }) }),
 
-  // 用户管理
   getUsers: () => request('/users/list'),
   createUser: (data) => request('/users', { body: JSON.stringify(data) }),
   updateUser: (id, data) => request(`/users/update/${id}`, { body: JSON.stringify(data) }),
   deleteUser: (id) => request(`/users/delete/${id}`),
 
-  // 角色管理
   getRoles: () => request('/roles/list'),
   createRole: (data) => request('/roles', { body: JSON.stringify(data) }),
   updateRole: (id, data) => request(`/roles/update/${id}`, { body: JSON.stringify(data) }),
   deleteRole: (id) => request(`/roles/delete/${id}`),
   getRoleDetail: (id) => request(`/roles/detail/${id}`),
 
-  // 外卖平台管理
   getPlatforms: () => request('/platforms/list'),
   getPublicPlatforms: () => request('/platforms/public'),
   createPlatform: (data) => request('/platforms', { body: JSON.stringify(data) }),
@@ -102,7 +96,6 @@ export const api = {
       if (!res.ok) {
         const err = new Error(data.error || '上传失败')
         err.status = res.status
-        // 409重复报表：标记duplicate，不自动弹红色toast，交给前端弹紫色确认框
         if (res.status === 409 && data.duplicate) {
           err.duplicate = true
           err.existing_id = data.existing_id
@@ -116,9 +109,8 @@ export const api = {
     })
   },
   createPlatformReport: (data) => request('/platform-reports', { body: JSON.stringify(data) }),
-  deletePlatformReport: (id) => request(`/platform-reports/${id}`, { method: 'DELETE' }),
+  deletePlatformReport: (id) => request(`/platform-reports/delete/${id}`),
 
-  // 商品管理
   getProducts: (categoryId) => request(`/products/list${categoryId ? `?category_id=${categoryId}` : ''}`),
   getAllProducts: () => request('/products/all'),
   getProductById: (id) => request(`/products/detail/${id}`),
@@ -131,7 +123,6 @@ export const api = {
   updateCategory: (id, data) => request(`/products/categories/update/${id}`, { body: JSON.stringify(data) }),
   deleteCategory: (id) => request(`/products/categories/delete/${id}`),
 
-  // 订单管理
   createOrder: (data) => request('/orders', { body: JSON.stringify(data) }),
   getOrders: (params) => {
     const qs = new URLSearchParams()
@@ -180,7 +171,6 @@ export const api = {
   setTableMaintenance: (id, maintenance) => request(`/tables/${id}/maintenance`, { body: JSON.stringify({ maintenance }) }),
   transferTable: (data) => request('/tables/transfer', { body: JSON.stringify(data) }),
   mergeTables: (data) => request('/tables/merge', { body: JSON.stringify(data) }),
-  // 结账与付款
   checkoutOrder: (id, payment_method, note) => request(`/orders/checkout/${id}`, { body: JSON.stringify({ payment_method, note }) }),
   openCashDrawer: () => request('/orders/cash-drawer/open'),
   getPaymentStats: (params) => request('/orders/payment-stats', { body: JSON.stringify(params) }),
@@ -219,13 +209,12 @@ export const api = {
   updateMenu: (id, data) => request(`/menus/update/${id}`, { body: JSON.stringify(data) }),
   deleteMenu: (id) => request(`/menus/delete/${id}`),
 
-  // 多语言翻译
   getTranslations: (page) => getRequest(`/translations${page ? `?page=${page}` : ''}`),
   getTranslationLanguages: () => getRequest('/translations/languages'),
   getAdminTranslations: () => request('/translations/admin'),
   createTranslation: (data) => request('/translations', { body: JSON.stringify(data) }),
-  updateTranslation: (id, data) => request(`/translations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteTranslation: (id) => request(`/translations/${id}`, { method: 'DELETE' }),
+  updateTranslation: (id, data) => request(`/translations/${id}/update`, { body: JSON.stringify(data) }),
+  deleteTranslation: (id) => request(`/translations/delete/${id}`),
   importTranslations: (items) => request('/translations/import', { body: JSON.stringify({ items }) }),
 
   getProductStats: (threshold) => request(`/stats/products${threshold ? `?threshold=${threshold}` : ''}`),
@@ -375,7 +364,6 @@ export const api = {
   getKDSStats: () => request('/kds/stats'),
   getReceipt: (id) => request(`/kds/receipt/${id}`),
 
-  // 会员管理
   getMembers: (params) => request('/members/list', { body: JSON.stringify(params || {}) }),
   getAllMembers: () => request('/members/all'),
   getMemberDetail: (id) => request(`/members/detail/${id}`),
@@ -387,7 +375,6 @@ export const api = {
   getMemberPointsLogs: (data) => request('/members/points/logs', { body: JSON.stringify(data) }),
   getMemberStats: () => request('/members/stats'),
 
-  // 优惠券管理
   getCoupons: (params) => request('/coupons/list', { body: JSON.stringify(params || {}) }),
   getAvailableCoupons: () => request('/coupons/available'),
   getCouponDetail: (id) => request(`/coupons/detail/${id}`),
@@ -399,7 +386,6 @@ export const api = {
   useCoupon: (data) => request('/coupons/use', { body: JSON.stringify(data) }),
   getCouponStats: () => request('/coupons/stats'),
 
-  // 排队叫号
   getQueueList: (params) => request('/queue/list', { body: JSON.stringify(params || {}) }),
   getCurrentQueue: (type) => request('/queue/current', { body: JSON.stringify({ type }) }),
   takeQueueNumber: (data) => request('/queue/take', { body: JSON.stringify(data) }),
@@ -410,7 +396,6 @@ export const api = {
   callNextQueue: (type) => request('/queue/next', { body: JSON.stringify({ type }) }),
   getQueueStats: () => request('/queue/stats'),
 
-  // 深度报表
   getStatsOverview: (params) => request('/stats/overview', { body: JSON.stringify(params || {}) }),
   getSalesTrend: (params) => request('/stats/sales/trend', { body: JSON.stringify(params || {}) }),
   getCategorySales: (params) => request('/stats/category/sales', { body: JSON.stringify(params || {}) }),
