@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
 
-// name_en 列已在 flavorTags.js 迁移
+// 注意：name_en / category_ids 列的迁移在 db/index.js 统一处理
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router.post('/list', (req, res) => {
   let tags = [];
   if (catIds.length > 0) {
     const placeholders = catIds.map(() => '?').join(',');
-    tags = db.prepare(`SELECT * FROM flavor_tags WHERE enabled = 1 AND category_id IN (${placeholders}) ORDER BY sort_order, id`).all(...catIds);
+    tags = db.prepare(`SELECT *, price AS extra_price FROM flavor_tags WHERE enabled = 1 AND category_id IN (${placeholders}) ORDER BY sort_order, id`).all(...catIds);
   }
   const result = categories.map(cat => ({ ...cat, category_ids: parseCategoryIds(cat.category_ids), tags: tags.filter(t => t.category_id === cat.id) }));
   res.json(result);
@@ -25,7 +25,7 @@ router.post('/list', (req, res) => {
 
 router.post('/all', auth, managerAccess, (req, res) => {
   const categories = db.prepare('SELECT * FROM flavor_categories ORDER BY sort_order, id').all();
-  const tags = db.prepare('SELECT * FROM flavor_tags ORDER BY sort_order, id').all();
+  const tags = db.prepare('SELECT *, price AS extra_price FROM flavor_tags ORDER BY sort_order, id').all();
   const result = categories.map(cat => ({ ...cat, category_ids: parseCategoryIds(cat.category_ids), tags: tags.filter(t => t.category_id === cat.id) }));
   res.json(result);
 });
