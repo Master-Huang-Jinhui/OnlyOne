@@ -7,9 +7,9 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// 真实食物照片：loremflickr 按关键词返回真实照片，lock保持固定
-function foodPhoto(keyword, lock) {
-  return `https://loremflickr.com/400/300/${keyword}?lock=${lock}`;
+// Unsplash 官方CDN直链，稳定加载
+function img(unsplashId) {
+  return `https://images.unsplash.com/${unsplashId}?w=400&h=300&fit=crop&q=80`;
 }
 
 // ========== 表结构定义 ==========
@@ -175,11 +175,11 @@ auditCols.forEach(([tbl, col]) => { try { db.prepare(`ALTER TABLE ${tbl} ADD COL
   try { db.prepare(`ALTER TABLE platforms ADD COLUMN ${col}`).run(); } catch (e) {}
 });
 
-// ========== 菜单数据 v4：真实食物照片 ==========
+// ========== 菜单数据 v5：Unsplash真实照片CDN ==========
 try {
-  const flag = db.prepare("SELECT value FROM settings WHERE key = 'menu_reset_v4'").get();
+  const flag = db.prepare("SELECT value FROM settings WHERE key = 'menu_reset_v5'").get();
   if (!flag) {
-    console.log('[菜单] v4 重置：真实食物照片...');
+    console.log('[菜单] v5 重置：Unsplash真实食物照片...');
     db.prepare('DELETE FROM products').run();
     db.prepare('DELETE FROM categories').run();
 
@@ -189,56 +189,56 @@ try {
       catIds[n] = insertCat.run(n, en, s).lastInsertRowid;
     });
 
-    // [中文名, 英文名, 价格, 搜索关键词, lock号]
+    // [中文名, 英文名, 价格, Unsplash photo ID]
     const staples = [
-      ['蛋炒饭','Egg Fried Rice',9.95,'fried,rice,chinese',101],
-      ['菜炒饭','Veggie Fried Rice',10.95,'vegetable,fried,rice',102],
-      ['鸡炒饭','Chicken Fried Rice',11.95,'chicken,fried,rice',103],
-      ['虾炒饭','Shrimp Fried Rice',13.95,'shrimp,fried,rice',104],
-      ['蛋炒面','Egg Fried Noodle',12.95,'chow,mein,egg,noodle',105],
-      ['菜炒面','Veggie Fried Noodle',13.95,'vegetable,noodle,stir,fry',106],
-      ['鸡炒面','Chicken Fried Noodle',13.95,'chicken,noodle,chow,mein',107],
-      ['虾炒面','Shrimp Fried Noodle',15.95,'shrimp,noodle,stir,fry',108],
-      ['海鲜炒面','Seafood Fried Noodle',15.95,'seafood,noodle,chinese',109],
-      ['水饺汤','Pork Dumpling Soup',9.50,'dumpling,soup,chinese',110],
-      ['馄饨汤','Wonton Soup',9.50,'wonton,soup',111],
-      ['馄饨汤面','Wonton Noodle Soup',12.95,'wonton,noodle,soup',112],
+      ['蛋炒饭','Egg Fried Rice',9.95,'photo-1603133872878-684f208fb84b'],
+      ['菜炒饭','Veggie Fried Rice',10.95,'photo-1512058564366-18510be2db19'],
+      ['鸡炒饭','Chicken Fried Rice',11.95,'photo-1512058564366-18510be2db19'],
+      ['虾炒饭','Shrimp Fried Rice',13.95,'photo-1563379926898-05f4575a45d8'],
+      ['蛋炒面','Egg Fried Noodle',12.95,'photo-1585032226651-759b368d7246'],
+      ['菜炒面','Veggie Fried Noodle',13.95,'photo-1552611052-33e04de081de'],
+      ['鸡炒面','Chicken Fried Noodle',13.95,'photo-1585032226651-759b368d7246'],
+      ['虾炒面','Shrimp Fried Noodle',15.95,'photo-1563379926898-05f4575a45d8'],
+      ['海鲜炒面','Seafood Fried Noodle',15.95,'photo-1559314809-0c5e6f6c6f6e'],
+      ['水饺汤','Pork Dumpling Soup',9.50,'photo-1496116218417-1a781b1c416c'],
+      ['馄饨汤','Wonton Soup',9.50,'photo-1496116218417-1a781b1c416c'],
+      ['馄饨汤面','Wonton Noodle Soup',12.95,'photo-1552611052-33e04de081de'],
     ];
     const desserts = [
-      ['芝士蛋糕','NY Cheese Cake',7.95,'cheesecake,new,york',201],
-      ['红丝绒蛋糕','Red Velvet Cake',7.95,'red,velvet,cake',202],
-      ['八宝饭','Eight-Treasure Rice',7.95,'sticky,rice,dessert,chinese',203],
-      ['长乐冰饭','Changle Iced Sticky Rice',8.95,'shaved,ice,dessert',204],
-      ['奶茶冰饭','Milk Tea Iced Sticky Rice',9.95,'bubble,tea,dessert',205],
-      ['多彩流心酒酿丸子','Rainbow Mochi Sweet Soup',12.95,'mochi,sweet,soup',206],
+      ['芝士蛋糕','NY Cheese Cake',7.95,'photo-1578985545062-69928b1d9587'],
+      ['红丝绒蛋糕','Red Velvet Cake',7.95,'photo-1616541823729-00b0a0bea6b3'],
+      ['八宝饭','Eight-Treasure Rice',7.95,'photo-1563379926898-05f4575a45d8'],
+      ['长乐冰饭','Changle Iced Sticky Rice',8.95,'photo-1563805042-7684c019e1cb'],
+      ['奶茶冰饭','Milk Tea Iced Sticky Rice',9.95,'photo-1558857563-b39609b3b971'],
+      ['多彩流心酒酿丸子','Rainbow Mochi Sweet Soup',12.95,'photo-1563805042-7684c019e1cb'],
     ];
     const drinks = [
-      ['水','Water',2.00,'water,bottle,drink',301],
-      ['苏打','Soda',3.00,'soda,soft,drink,can',302],
-      ['椰奶','Coconut Milk',3.00,'coconut,milk,drink',303],
-      ['荔枝水','Lychee Drink',3.00,'lychee,juice,drink',304],
-      ['北冰洋','Arctic Ocean Soda',3.00,'orange,soda,bottle',305],
-      ['王老吉','Wong Lo Kat Tea',3.00,'herbal,tea,chinese',306],
-      ['牛奶','Milk',4.00,'glass,milk',307],
+      ['水','Water',2.00,'photo-1548839140-29a749e1cf4d'],
+      ['苏打','Soda',3.00,'photo-1581636625402-caf42e72075d'],
+      ['椰奶','Coconut Milk',3.00,'photo-1580325388158-9b1f0a0e3e0e'],
+      ['荔枝水','Lychee Drink',3.00,'photo-1547516516-2e04aeae4be5'],
+      ['北冰洋','Arctic Ocean Soda',3.00,'photo-1581636625402-caf42e72075d'],
+      ['王老吉','Wong Lo Kat Tea',3.00,'photo-1571934811356-5cc061b6821f'],
+      ['牛奶','Milk',4.00,'photo-1550583724-b2692b85b150'],
     ];
     const beers = [
-      ['百威/科罗娜/百威淡啤','Bud Light / Corona / Budweiser',3.00,'beer,bottle,corona',401],
-      ['喜力','Heineken',4.00,'heineken,beer',402],
-      ['札幌啤酒','Sapporo',5.00,'japanese,beer,sapporo',403],
+      ['百威/科罗娜/百威淡啤','Bud Light / Corona / Budweiser',3.00,'photo-1608270586620-248524c67de9'],
+      ['喜力','Heineken',4.00,'photo-1566633392876-42538741c45e'],
+      ['札幌啤酒','Sapporo',5.00,'photo-1557880144-256792ec7f72'],
     ];
 
     const ins = db.prepare('INSERT INTO products (name, name_en, category_id, price, image, available, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?)');
     let s = 1;
-    staples.forEach(([n,en,p,kw,lk]) => ins.run(n, en, catIds['主食'], p, foodPhoto(kw, lk), s++));
-    s = 1; desserts.forEach(([n,en,p,kw,lk]) => ins.run(n, en, catIds['甜品'], p, foodPhoto(kw, lk), s++));
-    s = 1; drinks.forEach(([n,en,p,kw,lk]) => ins.run(n, en, catIds['饮料'], p, foodPhoto(kw, lk), s++));
-    s = 1; beers.forEach(([n,en,p,kw,lk]) => ins.run(n, en, catIds['酒'], p, foodPhoto(kw, lk), s++));
+    staples.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['主食'], p, img(pid), s++));
+    s = 1; desserts.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['甜品'], p, img(pid), s++));
+    s = 1; drinks.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['饮料'], p, img(pid), s++));
+    s = 1; beers.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['酒'], p, img(pid), s++));
 
-    db.prepare("INSERT INTO settings (key, value) VALUES ('menu_reset_v4', 'done')").run();
-    console.log('[菜单] v4完成：真实食物照片已匹配，共28道');
+    db.prepare("INSERT INTO settings (key, value) VALUES ('menu_reset_v5', 'done')").run();
+    console.log('[菜单] v5完成：Unsplash真实食物照片，共28道');
   }
 } catch (e) {
-  console.error('[菜单] v4重置失败:', e.message);
+  console.error('[菜单] v5重置失败:', e.message);
 }
 
 // ========== 运行各模块初始化数据 ==========
