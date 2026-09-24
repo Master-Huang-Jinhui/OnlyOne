@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '../../lib/api'
 import { useLanguage } from '../../context/LanguageContext'
 import { Card, Button, Table, Badge, Dialog, Input, Textarea, Select, Empty, toast } from '../../components/ui'
 import { useConfirm } from '../../components/ConfirmDialog'
 
 export default function Combos() {
-  // 组合套餐管理：CRUD + 套餐内容选择 + 图片上传 + 上下架
+  // 组合套餐管理：CRUD + 模糊搜索 + 套餐内容选择 + 图片上传 + 上下架
   const confirm = useConfirm()
   const { t } = useLanguage()
   const [combos, setCombos] = useState([])
   const [products, setProducts] = useState([])
   const [dialog, setDialog] = useState(null)
+  const [search, setSearch] = useState('')
+  const [productSearch, setProductSearch] = useState('')
   const fileInputRef = useRef(null)
 
   useEffect(() => { load(); loadProducts() }, [])
@@ -25,13 +27,37 @@ export default function Combos() {
     api.getAllProducts().then(data => setProducts(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
+  // 模糊过滤套餐
+  const filteredCombos = useMemo(() => {
+    if (!search.trim()) return combos
+    const q = search.toLowerCase()
+    return combos.filter(c =>
+      c.name?.toLowerCase().includes(q) ||
+      c.name_en?.toLowerCase().includes(q) ||
+      c.description?.toLowerCase().includes(q)
+    )
+  }, [combos, search])
+
+  // 模糊过滤商品（添加套餐商品时搜索）
+  const filteredProducts = useMemo(() => {
+    const avail = products.filter(p => p.available !== 0)
+    if (!productSearch.trim()) return avail
+    const q = productSearch.toLowerCase()
+    return avail.filter(p =>
+      p.name?.toLowerCase().includes(q) ||
+      p.name_en?.toLowerCase().includes(q)
+    )
+  }, [products, productSearch])
+
   // 打开新增套餐弹窗
   const openAdd = () => {
+    setProductSearch('')
     setDialog({ mode: 'add', data: { name: '', name_en: '', price: '', items: [], description: '', description_en: '', image: '', available: true, sort_order: 0 } })
   }
 
   // 打开编辑套餐弹窗
   const openEdit = (combo) => {
+    setProductSearch('')
     setDialog({ mode: 'edit', data: { ...combo, items: combo.items || [] } })
   }
 
@@ -47,6 +73,7 @@ export default function Combos() {
       }
       return { ...prev, data: { ...prev.data, items: [...prev.data.items, { product_id: p.id, product_name: p.name, quantity: 1 }] } }
     })
+    setProductSearch('')
   }
 
   // 更新套餐内商品数量
@@ -128,11 +155,26 @@ export default function Combos() {
         <Button onClick={openAdd}>+ 新增套餐</Button>
       </div>
 
-      {combos.length === 0 ? (
-        <Card><Empty text="暂无套餐，点击右上角新增" icon="🍱" /></Card>
+      {/* 模糊搜索框 */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="搜索套餐名称、英文名或描述..."
+          className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        />
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+        )}
+      </div>
+
+      {filteredCombos.length === 0 ? (
+        <Card><Empty text={search ? '没有找到匹配的套餐' : '暂无套餐，点击右上角新增'} icon="🍱" /></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {combos.map(combo => (
+          {filteredCombos.map(combo => (
             <Card key={combo.id} className="overflow-hidden">
               <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
                 {combo.image ? <img src={combo.image} alt="" className="w-full h-full object-cover" /> : <span className="text-5xl">🍱</span>}
@@ -186,17 +228,35 @@ export default function Combos() {
               {dialog.data.image && <img src={dialog.data.image} alt="" className="w-20 h-20 object-cover rounded-lg mt-2 border" />}
             </div>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">套餐包含商品</label>
-                <select onChange={e => { addItem(e.target.value); e.target.value = '' }} className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm">
-                  <option value="">+ 添加商品...</option>
-                  {products.filter(p => p.available !== 0).map(p => (
-                    <option key={p.id} value={p.id}>{p.name} (${parseFloat(p.price).toFixed(2)})</option>
-                  ))}
-                </select>
+              <label className="text-sm font-medium text-gray-700 mb-2">套餐包含商品</label>
+              {/* 商品模糊搜索框 */}
+              <div className="relative mb-2">
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="输入商品名称搜索..."
+                  className="w-full px-3 py-2 pl-9 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
               </div>
+              {/* 搜索结果列表 */}
+              {productSearch && filteredProducts.length > 0 && (
+                <div className="mb-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                  {filteredProducts.slice(0, 20).map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => addItem(p.id)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex justify-between items-center"
+                    >
+                      <span>{p.name}</span>
+                      <span className="text-xs text-gray-400">${parseFloat(p.price).toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {dialog.data.items.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-3 border border-dashed rounded-lg">从上方下拉选择商品添加到套餐</p>
+                <p className="text-xs text-gray-400 text-center py-3 border border-dashed rounded-lg">搜索上方商品名称添加到套餐</p>
               ) : (
                 <div className="space-y-2">
                   {dialog.data.items.map((item, idx) => (
