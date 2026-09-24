@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { initTableFromUrl, getTableInfo } from '../../lib/guest'
+import { initTableFromUrl } from '../../lib/guest'
 import { useCart } from '../../context/CartContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { Button, Badge, Empty, toast } from '../../components/ui'
@@ -24,9 +24,9 @@ export default function Menu() {
   const [showHistory, setShowHistory] = useState(false)
   const [imgErrors, setImgErrors] = useState({})
 
-  // 口味弹窗：本地状态，不污染全局
-  const [dialogItem, setDialogItem] = useState(null)   // 正在编辑的购物车项
-  const [dialogTags, setDialogTags] = useState([])     // 该商品分类下的所有口味标签
+  // 口味弹窗：本地状态
+  const [dialogItem, setDialogItem] = useState(null)
+  const [dialogTags, setDialogTags] = useState([])
   const [selectedTags, setSelectedTags] = useState([])
   const [customNote, setCustomNote] = useState('')
 
@@ -39,11 +39,12 @@ export default function Menu() {
 
   const filtered = activeCategory === 'all' ? products : products.filter(p => p.category_id == activeCategory)
 
+  // 某商品在购物车中的总数量（跨所有口味变体）
   const getItemCount = (productId) => {
     return items.filter(i => i.id === productId).reduce((sum, i) => sum + i.quantity, 0)
   }
 
-  // 加菜：加1份，弹提示
+  // 加菜：每次新增一条（默认口味），同口味才自动合并
   const handleAdd = async (product) => {
     if (!business.open) return
     try {
@@ -56,20 +57,20 @@ export default function Menu() {
     toast(`${product.name} 已加入购物车`, 'success')
   }
 
-  // 卡片上直接增减数量（合并同商品多口味变体）
-  const handleQtyChange = (product, delta) => {
-    const current = getItemCount(product.id)
-    const next = current + delta
-    if (next <= 0) {
-      items.filter(i => i.id === product.id).forEach(i => removeItem(i.cartId))
+  // 卡片上的−：从购物车里找到该商品任意一条减1，不强制合并口味
+  const handleCardMinus = (product) => {
+    const matching = items.filter(i => i.id === product.id)
+    if (matching.length === 0) return
+    // 减第一条
+    const first = matching[0]
+    if (first.quantity <= 1) {
+      removeItem(first.cartId)
     } else {
-      const matching = items.filter(i => i.id === product.id)
-      updateQuantity(matching[0].cartId, next)
-      matching.slice(1).forEach(i => removeItem(i.cartId))
+      updateQuantity(first.cartId, first.quantity - 1)
     }
   }
 
-  // 打开口味弹窗：独立加载该商品分类的口味到本地状态
+  // 打开口味弹窗：独立加载该商品分类的口味
   const openTagsDialog = async (item) => {
     try {
       const data = await api.getFlavorTags(item.category_id)
@@ -112,7 +113,6 @@ export default function Menu() {
     navigate('/checkout')
   }
 
-  // 按分类分组标签（用本地 dialogTags，不依赖全局）
   const dialogTagsByCategory = useMemo(() => {
     const groups = {}
     dialogTags.forEach(tag => {
@@ -194,9 +194,9 @@ export default function Menu() {
                         </Button>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <button onClick={() => handleQtyChange(product, -1)} className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">−</button>
+                          <button onClick={() => handleCardMinus(product)} className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">−</button>
                           <span className="w-6 text-center font-bold text-primary-600">{count}</span>
-                          <button onClick={() => handleQtyChange(product, 1)} className="w-7 h-7 rounded-full bg-primary-600 hover:bg-primary-700 text-white flex items-center justify-center font-bold">+</button>
+                          <button onClick={() => handleAdd(product)} className="w-7 h-7 rounded-full bg-primary-600 hover:bg-primary-700 text-white flex items-center justify-center font-bold">+</button>
                         </div>
                       )}
                     </div>
@@ -303,7 +303,6 @@ export default function Menu() {
         </div>
       )}
 
-      {/* 口味弹窗：用本地 dialogTags，不污染全局 */}
       {dialogItem && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDialogItem(null)} />
