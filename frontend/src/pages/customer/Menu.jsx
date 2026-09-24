@@ -15,7 +15,7 @@ const FALLBACK_IMG = 'data:image/svg+xml,' + encodeURIComponent(`
 export default function Menu() {
   const navigate = useNavigate()
   const { t, language } = useLanguage()
-  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, getTagInfo, calcTagsExtraPrice } = useCart()
+  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, getTagInfo, calcTagsExtraPrice, addSplitFlavor } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
@@ -24,11 +24,12 @@ export default function Menu() {
   const [showHistory, setShowHistory] = useState(false)
   const [imgErrors, setImgErrors] = useState({})
 
-  // 口味弹窗：本地状态
+  // 口味弹窗
   const [dialogItem, setDialogItem] = useState(null)
   const [dialogTags, setDialogTags] = useState([])
   const [selectedTags, setSelectedTags] = useState([])
   const [customNote, setCustomNote] = useState('')
+  const [splitQty, setSplitQty] = useState(1)  // 改几份
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {})
@@ -39,12 +40,10 @@ export default function Menu() {
 
   const filtered = activeCategory === 'all' ? products : products.filter(p => p.category_id == activeCategory)
 
-  // 某商品在购物车中的总数量（跨所有口味变体）
   const getItemCount = (productId) => {
     return items.filter(i => i.id === productId).reduce((sum, i) => sum + i.quantity, 0)
   }
 
-  // 加菜：每次新增一条（默认口味），同口味才自动合并
   const handleAdd = async (product) => {
     if (!business.open) return
     try {
@@ -57,20 +56,14 @@ export default function Menu() {
     toast(`${product.name} 已加入购物车`, 'success')
   }
 
-  // 卡片上的−：从购物车里找到该商品任意一条减1，不强制合并口味
   const handleCardMinus = (product) => {
     const matching = items.filter(i => i.id === product.id)
     if (matching.length === 0) return
-    // 减第一条
     const first = matching[0]
-    if (first.quantity <= 1) {
-      removeItem(first.cartId)
-    } else {
-      updateQuantity(first.cartId, first.quantity - 1)
-    }
+    if (first.quantity <= 1) removeItem(first.cartId)
+    else updateQuantity(first.cartId, first.quantity - 1)
   }
 
-  // 打开口味弹窗：独立加载该商品分类的口味
   const openTagsDialog = async (item) => {
     try {
       const data = await api.getFlavorTags(item.category_id)
@@ -81,6 +74,7 @@ export default function Menu() {
     setDialogItem(item)
     setSelectedTags([...(item.notes || [])])
     setCustomNote('')
+    setSplitQty(1)  // 默认改1份
   }
 
   const singleChoiceCategories = ['辣度', '冰度', '甜度']
@@ -97,9 +91,18 @@ export default function Menu() {
     })
   }
 
+  // 保存口味：如果该行有多份，按 splitQty 拆分
   const saveTags = () => {
-    if (dialogItem) {
-      const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
+    if (!dialogItem) return
+    const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
+    const qty = dialogItem.quantity
+
+    if (qty > 1 && splitQty < qty) {
+      // 拆分：splitQty 份用新口味，剩下的保留原口味
+      addSplitFlavor(dialogItem.cartId, splitQty, finalTags)
+      toast(`已将 ${splitQty} 份改为新口味`, 'success')
+    } else {
+      // 全部改，或只有1份
       updateNotes(dialogItem.cartId, finalTags)
     }
     setDialogItem(null)
@@ -303,6 +306,7 @@ export default function Menu() {
         </div>
       )}
 
+      {/* 口味弹窗 */}
       {dialogItem && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDialogItem(null)} />
@@ -310,12 +314,25 @@ export default function Menu() {
             <div className="p-4 border-b flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-800">选择口味</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{dialogItem.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{dialogItem.name} ×{dialogItem.quantity}</p>
               </div>
               <button onClick={() => setDialogItem(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* 改几份选择（只有数量>1时显示） */}
+              {dialogItem.quantity > 1 && (
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-700 mb-2">改几份为新口味？（共{dialogItem.quantity}份）</p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSplitQty(Math.max(1, splitQty - 1))} className="w-7 h-7 rounded-full bg-white border border-gray-200 hover:border-primary-400 text-gray-600">−</button>
+                    <span className="w-8 text-center font-bold text-primary-600">{splitQty}</span>
+                    <button onClick={() => setSplitQty(Math.min(dialogItem.quantity, splitQty + 1))} className="w-7 h-7 rounded-full bg-primary-600 text-white">+</button>
+                    <span className="text-xs text-gray-400 ml-2">剩下{dialogItem.quantity - splitQty}份保留原口味</span>
+                  </div>
+                </div>
+              )}
+
               {Object.entries(dialogTagsByCategory).map(([category, tags]) => (
                 <div key={category}>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">
