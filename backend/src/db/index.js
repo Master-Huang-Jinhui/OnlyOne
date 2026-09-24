@@ -342,6 +342,10 @@ try {
   db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run();
 } catch (e) { /* 列已存在忽略 */ }
 
+// ========== categories 表补充时间字段 ==========
+try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
+
 // ========== 外卖平台扩展字段迁移 ==========
 // 佣金比例（%）
 try { db.prepare("ALTER TABLE platforms ADD COLUMN commission_rate REAL DEFAULT 0").run(); } catch (e) {}
