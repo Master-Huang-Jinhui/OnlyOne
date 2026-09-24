@@ -335,33 +335,71 @@ db.exec(`
 `);
 
 // ========== 自动迁移：新增列 ==========
-try {
-  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run();
-} catch (e) { /* 列已存在忽略 */ }
-try {
-  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run();
-} catch (e) { /* 列已存在忽略 */ }
+try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run(); } catch (e) {}
 
 // ========== categories 表补充时间字段 ==========
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 
+// ========== 操作人字段迁移：created_by / created_by_name / updated_by / updated_by_name ==========
+// 订单：谁下的单、谁改的状态
+try { db.prepare("ALTER TABLE orders ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE orders ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE orders ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE orders ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 商品
+try { db.prepare("ALTER TABLE products ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE products ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE products ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE products ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 分类
+try { db.prepare("ALTER TABLE categories ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE categories ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE categories ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE categories ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 外卖报表
+try { db.prepare("ALTER TABLE platform_reports ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platform_reports ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 外卖平台
+try { db.prepare("ALTER TABLE platforms ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 备忘录
+try { db.prepare("ALTER TABLE memos ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE memos ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 会员
+try { db.prepare("ALTER TABLE members ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE members ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 优惠券
+try { db.prepare("ALTER TABLE coupons ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE coupons ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 桌台
+try { db.prepare("ALTER TABLE tables ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE tables ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE tables ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE tables ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 轮播图
+try { db.prepare("ALTER TABLE carousel ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE carousel ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE carousel ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE carousel ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 口味标签
+try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+// 订单状态
+try { db.prepare("ALTER TABLE order_statuses ADD COLUMN created_by INTEGER").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE order_statuses ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
+
 // ========== 外卖平台扩展字段迁移 ==========
-// 佣金比例（%）
 try { db.prepare("ALTER TABLE platforms ADD COLUMN commission_rate REAL DEFAULT 0").run(); } catch (e) {}
-// 结算周期: weekly/biweekly/monthly
 try { db.prepare("ALTER TABLE platforms ADD COLUMN payout_schedule TEXT DEFAULT 'weekly'").run(); } catch (e) {}
-// 配送方式: platform(平台配送)/self(自送)/pickup(仅自取)
 try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_type TEXT DEFAULT 'platform'").run(); } catch (e) {}
-// 最低订单额 ($)
 try { db.prepare("ALTER TABLE platforms ADD COLUMN min_order REAL DEFAULT 0").run(); } catch (e) {}
-// 配送范围（英里）
 try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_radius REAL DEFAULT 0").run(); } catch (e) {}
-// 平台对接人
 try { db.prepare("ALTER TABLE platforms ADD COLUMN contact_person TEXT DEFAULT ''").run(); } catch (e) {}
-// 店铺评分（1-5）
 try { db.prepare("ALTER TABLE platforms ADD COLUMN rating REAL DEFAULT 0").run(); } catch (e) {}
-// 上线日期
 try { db.prepare("ALTER TABLE platforms ADD COLUMN launch_date TEXT DEFAULT ''").run(); } catch (e) {}
 
 // ========== 运行各模块初始化数据 ==========
