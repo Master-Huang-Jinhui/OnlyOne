@@ -44,10 +44,28 @@ export function ConfirmProvider({ children }) {
     setState(s => ({ ...s, open: false }))
   }, [state.resolve])
 
+  // 按钮颜色映射：primary蓝/danger红/success绿/purple紫
   const variantColors = {
     primary: 'bg-primary-600 hover:bg-primary-700',
     danger: 'bg-red-500 hover:bg-red-600',
-    success: 'bg-green-500 hover:bg-green-600'
+    success: 'bg-green-500 hover:bg-green-600',
+    purple: 'bg-purple-600 hover:bg-purple-700'
+  }
+
+  // 图标背景色映射
+  const iconBgColors = {
+    danger: 'bg-red-100',
+    purple: 'bg-purple-100',
+    success: 'bg-green-100',
+    primary: 'bg-primary-100'
+  }
+
+  // 图标emoji映射
+  const iconEmojis = {
+    danger: '⚠️',
+    purple: '🟣',
+    success: '✅',
+    primary: '❓'
   }
 
   return (
@@ -59,8 +77,8 @@ export function ConfirmProvider({ children }) {
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in">
             <div className="p-6">
               <div className="flex items-start gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${state.variant === 'danger' ? 'bg-red-100' : 'bg-primary-100'}`}>
-                  <span className="text-xl">{state.variant === 'danger' ? '⚠️' : '❓'}</span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgColors[state.variant] || iconBgColors.primary}`}>
+                  <span className="text-xl">{iconEmojis[state.variant] || iconEmojis.primary}</span>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-800 mb-1">{state.title}</h3>

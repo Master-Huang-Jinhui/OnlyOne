@@ -13,7 +13,7 @@ if (fs.existsSync(envPath)) {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
       const [key, ...valueParts] = trimmed.split('=');
-      const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
+      const value = valueParts.join('=').trim().replace(/^["\']|["\']$/g, '');
       if (!process.env[key.trim()]) process.env[key.trim()] = value;
     }
   });
@@ -37,11 +37,11 @@ app.use(helmet({
 }));
 
 const allowedOrigins = [
-  /^https?:\/\/localhost(:\d+)?$/,
-  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
-  /^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/,
-  /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+  /^https?:\\/\\/localhost(:\\d+)?$/,
+  /^https?:\\/\\/127\\.0\\.0\\.1(:\\d+)?$/,
+  /^https?:\\/\\/10\\.\\d+\\.\\d+\\.\\d+(:\\d+)?$/,
+  /^https?:\\/\\/172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+(:\\d+)?$/,
+  /^https?:\\/\\/192\\.168\\.\\d+\\.\\d+(:\\d+)?$/,
 ];
 app.use(cors({
   origin: (origin, callback) => {
@@ -88,14 +88,22 @@ app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/queue', require('./routes/queue'));
 app.use('/api/translations', require('./routes/translations'));
 
+// 静态文件服务：uploads目录下的图片、报表等文件
+// PDF文件设置inline内联预览，不施加严格CSP以免浏览器PDF查看器被阻止
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
-    if (filePath.endsWith('.svg')) {
+    if (filePath.endsWith('.pdf')) {
+      // PDF报表：允许浏览器直接内联预览
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (filePath.endsWith('.svg')) {
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Content-Disposition', 'inline');
+    } else {
+      // 图片等其他文件：保持严格CSP
+      res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
     }
   },
   fallthrough: true,
@@ -126,7 +134,7 @@ app.get('/go', (req, res) => {
   }
   if (!target) target = req.query.url || req.query.target || '';
   if (!target) return res.redirect('/');
-  if (!/^https?:\/\//i.test(target)) return res.status(400).send('无效的跳转链接');
+  if (!/^https?:\\/\\//i.test(target)) return res.status(400).send('无效的跳转链接');
   if (!platformId && !carouselId) console.log(`[外部跳转] 目标: ${target}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
   res.redirect(302, target);
 });

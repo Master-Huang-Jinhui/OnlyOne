@@ -12,6 +12,7 @@ export default function PlatformReports() {
 
   useEffect(() => { loadData() }, [])
 
+  // 加载报表列表和平台列表
   const loadData = async () => {
     setLoading(true)
     try {
@@ -23,8 +24,10 @@ export default function PlatformReports() {
     finally { setLoading(false) }
   }
 
+  // 文件选择后立即上传
   const handleFileSelect = (e) => { const file = e.target.files?.[0]; if (file) uploadFile(file) }
 
+  // 上传报表文件；force=true时跳过重复检查直接覆盖
   const uploadFile = async (file, force = false) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -34,8 +37,15 @@ export default function PlatformReports() {
       toast('上传成功')
       loadData()
     } catch (e) {
+      // 409重复：弹紫色确认框询问是否覆盖，不弹红色错误
       if (e.duplicate) {
-        if (await confirm({ title: '重复月份确认', message: '这个月份已经有报表了，确定还要重复添加吗？', variant: 'warning' })) {
+        if (await confirm({
+          title: '🟣 重复报表确认',
+          message: '该平台这个月已经上传过报表了。\n\n确定要覆盖原有报表吗？覆盖后旧数据将被替换，此操作不可恢复。',
+          confirmText: '覆盖上传',
+          cancelText: '取消',
+          variant: 'purple'
+        })) {
           uploadFile(file, true)
         }
         return
@@ -44,15 +54,17 @@ export default function PlatformReports() {
     }
   }
 
+  // 删除报表记录
   const handleDelete = async (id) => {
     if (!await confirm({ title: '删除报表', message: '确定删除这条报表记录吗？此操作不可恢复。', variant: 'danger' })) return
     try { await api.deletePlatformReport(id); toast('删除成功'); loadData() }
     catch (e) { toast('删除失败：' + e.message, 'error') }
   }
 
+  // 根据平台ID查找平台名称
   const getPlatformName = (id) => platforms.find(p => p.id === id)?.name || '未知'
 
-  // 找出重复的平台+月份
+  // 找出重复的平台+月份组合，用于紫色标记
   const duplicateKeys = new Set()
   const countMap = {}
   reports.forEach(r => { const key = `${r.platform_id}_${r.month}`; countMap[key] = (countMap[key] || 0) + 1 })
