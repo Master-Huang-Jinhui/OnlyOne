@@ -337,12 +337,8 @@ db.exec(`
 // ========== 自动迁移：新增列 ==========
 try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run(); } catch (e) {}
-
-// ========== categories 表补充时间字段 ==========
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
-
-// ========== 操作人字段迁移 ==========
 try { db.prepare("ALTER TABLE orders ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE orders ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE orders ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
@@ -390,69 +386,89 @@ try { db.prepare("ALTER TABLE platforms ADD COLUMN contact_person TEXT DEFAULT '
 try { db.prepare("ALTER TABLE platforms ADD COLUMN rating REAL DEFAULT 0").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN launch_date TEXT DEFAULT ''").run(); } catch (e) {}
 
-// ========== 菜单数据：主食 + 甜品 ==========
+// ========== 菜单数据重置：清空旧菜品，只保留4个分类 ==========
 try {
-  // 找到或创建"主食"分类
-  let stapleCat = db.prepare("SELECT id FROM categories WHERE name = '主食'").get();
-  if (!stapleCat) {
-    const maxSort = db.prepare("SELECT MAX(sort_order) as m FROM categories").get();
-    db.prepare("INSERT INTO categories (name, name_en, sort_order, enabled) VALUES ('主食', 'Rice & Noodles', ?, 1)").run((maxSort?.m || 0) + 1);
-    stapleCat = db.prepare("SELECT id FROM categories WHERE name = '主食'").get();
+  // 用标记判断是否已重置过，避免每次重启都清空
+  const resetFlag = db.prepare("SELECT value FROM settings WHERE key = 'menu_reset_v1'").get();
+  if (!resetFlag) {
+    console.log('[菜单] 开始重置菜品数据...');
+    // 删除所有旧菜品
+    db.prepare('DELETE FROM products').run();
+    // 删除所有旧分类
+    db.prepare('DELETE FROM categories').run();
+
+    // 创建4个分类
+    const cats = [
+      ['主食', 'Rice & Noodles', 1],
+      ['甜品', 'Dessert', 2],
+      ['饮料', 'Drinks', 3],
+      ['酒', 'Beer & Wine', 4],
+    ];
+    const insertCat = db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)');
+    const catIds = {};
+    cats.forEach(([name, nameEn, sort]) => {
+      const r = insertCat.run(name, nameEn, sort);
+      catIds[name] = r.lastInsertRowid;
+    });
+
+    // 主食
+    const staples = [
+      ['蛋炒饭', 'Egg Fried Rice', 9.95],
+      ['菜炒饭', 'Veggie Fried Rice', 10.95],
+      ['鸡炒饭', 'Chicken Fried Rice', 11.95],
+      ['虾炒饭', 'Shrimp Fried Rice', 13.95],
+      ['蛋炒面', 'Egg Fried Noodle', 12.95],
+      ['菜炒面', 'Veggie Fried Noodle', 13.95],
+      ['鸡炒面', 'Chicken Fried Noodle', 13.95],
+      ['虾炒面', 'Shrimp Fried Noodle', 15.95],
+      ['海鲜炒面', 'Seafood Fried Noodle', 15.95],
+    ];
+
+    // 甜品
+    const desserts = [
+      ['芝士蛋糕', 'NY Cheese Cake', 7.95],
+      ['红丝绒蛋糕', 'Red Velvet Cake', 7.95],
+      ['八宝饭', 'Eight-Treasure Rice', 7.95],
+      ['长乐冰饭', 'Changle Iced Sticky Rice', 8.95],
+      ['奶茶冰饭', 'Milk Tea Iced Sticky Rice', 9.95],
+      ['多彩流心酒酿丸子', 'Rainbow Mochi Sweet Soup', 12.95],
+    ];
+
+    // 饮料
+    const drinks = [
+      ['水', 'Water', 2.00],
+      ['苏打', 'Soda (Coke/Diet Coke/Orange/Sprite/Ginger Ale/Seltzer)', 3.00],
+      ['椰奶', 'Coconut Milk', 3.00],
+      ['荔枝水', 'Lychee Drink', 3.00],
+      ['北冰洋', 'Arctic Ocean Soda', 3.00],
+      ['王老吉', 'Wong Lo Kat Herbal Tea', 3.00],
+      ['牛奶', 'Milk', 4.00],
+    ];
+
+    // 酒
+    const beers = [
+      ['百威淡啤/科罗娜/百威', 'Bud Light / Corona / Budweiser', 3.00],
+      ['喜力', 'Heineken', 4.00],
+      ['札幌啤酒', 'Sapporo', 5.00],
+    ];
+
+    const insertProduct = db.prepare('INSERT INTO products (name, name_en, category_id, price, available, sort_order) VALUES (?, ?, ?, ?, 1, ?)');
+
+    let s = 1;
+    staples.forEach(([n, en, p]) => insertProduct.run(n, en, catIds['主食'], p, s++));
+    s = 1;
+    desserts.forEach(([n, en, p]) => insertProduct.run(n, en, catIds['甜品'], p, s++));
+    s = 1;
+    drinks.forEach(([n, en, p]) => insertProduct.run(n, en, catIds['饮料'], p, s++));
+    s = 1;
+    beers.forEach(([n, en, p]) => insertProduct.run(n, en, catIds['酒'], p, s++));
+
+    // 写入标记，下次重启不再重复清空
+    db.prepare("INSERT INTO settings (key, value) VALUES ('menu_reset_v1', 'done')").run();
+    console.log('[菜单] 重置完成：主食' + staples.length + '道、甜品' + desserts.length + '道、饮料' + drinks.length + '道、酒' + beers.length + '道');
   }
-  const stapleId = stapleCat.id;
-
-  // 找到或创建"甜品"分类
-  let dessertCat = db.prepare("SELECT id FROM categories WHERE name = '甜品'").get();
-  if (!dessertCat) {
-    const maxSort = db.prepare("SELECT MAX(sort_order) as m FROM categories").get();
-    db.prepare("INSERT INTO categories (name, name_en, sort_order, enabled) VALUES ('甜品', 'Dessert', ?, 1)").run((maxSort?.m || 0) + 1);
-    dessertCat = db.prepare("SELECT id FROM categories WHERE name = '甜品'").get();
-  }
-  const dessertId = dessertCat.id;
-
-  // 主食菜品
-  const staples = [
-    ['蛋炒饭', 'Egg Fried Rice', 9.95],
-    ['菜炒饭', 'Veggie Fried Rice', 10.95],
-    ['鸡炒饭', 'Chicken Fried Rice', 11.95],
-    ['虾炒饭', 'Shrimp Fried Rice', 13.95],
-    ['蛋炒面', 'Egg Fried Noodle', 12.95],
-    ['菜炒面', 'Veggie Fried Noodle', 13.95],
-    ['鸡炒面', 'Chicken Fried Noodle', 13.95],
-    ['虾炒面', 'Shrimp Fried Noodle', 15.95],
-    ['海鲜炒面', 'Seafood Fried Noodle', 15.95],
-  ];
-
-  // 甜品
-  const desserts = [
-    ['芝士蛋糕', 'NY Cheese Cake', 7.95],
-    ['红丝绒蛋糕', 'Red Velvet Cake', 7.95],
-    ['八宝饭', 'Eight-Treasure Rice', 7.95],
-    ['长乐冰饭', 'Changle Iced Sticky Rice', 8.95],
-    ['奶茶冰饭', 'Milk Tea Iced Sticky Rice', 9.95],
-    ['多彩流心酒酿丸子', 'Rainbow Mochi Sweet Soup', 12.95],
-  ];
-
-  const insertProduct = db.prepare("INSERT INTO products (name, name_en, category_id, price, available, sort_order) VALUES (?, ?, ?, ?, 1, ?)");
-  const checkProduct = db.prepare("SELECT id FROM products WHERE name = ? AND category_id = ?");
-
-  let stapleSort = 1;
-  staples.forEach(([name, nameEn, price]) => {
-    if (!checkProduct.get(name, stapleId)) {
-      insertProduct.run(name, nameEn, stapleId, price, stapleSort++);
-    }
-  });
-
-  let dessertSort = 1;
-  desserts.forEach(([name, nameEn, price]) => {
-    if (!checkProduct.get(name, dessertId)) {
-      insertProduct.run(name, nameEn, dessertId, price, dessertSort++);
-    }
-  });
-
-  console.log('[菜单] 主食' + staples.length + '道、甜品' + desserts.length + '道已就绪');
 } catch (e) {
-  console.error('[菜单] 主食/甜品导入失败:', e.message);
+  console.error('[菜单] 重置失败:', e.message);
 }
 
 // ========== 运行各模块初始化数据 ==========
