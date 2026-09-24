@@ -15,7 +15,7 @@ const FALLBACK_IMG = 'data:image/svg+xml,' + encodeURIComponent(`
 export default function Menu() {
   const navigate = useNavigate()
   const { t, language } = useLanguage()
-  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, getTagInfo, calcTagsExtraPrice, addSplitFlavor } = useCart()
+  const { items, addItem, updateQuantity, updateNotes, removeItem, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, getTagInfo, calcTagsExtraPrice, addSplitFlavor } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
@@ -24,12 +24,11 @@ export default function Menu() {
   const [showHistory, setShowHistory] = useState(false)
   const [imgErrors, setImgErrors] = useState({})
 
-  // 口味弹窗
   const [dialogItem, setDialogItem] = useState(null)
   const [dialogTags, setDialogTags] = useState([])
   const [selectedTags, setSelectedTags] = useState([])
   const [customNote, setCustomNote] = useState('')
-  const [splitQty, setSplitQty] = useState(1)  // 改几份
+  const [splitQty, setSplitQty] = useState(1)
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {})
@@ -74,7 +73,7 @@ export default function Menu() {
     setDialogItem(item)
     setSelectedTags([...(item.notes || [])])
     setCustomNote('')
-    setSplitQty(1)  // 默认改1份
+    setSplitQty(1)
   }
 
   const singleChoiceCategories = ['辣度', '冰度', '甜度']
@@ -91,18 +90,14 @@ export default function Menu() {
     })
   }
 
-  // 保存口味：如果该行有多份，按 splitQty 拆分
   const saveTags = () => {
     if (!dialogItem) return
     const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
     const qty = dialogItem.quantity
-
     if (qty > 1 && splitQty < qty) {
-      // 拆分：splitQty 份用新口味，剩下的保留原口味
       addSplitFlavor(dialogItem.cartId, splitQty, finalTags)
       toast(`已将 ${splitQty} 份改为新口味`, 'success')
     } else {
-      // 全部改，或只有1份
       updateNotes(dialogItem.cartId, finalTags)
     }
     setDialogItem(null)
@@ -141,8 +136,9 @@ export default function Menu() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      {/* 顶部栏 */}
       <div className="bg-white border-b sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="text-gray-600 hover:text-primary-600 text-sm">← 返回首页</Link>
           <h1 className="text-lg font-bold text-gray-800">菜单</h1>
           <button onClick={() => setCartOpen(true)} className="relative p-2 text-gray-600 hover:text-primary-600">
@@ -158,62 +154,97 @@ export default function Menu() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-          <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>全部</button>
-          {categories.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{cat.name}</button>
-          ))}
-        </div>
+      {/* 主体：左侧分类栏 + 右侧商品 */}
+      <div className="max-w-7xl mx-auto flex gap-0">
+        {/* 桌面端左侧固定分类栏 */}
+        <aside className="hidden lg:block w-48 shrink-0 border-r border-gray-200 bg-white sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <nav className="py-4">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                activeCategory === 'all'
+                  ? 'bg-primary-50 text-primary-600 font-bold border-r-2 border-primary-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              全部
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                  activeCategory == cat.id
+                    ? 'bg-primary-50 text-primary-600 font-bold border-r-2 border-primary-600'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-        {filtered.length === 0 ? (
-          <Empty text="该分类暂无商品" icon="🍽️" />
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map(product => {
-              const count = getItemCount(product.id)
-              return (
-                <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all group">
-                  <div className="h-40 bg-gray-100 relative overflow-hidden">
-                    <img
-                      src={imgErrors[product.id] ? FALLBACK_IMG : (product.image || FALLBACK_IMG)}
-                      alt={product.name}
-                      onError={() => setImgErrors(prev => ({ ...prev, [product.id]: true }))}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    {product.is_recommend && <Badge variant="danger" className="absolute top-2 left-2">推荐</Badge>}
-                    {count > 0 && (
-                      <div className="absolute top-2 right-2 bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow">×{count}</div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-0.5">{language === 'en' ? (product.name_en || product.name) : product.name}</h3>
-                    {language !== 'en' && product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-lg font-bold text-primary-600">${product.price?.toFixed(2)}</span>
-                      {count === 0 ? (
-                        <Button size="sm" onClick={() => handleAdd(product)} disabled={!business.open}>
-                          {business.open ? '+ 加入' : '休息中'}
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleCardMinus(product)} className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">−</button>
-                          <span className="w-6 text-center font-bold text-primary-600">{count}</span>
-                          <button onClick={() => handleAdd(product)} className="w-7 h-7 rounded-full bg-primary-600 hover:bg-primary-700 text-white flex items-center justify-center font-bold">+</button>
-                        </div>
+        {/* 右侧商品区 */}
+        <main className="flex-1 px-4 py-6 min-w-0">
+          {/* 移动端/平板：横滑分类标签 */}
+          <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4">
+            <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>全部</button>
+            {categories.map(cat => (
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{cat.name}</button>
+            ))}
+          </div>
+
+          {filtered.length === 0 ? (
+            <Empty text="该分类暂无商品" icon="🍽️" />
+          ) : (
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {filtered.map(product => {
+                const count = getItemCount(product.id)
+                return (
+                  <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all group">
+                    <div className="h-40 bg-gray-100 relative overflow-hidden">
+                      <img
+                        src={imgErrors[product.id] ? FALLBACK_IMG : (product.image || FALLBACK_IMG)}
+                        alt={product.name}
+                        onError={() => setImgErrors(prev => ({ ...prev, [product.id]: true }))}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                      {product.is_recommend && <Badge variant="danger" className="absolute top-2 left-2">推荐</Badge>}
+                      {count > 0 && (
+                        <div className="absolute top-2 right-2 bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow">×{count}</div>
                       )}
                     </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-800 mb-0.5">{language === 'en' ? (product.name_en || product.name) : product.name}</h3>
+                      {language !== 'en' && product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-lg font-bold text-primary-600">${product.price?.toFixed(2)}</span>
+                        {count === 0 ? (
+                          <Button size="sm" onClick={() => handleAdd(product)} disabled={!business.open}>
+                            {business.open ? '+ 加入' : '休息中'}
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleCardMinus(product)} className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">−</button>
+                            <span className="w-6 text-center font-bold text-primary-600">{count}</span>
+                            <button onClick={() => handleAdd(product)} className="w-7 h-7 rounded-full bg-primary-600 hover:bg-primary-700 text-white flex items-center justify-center font-bold">+</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </main>
       </div>
 
+      {/* 底部购物车栏 */}
       {totalCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40">
-          <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <button onClick={() => setCartOpen(true)} className="flex items-center gap-3 flex-1">
               <div className="relative">
                 <span className="text-2xl">🛒</span>
@@ -229,6 +260,7 @@ export default function Menu() {
         </div>
       )}
 
+      {/* 购物车抽屉 */}
       {cartOpen && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setCartOpen(false)} />
@@ -320,7 +352,6 @@ export default function Menu() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {/* 改几份选择（只有数量>1时显示） */}
               {dialogItem.quantity > 1 && (
                 <div className="bg-blue-50 rounded-lg p-3">
                   <p className="text-sm text-gray-700 mb-2">改几份为新口味？（共{dialogItem.quantity}份）</p>
