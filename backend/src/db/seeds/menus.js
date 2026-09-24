@@ -21,6 +21,7 @@ module.exports = function(db) {
 
     { parent_id: 3, name: '菜品列表', icon: '🍔', path: '/admin/products', sort_order: 1 },
     { parent_id: 3, name: '口味规格', icon: '🌶️', path: '/admin/flavors', sort_order: 2 },
+    { parent_id: 3, name: '组合套餐', icon: '🍱', path: '/admin/combos', sort_order: 3 },
 
     { parent_id: 4, name: '外卖平台', icon: '🔗', path: '/admin/platforms', sort_order: 1 },
     { parent_id: 4, name: '外卖报表', icon: '📊', path: '/admin/platform-reports', sort_order: 2 },
