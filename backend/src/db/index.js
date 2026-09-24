@@ -46,6 +46,10 @@ try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEF
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN price REAL DEFAULT 0").run(); } catch (e) {}
+// 口味标签/大类双语字段迁移（旧库补列）
+try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN category_ids TEXT DEFAULT '[]'").run(); } catch (e) {}
 [
   ['orders','created_by'],['orders','created_by_name'],['orders','updated_by'],['orders','updated_by_name'],
   ['products','created_by'],['products','created_by_name'],['products','updated_by'],['products','updated_by_name'],
@@ -158,7 +162,7 @@ try {
         ['黑糖拿铁','Black Sugar Golden Tea Latte',7.50,'photo-1558857563-b39609b3b971'],
         ['黑糖花生冰淇淋','Brown Sugar Peanut W/ Ice Cream',7.95,'photo-1558857563-b39609b3b971'],
         ['黑糖芝麻冰淇淋','Brown Sugar Black Sesame W/ Ice Cream',7.95,'photo-1558857563-b39609b3b971'],
-        ['黑糖谷物冰淇淋','Brown Sugar Mixed Grain W/ Ice Cream',7.95,'photo-1558857563-b39609b3b971'],
+        ['黑糖谷物冰淇淋','Brown Sugar Mixed Grain W/ Ice Cream',7.95,'photo-15588857563-b39609b3b971'],
         ['黑糖奥利奥冰淇淋','Brown Sugar Oreo W/ Ice Cream',7.95,'photo-15588857563-b39609b3b971'],
       ],
       '脏奶': [
