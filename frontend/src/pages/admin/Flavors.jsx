@@ -15,7 +15,6 @@ export default function Flavors() {
 
   useEffect(() => { load() }, [])
 
-  // 加载口味分类列表和商品分类（用于关联适用商品）
   const load = () => {
     api.getAllFlavorCategories().then(data => {
       const list = Array.isArray(data) ? data : []
@@ -25,18 +24,18 @@ export default function Flavors() {
     api.getAllCategories().then(data => setProductCategories(Array.isArray(data) ? data : [])).catch(() => {})
   }
 
-  // 保存口味大类（新建或编辑）
   const saveCategory = async () => {
     const { mode, data } = catDialog
     const name = data.name.trim()
     if (!name) { toast(t('flavors.catNameRequired', '请填写分类名称'), 'error'); return }
+    const name_en = (data.name_en || '').trim()
     const categoryIds = Array.isArray(data.category_ids) ? data.category_ids : []
     try {
       if (mode === 'add') {
-        await api.createFlavorCategory({ name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
+        await api.createFlavorCategory({ name, name_en, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
         toast(t('flavors.catAdded', '分类已添加'))
       } else {
-        await api.updateFlavorCategory(data.id, { name, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
+        await api.updateFlavorCategory(data.id, { name, name_en, sort_order: data.sort_order || 0, enabled: data.enabled ? 1 : 0, category_ids: categoryIds })
         toast(t('flavors.catUpdated', '分类已更新'))
       }
       setCatDialog(null)
@@ -44,14 +43,12 @@ export default function Flavors() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 切换口味大类启用/禁用
   const toggleCategory = async (cat) => {
     await api.updateFlavorCategory(cat.id, { enabled: cat.enabled ? 0 : 1 })
     toast(cat.enabled ? t('flavors.catDisabled', '已禁用该分类') : t('flavors.catEnabled', '已启用该分类'))
     load()
   }
 
-  // 删除口味大类（需确认）
   const deleteCategory = async (cat) => {
     if (!await confirm({ title: t('flavors.confirmDeleteCatTitle', '删除分类'), message: `${t('flavors.confirmDeleteCatStart', '确定删除分类"')}${cat.name}${t('flavors.confirmDeleteCatEnd', '"吗？该分类下没有标签才能删除。')}`, variant: 'danger' })) return
     try {
@@ -61,15 +58,16 @@ export default function Flavors() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 保存口味标签（新建或编辑）
   const saveTag = async () => {
     const { mode, categoryId, data } = tagDialog
     const name = data.name.trim()
     if (!name) { toast(t('flavors.tagNameRequired', '请填写标签名称'), 'error'); return }
+    const name_en = (data.name_en || '').trim()
     try {
       const payload = {
         category_id: categoryId,
         name,
+        name_en,
         extra_price: parseFloat(data.extra_price) || 0,
         is_default: data.is_default ? 1 : 0,
         sort_order: data.sort_order || 0,
@@ -87,14 +85,12 @@ export default function Flavors() {
     } catch (e) { toast(e.message, 'error') }
   }
 
-  // 切换口味标签启用/禁用
   const toggleTag = async (tag) => {
     await api.updateFlavorTag(tag.id, { enabled: tag.enabled ? 0 : 1 })
     toast(tag.enabled ? t('flavors.tagDisabled', '已禁用该标签') : t('flavors.tagEnabled', '已启用该标签'))
     load()
   }
 
-  // 删除口味标签（需确认）
   const deleteTag = async (tag) => {
     if (!await confirm({ title: t('flavors.confirmDeleteTagTitle', '删除标签'), message: `${t('flavors.confirmDeleteTagStart', '确定删除标签"')}${tag.name}${t('flavors.confirmDeleteTagEnd', '"吗？')}`, variant: 'danger' })) return
     await api.deleteFlavorTag(tag.id)
@@ -103,7 +99,12 @@ export default function Flavors() {
   }
 
   const tagColumns = [
-    { header: t('flavors.tagCol', '标签'), render: tag => <span className="font-medium text-gray-800">{tag.name}</span> },
+    { header: t('flavors.tagCol', '标签'), render: tag => (
+      <div className="font-medium text-gray-800">
+        {tag.name}
+        {tag.name_en && <span className="text-gray-400 text-sm ml-2">({tag.name_en})</span>}
+      </div>
+    )},
     { header: t('flavors.extraPriceCol', '加价'), render: tag => tag.extra_price > 0 ? <span className="text-primary-600 font-medium">+${tag.extra_price.toFixed(2)}</span> : <span className="text-gray-400">-</span> },
     { header: t('flavors.defaultCol', '默认'), render: tag => tag.is_default ? <Badge variant="success">{t('flavors.defaultSelected', '默认选中')}</Badge> : <span className="text-gray-400">-</span> },
     { header: t('flavors.sortCol', '排序'), render: tag => <span className="text-gray-500">{tag.sort_order}</span> },
@@ -117,7 +118,7 @@ export default function Flavors() {
           <h2 className="text-xl font-bold text-gray-800">{t('admin.flavors', '口味管理')}</h2>
           <p className="text-sm text-gray-400 mt-1">{t('flavors.desc', '管理口味大类和小类，可单独启用/禁用')}</p>
         </div>
-        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', sort_order: 0, enabled: true, category_ids: [] } })}>+ {t('flavors.addCategory', '新增大类')}</Button>
+        <Button onClick={() => setCatDialog({ mode: 'add', data: { name: '', name_en: '', sort_order: 0, enabled: true, category_ids: [] } })}>+ {t('flavors.addCategory', '新增大类')}</Button>
       </div>
 
       {categories.length === 0 ? (
@@ -129,14 +130,17 @@ export default function Flavors() {
               <button onClick={() => setExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} className="text-gray-500 hover:text-gray-700 w-6">
                 {expanded[cat.id] ? '▼' : '▶'}
               </button>
-              <h3 className="font-bold text-gray-800 text-lg">{cat.name}</h3>
+              <h3 className="font-bold text-gray-800 text-lg">
+                {cat.name}
+                {cat.name_en && <span className="text-gray-400 text-sm font-normal ml-2">({cat.name_en})</span>}
+              </h3>
               <Badge variant={cat.enabled ? 'success' : 'default'}>{cat.enabled ? t('flavors.enabledOn', '启用中') : t('flavors.disabledOff', '已禁用')}</Badge>
               <span className="text-xs text-gray-400">{cat.tags?.length || 0} {t('flavors.tagsUnit', '个标签')}</span>
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => toggleCategory(cat)}>{cat.enabled ? t('flavors.disabled', '禁用') : t('flavors.enabled', '启用')}</Button>
               <Button size="sm" variant="outline" onClick={() => setCatDialog({ mode: 'edit', data: { ...cat, category_ids: cat.category_ids || [] } })}>{t('common.edit', '编辑')}</Button>
-              <Button size="sm" variant="outline" onClick={() => setTagDialog({ mode: 'add', categoryId: cat.id, data: { name: '', extra_price: 0, is_default: false, sort_order: 0, enabled: true } })}>+ {t('flavors.addTag', '标签')}</Button>
+              <Button size="sm" variant="outline" onClick={() => setTagDialog({ mode: 'add', categoryId: cat.id, data: { name: '', name_en: '', extra_price: 0, is_default: false, sort_order: 0, enabled: true } })}>+ {t('flavors.addTag', '标签')}</Button>
               <button onClick={() => deleteCategory(cat)} className="text-red-400 hover:text-red-600 text-sm px-2">{t('common.delete', '删除')}</button>
             </div>
           </div>
@@ -166,7 +170,8 @@ export default function Flavors() {
       <Dialog open={!!catDialog} onClose={() => setCatDialog(null)} title={catDialog?.mode === 'add' ? t('flavors.addCategory', '新增大类') : t('flavors.editCategory', '编辑大类')} width="max-w-sm">
         {catDialog && (
           <div className="space-y-4">
-            <Input label={t('flavors.catNameLabel', '大类名称 *')} value={catDialog.data.name} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name: e.target.value } })} placeholder={t('flavors.catNamePlaceholder', '如：冰度、辣度、甜度')} />
+            <Input label={t('flavors.catNameLabel', '大类名称 (中文) *')} value={catDialog.data.name} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name: e.target.value } })} placeholder={t('flavors.catNamePlaceholder', '如：冰度、辣度、甜度')} />
+            <Input label={t('flavors.catNameEnLabel', '大类名称 (英文)')} value={catDialog.data.name_en || ''} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, name_en: e.target.value } })} placeholder="e.g. Ice Level, Spiciness, Sweetness" />
             <Input label={t('flavors.sortLabel', '排序')} type="number" value={catDialog.data.sort_order} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={catDialog.data.enabled} onChange={e => setCatDialog({ ...catDialog, data: { ...catDialog.data, enabled: e.target.checked } })} className="w-4 h-4" />
@@ -202,7 +207,8 @@ export default function Flavors() {
         {tagDialog && (
           <div className="space-y-4">
             <div className="text-sm text-gray-500">{t('flavors.parentCat', '所属大类：')}<span className="font-medium text-gray-700">{categories.find(c => c.id === tagDialog.categoryId)?.name || '-'}</span></div>
-            <Input label={t('flavors.tagNameLabel', '标签名称 *')} value={tagDialog.data.name} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, name: e.target.value } })} placeholder={t('flavors.tagNamePlaceholder', '如：少冰、去冰、正常冰')} />
+            <Input label={t('flavors.tagNameLabel', '标签名称 (中文) *')} value={tagDialog.data.name} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, name: e.target.value } })} placeholder={t('flavors.tagNamePlaceholder', '如：少冰、去冰、正常冰')} />
+            <Input label={t('flavors.tagNameEnLabel', '标签名称 (英文)')} value={tagDialog.data.name_en || ''} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, name_en: e.target.value } })} placeholder="e.g. Less Ice, No Ice, Regular Ice" />
             <Input label={t('flavors.extraPriceLabel', '额外加价 ($)')} type="number" step="0.01" value={tagDialog.data.extra_price} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, extra_price: e.target.value } })} placeholder={t('flavors.extraPricePlaceholder', '0 表示不加价')} />
             <Input label={t('flavors.sortLabel', '排序')} type="number" value={tagDialog.data.sort_order} onChange={e => setTagDialog({ ...tagDialog, data: { ...tagDialog.data, sort_order: parseInt(e.target.value) || 0 } })} />
             <label className="flex items-center gap-2 cursor-pointer">
