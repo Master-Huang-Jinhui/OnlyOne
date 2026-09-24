@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { api } from '../lib/api'
-import { useLanguage } from '../context/LanguageContext'
+import { api } from '../../lib/api'
+import { useLanguage } from '../../context/LanguageContext'
 
 export default function DeliveryProductStats() {
   const { t } = useLanguage()
