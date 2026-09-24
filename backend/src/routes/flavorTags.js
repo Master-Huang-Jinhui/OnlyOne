@@ -2,6 +2,10 @@ const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
 
+// 安全添加 name_en 列（已存在则忽略）
+try { db.prepare('ALTER TABLE flavor_tags ADD COLUMN name_en TEXT DEFAULT ""').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE flavor_categories ADD COLUMN name_en TEXT DEFAULT ""').run(); } catch (e) {}
+
 const router = express.Router();
 
 router.post('/list', (req, res) => {
@@ -30,7 +34,7 @@ router.post('/all', auth, managerAccess, (req, res) => {
 });
 
 router.post('/', auth, managerAccess, (req, res) => {
-  const { category_id, category = '其他', name, extra_price = 0, is_default = 0, sort_order = 0, enabled = 1 } = req.body;
+  const { category_id, category = '其他', name, name_en = '', extra_price = 0, is_default = 0, sort_order = 0, enabled = 1 } = req.body;
   if (!name) return res.status(400).json({ error: '标签名称必填' });
   let catName = category;
   let catId = category_id;
@@ -38,12 +42,12 @@ router.post('/', auth, managerAccess, (req, res) => {
     const cat = db.prepare('SELECT * FROM flavor_categories WHERE id = ?').get(category_id);
     if (cat) catName = cat.name;
   }
-  const result = db.prepare('INSERT INTO flavor_tags (category_id, category, name, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)').run(catId || null, catName, name, parseFloat(extra_price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
+  const result = db.prepare('INSERT INTO flavor_tags (category_id, category, name, name_en, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(catId || null, catName, name, name_en, parseFloat(extra_price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
   res.json({ id: result.lastInsertRowid });
 });
 
 router.post('/update/:id', auth, managerAccess, (req, res) => {
-  const { category_id, category, name, extra_price, is_default, sort_order, enabled } = req.body;
+  const { category_id, category, name, name_en, extra_price, is_default, sort_order, enabled } = req.body;
   const fields = [];
   const values = [];
   if (category_id !== undefined) {
@@ -55,6 +59,7 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
   }
   if (category !== undefined) { fields.push('category = ?'); values.push(category); }
   if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+  if (name_en !== undefined) { fields.push('name_en = ?'); values.push(name_en); }
   if (extra_price !== undefined) { fields.push('extra_price = ?'); values.push(parseFloat(extra_price) || 0); }
   if (is_default !== undefined) { fields.push('is_default = ?'); values.push(is_default ? 1 : 0); }
   if (sort_order !== undefined) { fields.push('sort_order = ?'); values.push(sort_order); }
