@@ -237,7 +237,8 @@ router.post('/upload', auth, managerAccess, upload.single('file'), async (req, r
   res.json({ id: result.lastInsertRowid, message: '报表上传成功' });
 });
 
-router.delete('/:id', auth, managerAccess, (req, res) => {
+// 删除报表：统一用 POST /delete/:id（与系统其他删除接口一致）
+router.post('/delete/:id', auth, managerAccess, (req, res) => {
   const report = db.prepare('SELECT * FROM platform_reports WHERE id = ?').get(req.params.id);
   if (!report) return res.status(404).json({ error: '报表不存在' });
   const absolutePath = path.join(__dirname, '../../', report.file_path);
