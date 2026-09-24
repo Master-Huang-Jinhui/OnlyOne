@@ -6,7 +6,6 @@ import { useCart } from '../../context/CartContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { Button, Badge, Empty, toast } from '../../components/ui'
 
-// 图片加载失败时显示的兜底图（美食emoji渐变）
 const FALLBACK_IMG = 'data:image/svg+xml,' + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
 <rect width="400" height="300" fill="#f1f5f9"/>
@@ -16,17 +15,20 @@ const FALLBACK_IMG = 'data:image/svg+xml,' + encodeURIComponent(`
 export default function Menu() {
   const navigate = useNavigate()
   const { t, language } = useLanguage()
-  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, flavorTags, getTagInfo, calcTagsExtraPrice, loadFlavors } = useCart()
+  const { items, addItem, updateQuantity, updateNotes, removeItem, clear, subtotal, totalCount, history, reorderFromHistory, getItemUnitPrice, getTagInfo, calcTagsExtraPrice } = useCart()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
   const [business, setBusiness] = useState({ open: true })
   const [cartOpen, setCartOpen] = useState(false)
-  const [tagsDialog, setTagsDialog] = useState(null)
-  const [selectedTags, setSelectedTags] = useState([])
-  const [customNote, setCustomNote] = useState('')
   const [showHistory, setShowHistory] = useState(false)
   const [imgErrors, setImgErrors] = useState({})
+
+  // 口味弹窗：本地状态，不污染全局
+  const [dialogItem, setDialogItem] = useState(null)   // 正在编辑的购物车项
+  const [dialogTags, setDialogTags] = useState([])     // 该商品分类下的所有口味标签
+  const [selectedTags, setSelectedTags] = useState([])
+  const [customNote, setCustomNote] = useState('')
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {})
@@ -44,30 +46,38 @@ export default function Menu() {
   // 加菜：加1份，弹提示
   const handleAdd = async (product) => {
     if (!business.open) return
-    const data = await loadFlavors(product.category_id)
-    const defaults = (data.tags || []).filter(t => t.is_default).map(t => t.name)
-    addItem(product, defaults.length > 0 ? defaults : [])
+    try {
+      const data = await api.getFlavorTags(product.category_id)
+      const defaults = (data.tags || []).filter(x => x.is_default).map(x => x.name)
+      addItem(product, defaults)
+    } catch {
+      addItem(product, [])
+    }
     toast(`${product.name} 已加入购物车`, 'success')
   }
 
-  // 卡片上直接增减数量
+  // 卡片上直接增减数量（合并同商品多口味变体）
   const handleQtyChange = (product, delta) => {
     const current = getItemCount(product.id)
     const next = current + delta
     if (next <= 0) {
-      // 减到0就把购物车里该商品全部删掉
       items.filter(i => i.id === product.id).forEach(i => removeItem(i.cartId))
     } else {
-      // 找到购物车里该商品的第一项，改它的数量；多余的删除
       const matching = items.filter(i => i.id === product.id)
       updateQuantity(matching[0].cartId, next)
       matching.slice(1).forEach(i => removeItem(i.cartId))
     }
   }
 
+  // 打开口味弹窗：独立加载该商品分类的口味到本地状态
   const openTagsDialog = async (item) => {
-    await loadFlavors(item.category_id)
-    setTagsDialog(item)
+    try {
+      const data = await api.getFlavorTags(item.category_id)
+      setDialogTags(data.tags || [])
+    } catch {
+      setDialogTags([])
+    }
+    setDialogItem(item)
     setSelectedTags([...(item.notes || [])])
     setCustomNote('')
   }
@@ -77,8 +87,8 @@ export default function Menu() {
   const toggleTag = (tagName, category) => {
     setSelectedTags(prev => {
       if (singleChoiceCategories.includes(category)) {
-        const sameCategoryTags = flavorTags.filter(t => t.category === category).map(t => t.name)
-        const filtered = prev.filter(t => !sameCategoryTags.includes(t))
+        const sameCatTags = dialogTags.filter(x => x.category === category).map(x => x.name)
+        const filtered = prev.filter(t => !sameCatTags.includes(t))
         if (filtered.includes(tagName)) return filtered
         return [...filtered, tagName]
       }
@@ -87,28 +97,30 @@ export default function Menu() {
   }
 
   const saveTags = () => {
-    if (tagsDialog) {
+    if (dialogItem) {
       const finalTags = customNote.trim() ? [...selectedTags, customNote.trim()] : selectedTags
-      updateNotes(tagsDialog.cartId, finalTags)
+      updateNotes(dialogItem.cartId, finalTags)
     }
-    setTagsDialog(null)
+    setDialogItem(null)
+    setDialogTags([])
     setCustomNote('')
   }
 
   const handleCheckout = () => {
-    if (items.length === 0) { toast(t('menu.cartEmpty', '购物车是空的'), 'error'); return }
+    if (items.length === 0) { toast('购物车是空的', 'error'); return }
     setCartOpen(false)
     navigate('/checkout')
   }
 
-  const tagsByCategory = useMemo(() => {
+  // 按分类分组标签（用本地 dialogTags，不依赖全局）
+  const dialogTagsByCategory = useMemo(() => {
     const groups = {}
-    flavorTags.forEach(tag => {
+    dialogTags.forEach(tag => {
       if (!groups[tag.category]) groups[tag.category] = []
       groups[tag.category].push(tag)
     })
     return groups
-  }, [flavorTags])
+  }, [dialogTags])
 
   const renderTags = (tags = [], small = false) => (
     <div className={`flex flex-wrap gap-1 ${small ? 'mt-1' : 'mt-2'}`}>
@@ -126,11 +138,10 @@ export default function Menu() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* 顶部栏 */}
       <div className="bg-white border-b sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="text-gray-600 hover:text-primary-600 text-sm">← {t('menu.backToHome', '返回首页')}</Link>
-          <h1 className="text-lg font-bold text-gray-800">{t('nav.menu', '菜单')}</h1>
+          <Link to="/" className="text-gray-600 hover:text-primary-600 text-sm">← 返回首页</Link>
+          <h1 className="text-lg font-bold text-gray-800">菜单</h1>
           <button onClick={() => setCartOpen(true)} className="relative p-2 text-gray-600 hover:text-primary-600">
             <span className="text-xl">🛒</span>
             {totalCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{totalCount}</span>}
@@ -140,28 +151,26 @@ export default function Menu() {
 
       {!business.open && (
         <div className="bg-yellow-50 border-b border-yellow-200 text-center py-3">
-          <p className="text-yellow-700 text-sm">⚠️ {t('menu.closedWarning', '今日门店休息，暂不接受下单')}</p>
+          <p className="text-yellow-700 text-sm">⚠️ 今日门店休息，暂不接受下单</p>
         </div>
       )}
 
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* 分类标签 */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-          <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{t('menu.all', '全部')}</button>
+          <button onClick={() => setActiveCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === 'all' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>全部</button>
           {categories.map(cat => (
             <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeCategory == cat.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'}`}>{cat.name}</button>
           ))}
         </div>
 
         {filtered.length === 0 ? (
-          <Empty text={t('menu.noProductsInCategory', '该分类暂无商品')} icon="🍽️" />
+          <Empty text="该分类暂无商品" icon="🍽️" />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(product => {
               const count = getItemCount(product.id)
               return (
                 <div key={product.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-lg transition-all group">
-                  {/* 商品图 */}
                   <div className="h-40 bg-gray-100 relative overflow-hidden">
                     <img
                       src={imgErrors[product.id] ? FALLBACK_IMG : (product.image || FALLBACK_IMG)}
@@ -170,20 +179,15 @@ export default function Menu() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                     {product.is_recommend && <Badge variant="danger" className="absolute top-2 left-2">推荐</Badge>}
-                    {/* 加购后数量角标 */}
                     {count > 0 && (
-                      <div className="absolute top-2 right-2 bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow">
-                        ×{count}
-                      </div>
+                      <div className="absolute top-2 right-2 bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow">×{count}</div>
                     )}
                   </div>
-                  {/* 商品信息 */}
                   <div className="p-4">
                     <h3 className="font-bold text-gray-800 mb-0.5">{language === 'en' ? (product.name_en || product.name) : product.name}</h3>
                     {language !== 'en' && product.name_en && <p className="text-xs text-gray-400 mb-2">{product.name_en}</p>}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-lg font-bold text-primary-600">${product.price?.toFixed(2)}</span>
-                      {/* 数量步进器：没加过显示+加入，加过显示- qty + */}
                       {count === 0 ? (
                         <Button size="sm" onClick={() => handleAdd(product)} disabled={!business.open}>
                           {business.open ? '+ 加入' : '休息中'}
@@ -204,7 +208,6 @@ export default function Menu() {
         )}
       </div>
 
-      {/* 底部购物车栏 */}
       {totalCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40">
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -223,7 +226,6 @@ export default function Menu() {
         </div>
       )}
 
-      {/* 购物车侧滑抽屉 */}
       {cartOpen && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setCartOpen(false)} />
@@ -301,21 +303,21 @@ export default function Menu() {
         </div>
       )}
 
-      {/* 口味选择弹窗 */}
-      {tagsDialog && (
+      {/* 口味弹窗：用本地 dialogTags，不污染全局 */}
+      {dialogItem && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setTagsDialog(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDialogItem(null)} />
           <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-800">选择口味</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{tagsDialog.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{dialogItem.name}</p>
               </div>
-              <button onClick={() => setTagsDialog(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={() => setDialogItem(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {Object.entries(tagsByCategory).map(([category, tags]) => (
+              {Object.entries(dialogTagsByCategory).map(([category, tags]) => (
                 <div key={category}>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">
                     {category}
