@@ -61,6 +61,15 @@ export default function PlatformReports() {
     catch (e) { toast('删除失败：' + e.message, 'error') }
   }
 
+  // 在线查看报表文件；如果没有文件链接则弹提示
+  const handleViewFile = (r) => {
+    if (!r.file_path) {
+      toast('该报表没有文件链接，请重新上传报表文件', 'error')
+      return
+    }
+    window.open(r.file_path, '_blank', 'noopener')
+  }
+
   // 根据平台ID查找平台名称
   const getPlatformName = (id) => platforms.find(p => p.id === id)?.name || '未知'
 
@@ -138,7 +147,7 @@ export default function PlatformReports() {
                   <td className="px-6 py-3 text-sm text-gray-500">{r.note || '-'}</td>
                   <td className="px-6 py-3 text-center">
                     <div className="flex gap-2 justify-center">
-                      {r.file_path && <a href={r.file_path} target="_blank" rel="noreferrer" className="text-primary-600 text-sm hover:text-primary-700">在线查看</a>}
+                      <button onClick={() => handleViewFile(r)} className="text-primary-600 text-sm hover:text-primary-700 underline underline-offset-1">在线查看</button>
                       <button onClick={() => handleDelete(r.id)} className="text-red-600 text-sm hover:text-red-700">删除</button>
                     </div>
                   </td>

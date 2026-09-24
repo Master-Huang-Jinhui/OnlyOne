@@ -102,7 +102,7 @@ app.use('/api/queue', require('./routes/queue'));
 app.use('/api/translations', require('./routes/translations'));
 
 // 静态文件服务：uploads目录下的图片、报表等文件
-// PDF文件设置inline内联预览，不施加严格CSP以免浏览器PDF查看器被阻止
+// PDF和CSV设置inline内联预览，不施加严格CSP以免浏览器查看器被阻止
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
@@ -110,6 +110,10 @@ app.use('/uploads', express.static(uploadsDir, {
     if (filePath.endsWith('.pdf')) {
       // PDF报表：允许浏览器直接内联预览
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    } else if (filePath.endsWith('.csv')) {
+      // CSV报表：设置utf-8内联显示，避免中文乱码
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'inline');
     } else if (filePath.endsWith('.svg')) {
       res.setHeader('Content-Type', 'image/svg+xml');
@@ -187,7 +191,7 @@ try {
   platforms.forEach(p => {
     if (p.password && !isEncrypted(p.password)) {
       const encrypted = encrypt(p.password);
-      db.prepare('UPDATE platforms SET password = ?').run(encrypted, p.id);
+      db.prepare('UPDATE platforms SET password = ? WHERE id = ?').run(encrypted, p.id);
       migratedCount++;
       console.log(`[迁移] 平台 "${p.name}" 密码已加密`);
     }
