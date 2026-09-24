@@ -112,8 +112,8 @@ app.use('/uploads', express.static(uploadsDir, {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline');
     } else if (filePath.endsWith('.csv')) {
-      // CSV报表：设置utf-8内联显示，避免中文乱码
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      // CSV报表：用text/plain让浏览器内联显示（text/csv会被浏览器强制下载）
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', 'inline');
     } else if (filePath.endsWith('.svg')) {
       res.setHeader('Content-Type', 'image/svg+xml');
