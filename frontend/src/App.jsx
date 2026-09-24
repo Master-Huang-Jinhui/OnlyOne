@@ -18,6 +18,7 @@ import Users from './pages/admin/Users'
 import Platforms from './pages/admin/Platforms'
 import PlatformReports from './pages/admin/PlatformReports'
 import Products from './pages/admin/Products'
+import Combos from './pages/admin/Combos'
 import Flavors from './pages/admin/Flavors'
 import OrderStatuses from './pages/admin/OrderStatuses'
 import Tables from './pages/admin/Tables'
@@ -45,7 +46,7 @@ import EmployeeTableDetail from './pages/employee/EmployeeTableDetail'
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null } }
-  static getDerivedStateFromError(error) { return { hasError: true, error } }
+  static getDerivedStateFromError(error) { return { hasError: true, error: null } }
   componentDidCatch(error, errorInfo) { console.error('[渲染错误]', error, errorInfo) }
   render() {
     if (this.state.hasError) {
@@ -110,6 +111,7 @@ function AppInner() {
           <Route path="platform-reports" element={<PlatformReports />} />
           <Route path="delivery-product-stats" element={<ProtectedRoute adminOnly><DeliveryProductStats /></ProtectedRoute>} />
           <Route path="products" element={<ProtectedRoute adminOnly><Products /></ProtectedRoute>} />
+          <Route path="combos" element={<ProtectedRoute adminOnly><Combos /></ProtectedRoute>} />
           <Route path="flavors" element={<ProtectedRoute adminOnly><Flavors /></ProtectedRoute>} />
           <Route path="order-statuses" element={<ProtectedRoute adminOnly><OrderStatuses /></ProtectedRoute>} />
           <Route path="tables" element={<ProtectedRoute adminOnly><Tables /></ProtectedRoute>} />
