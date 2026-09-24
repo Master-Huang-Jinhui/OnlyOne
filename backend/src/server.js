@@ -102,16 +102,83 @@ app.use('/api/translations', require('./routes/translations'));
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 
-// CSV文件拦截：将CSV内容包装成HTML页面，确保浏览器内联显示而非下载
+// 简单CSV解析：处理引号包裹的字段
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (ch !== '\r') field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.length > 1 || (r[0] && r[0].trim()));
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// CSV文件拦截：解析CSV并渲染成漂亮的HTML表格
 app.use('/uploads', (req, res, next) => {
   if (!req.path.endsWith('.csv')) return next();
   const filePath = path.join(uploadsDir, req.path);
   if (!fs.existsSync(filePath)) return next();
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const escaped = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rows = parseCSV(content);
+    if (rows.length === 0) return next();
+
+    const maxCols = Math.max(...rows.map(r => r.length));
+    const header = rows[0];
+    const dataRows = rows.slice(1);
+
+    let thead = '<tr>';
+    for (let c = 0; c < maxCols; c++) {
+      thead += '<th>' + escapeHtml(header[c] || '') + '</th>';
+    }
+    thead += '</tr>';
+
+    let tbody = '';
+    dataRows.forEach((row, ri) => {
+      tbody += '<tr' + (ri % 2 ? ' class="alt"' : '') + '>';
+      for (let c = 0; c < maxCols; c++) {
+        tbody += '<td>' + escapeHtml(row[c] || '') + '</td>';
+      }
+      tbody += '</tr>';
+    });
+
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<title>CSV报表 - ' + escapeHtml(path.basename(req.path)) + '</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f1f5f9;color:#1e293b}'
+      + '.topbar{background:#1e293b;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}'
+      + '.topbar h1{font-size:15px;font-weight:600}'
+      + '.topbar .meta{font-size:12px;opacity:.7}'
+      + '.table-wrap{overflow:auto;max-height:calc(100vh - 50px)}'
+      + 'table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}'
+      + 'thead th{background:#e2e8f0;position:sticky;top:0;padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid #cbd5e1;z-index:5}'
+      + 'tbody td{padding:6px 12px;border-bottom:1px solid #e2e8f0}'
+      + 'tbody tr:hover{background:#f0f9ff}'
+      + 'tbody tr.alt{background:#f8fafc}'
+      + '</style></head><body>'
+      + '<div class="topbar"><h1>CSV 报表</h1><span class="meta">' + dataRows.length + ' 行数据 · ' + maxCols + ' 列</span></div>'
+      + '<div class="table-wrap"><table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>'
+      + '</body></html>';
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>CSV报表</title><style>body{font-family:sans-serif;margin:0;padding:20px;background:#f0f2f5}.wrap{max-width:1200px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden}.header{padding:16px 24px;background:#1e293b;color:#fff}.header h1{margin:0;font-size:16px}pre{margin:0;padding:24px;overflow:auto;font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all}</style></head><body><div class="wrap"><div class="header"><h1>CSV 报表</h1></div><pre>' + escaped + '</pre></div></body></html>');
+    res.send(html);
   } catch (e) { next(e); }
 });
 
