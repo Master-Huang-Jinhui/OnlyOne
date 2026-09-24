@@ -175,17 +175,21 @@ auditCols.forEach(([tbl, col]) => { try { db.prepare(`ALTER TABLE ${tbl} ADD COL
   try { db.prepare(`ALTER TABLE platforms ADD COLUMN ${col}`).run(); } catch (e) {}
 });
 
-// ========== 菜单数据 v5：Unsplash真实照片CDN ==========
+// ========== 菜单数据 v6：饮料和酒合并为"酒水" ==========
 try {
-  const flag = db.prepare("SELECT value FROM settings WHERE key = 'menu_reset_v5'").get();
+  const flag = db.prepare("SELECT value FROM settings WHERE key = 'menu_reset_v6'").get();
   if (!flag) {
-    console.log('[菜单] v5 重置：Unsplash真实食物照片...');
+    console.log('[菜单] v6 重置：饮料+酒合并为酒水...');
     db.prepare('DELETE FROM products').run();
     db.prepare('DELETE FROM categories').run();
 
     const insertCat = db.prepare('INSERT INTO categories (name, name_en, sort_order, enabled) VALUES (?, ?, ?, 1)');
     const catIds = {};
-    [['主食','Rice, Noodle and Soup',1],['甜品','Dessert',2],['饮料','Drinks',3],['酒','Beer & Wine',4]].forEach(([n,en,s]) => {
+    [
+      ['主食','Rice, Noodle and Soup',1],
+      ['甜品','Dessert',2],
+      ['酒水','Drinks & Alcohol',3],
+    ].forEach(([n,en,s]) => {
       catIds[n] = insertCat.run(n, en, s).lastInsertRowid;
     });
 
@@ -212,6 +216,7 @@ try {
       ['奶茶冰饭','Milk Tea Iced Sticky Rice',9.95,'photo-1558857563-b39609b3b971'],
       ['多彩流心酒酿丸子','Rainbow Mochi Sweet Soup',12.95,'photo-1563805042-7684c019e1cb'],
     ];
+    // 酒水：饮料7 + 酒3 = 10道
     const drinks = [
       ['水','Water',2.00,'photo-1548839140-29a749e1cf4d'],
       ['苏打','Soda',3.00,'photo-1581636625402-caf42e72075d'],
@@ -220,8 +225,6 @@ try {
       ['北冰洋','Arctic Ocean Soda',3.00,'photo-1581636625402-caf42e72075d'],
       ['王老吉','Wong Lo Kat Tea',3.00,'photo-1571934811356-5cc061b6821f'],
       ['牛奶','Milk',4.00,'photo-1550583724-b2692b85b150'],
-    ];
-    const beers = [
       ['百威/科罗娜/百威淡啤','Bud Light / Corona / Budweiser',3.00,'photo-1608270586620-248524c67de9'],
       ['喜力','Heineken',4.00,'photo-1566633392876-42538741c45e'],
       ['札幌啤酒','Sapporo',5.00,'photo-1557880144-256792ec7f72'],
@@ -231,14 +234,13 @@ try {
     let s = 1;
     staples.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['主食'], p, img(pid), s++));
     s = 1; desserts.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['甜品'], p, img(pid), s++));
-    s = 1; drinks.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['饮料'], p, img(pid), s++));
-    s = 1; beers.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['酒'], p, img(pid), s++));
+    s = 1; drinks.forEach(([n,en,p,pid]) => ins.run(n, en, catIds['酒水'], p, img(pid), s++));
 
-    db.prepare("INSERT INTO settings (key, value) VALUES ('menu_reset_v5', 'done')").run();
-    console.log('[菜单] v5完成：Unsplash真实食物照片，共28道');
+    db.prepare("INSERT INTO settings (key, value) VALUES ('menu_reset_v6', 'done')").run();
+    console.log(`[菜单] v6完成：主食${staples.length} + 甜品${desserts.length} + 酒水${drinks.length} = ${staples.length+desserts.length+drinks.length}道`);
   }
 } catch (e) {
-  console.error('[菜单] v5重置失败:', e.message);
+  console.error('[菜单] v6重置失败:', e.message);
 }
 
 // ========== 运行各模块初始化数据 ==========
