@@ -20,17 +20,22 @@ db.prepare(`CREATE TABLE IF NOT EXISTS combos (
 
 // 自动在侧边栏菜单中注册"组合套餐"入口（挂在"菜单管理"下）
 try {
-  const existing = db.prepare("SELECT id FROM menus WHERE path = '/admin/combos'").get();
+  const existing = db.prepare("SELECT id FROM menus WHERE path = '/admin/combos' OR path = 'combos'").get();
   if (!existing) {
-    // 找到"菜单管理"一级菜单的ID
-    const menuParent = db.prepare("SELECT id FROM menus WHERE path = '/admin/menus' OR (path = '' AND name LIKE '%菜单%') ORDER BY id LIMIT 1").get();
+    // 找到"菜单管理"一级菜单（即包含"菜品列表"的父菜单）
+    let menuParent = db.prepare("SELECT id FROM menus WHERE path = '/admin/menus' OR path = 'menus' ORDER BY id LIMIT 1").get();
+    if (!menuParent) {
+      // 备选：找到"菜品列表"子菜单的parent_id
+      const productMenu = db.prepare("SELECT parent_id FROM menus WHERE path LIKE '%products%' ORDER BY id LIMIT 1").get();
+      if (productMenu) menuParent = { id: productMenu.parent_id };
+    }
     const parentId = menuParent ? menuParent.id : 0;
     // 找到当前最大的sort_order
     const maxSort = db.prepare("SELECT MAX(sort_order) as maxSort FROM menus WHERE parent_id = ?").get(parentId);
-    db.prepare(`INSERT INTO menus (name, name_en, path, icon, parent_id, sort_order, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now','localtime'), datetime('now','localtime'))`)
-      .run('组合套餐', 'Combos', '/admin/combos', '🍱', parentId, (maxSort?.maxSort || 0) + 1);
-    console.log('[组合套餐] 菜单已自动注册到侧边栏');
+    db.prepare(`INSERT INTO menus (parent_id, name, icon, path, sort_order, enabled)
+      VALUES (?, ?, ?, ?, ?, 1)`)
+      .run(parentId, '组合套餐', '🍱', '/admin/combos', (maxSort?.maxSort || 0) + 1);
+    console.log('[组合套餐] 菜单已自动注册到侧边栏 (parent_id=' + parentId + ')');
   }
 } catch (e) {
   console.error('[组合套餐] 菜单注册失败:', e.message);
