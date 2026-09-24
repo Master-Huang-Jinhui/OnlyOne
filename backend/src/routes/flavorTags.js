@@ -2,9 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
 
-// 安全添加 name_en 列（已存在则忽略）
-try { db.prepare('ALTER TABLE flavor_tags ADD COLUMN name_en TEXT DEFAULT ""').run(); } catch (e) {}
-try { db.prepare('ALTER TABLE flavor_categories ADD COLUMN name_en TEXT DEFAULT ""').run(); } catch (e) {}
+// 注意：name_en / category_ids 列的迁移在 db/index.js 统一处理
 
 const router = express.Router();
 
@@ -21,7 +19,7 @@ router.post('/list', (req, res) => {
   let tags = [];
   if (catIds.length > 0) {
     const placeholders = catIds.map(() => '?').join(',');
-    tags = db.prepare(`SELECT ft.* FROM flavor_tags ft WHERE ft.enabled = 1 AND ft.category_id IN (${placeholders}) ORDER BY ft.sort_order, ft.id`).all(...catIds);
+    tags = db.prepare(`SELECT ft.*, ft.price AS extra_price FROM flavor_tags ft WHERE ft.enabled = 1 AND ft.category_id IN (${placeholders}) ORDER BY ft.sort_order, ft.id`).all(...catIds);
   }
   const grouped = {};
   tags.forEach(tag => { if (!grouped[tag.category]) grouped[tag.category] = []; grouped[tag.category].push(tag); });
@@ -29,12 +27,12 @@ router.post('/list', (req, res) => {
 });
 
 router.post('/all', auth, managerAccess, (req, res) => {
-  const tags = db.prepare('SELECT * FROM flavor_tags ORDER BY category_id, sort_order, id').all();
+  const tags = db.prepare('SELECT *, price AS extra_price FROM flavor_tags ORDER BY category_id, sort_order, id').all();
   res.json(tags);
 });
 
 router.post('/', auth, managerAccess, (req, res) => {
-  const { category_id, category = '其他', name, name_en = '', extra_price = 0, is_default = 0, sort_order = 0, enabled = 1 } = req.body;
+  const { category_id, category = '其他', name, name_en = '', price = 0, is_default = 0, sort_order = 0, enabled = 1 } = req.body;
   if (!name) return res.status(400).json({ error: '标签名称必填' });
   let catName = category;
   let catId = category_id;
@@ -42,12 +40,12 @@ router.post('/', auth, managerAccess, (req, res) => {
     const cat = db.prepare('SELECT * FROM flavor_categories WHERE id = ?').get(category_id);
     if (cat) catName = cat.name;
   }
-  const result = db.prepare('INSERT INTO flavor_tags (category_id, category, name, name_en, extra_price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(catId || null, catName, name, name_en, parseFloat(extra_price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
+  const result = db.prepare('INSERT INTO flavor_tags (category_id, category, name, name_en, price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(catId || null, catName, name, name_en, parseFloat(price) || 0, is_default ? 1 : 0, sort_order, enabled ? 1 : 0);
   res.json({ id: result.lastInsertRowid });
 });
 
 router.post('/update/:id', auth, managerAccess, (req, res) => {
-  const { category_id, category, name, name_en, extra_price, is_default, sort_order, enabled } = req.body;
+  const { category_id, category, name, name_en, price, is_default, sort_order, enabled } = req.body;
   const fields = [];
   const values = [];
   if (category_id !== undefined) {
@@ -60,7 +58,7 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
   if (category !== undefined) { fields.push('category = ?'); values.push(category); }
   if (name !== undefined) { fields.push('name = ?'); values.push(name); }
   if (name_en !== undefined) { fields.push('name_en = ?'); values.push(name_en); }
-  if (extra_price !== undefined) { fields.push('extra_price = ?'); values.push(parseFloat(extra_price) || 0); }
+  if (price !== undefined) { fields.push('price = ?'); values.push(parseFloat(price) || 0); }
   if (is_default !== undefined) { fields.push('is_default = ?'); values.push(is_default ? 1 : 0); }
   if (sort_order !== undefined) { fields.push('sort_order = ?'); values.push(sort_order); }
   if (enabled !== undefined) { fields.push('enabled = ?'); values.push(enabled ? 1 : 0); }
