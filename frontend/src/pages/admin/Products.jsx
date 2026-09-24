@@ -349,7 +349,10 @@ export default function Products() {
 
       {displayCategories.length === 0 ? (
         <Card><Empty text={kw ? `${t('products.noMatchPrefix', '没有找到与')}"${searchKeyword}"${t('products.noMatchSuffix', '匹配的商品')}` : t('products.noCategories', '暂无商品分类，点击右上角添加')} icon="🍜" /></Card>
-      ) : displayCategories.map(cat => (
+      ) : displayCategories.map(cat => {
+        // 计算当前分类下被选中的商品数量
+        const catSelectedCount = (cat.products || []).filter(p => selectedIds.has(p.id)).length
+        return (
         <Card key={cat.id} className="overflow-hidden">
           {/* 分类头部 */}
           <div className="flex items-center justify-between px-5 py-4 bg-gray-50 border-b">
@@ -369,9 +372,9 @@ export default function Products() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
+              {catSelectedCount > 0 && (
                 <Button size="sm" variant="outline" className="border-indigo-300 text-indigo-600 hover:bg-indigo-50" onClick={openBatchMove}>
-                  {t('products.batchMovePrefix', '批量移动 (')}{selectedIds.size})
+                  {t('products.batchMovePrefix', '批量移动 (')}{catSelectedCount})
                 </Button>
               )}
               {cat.id !== 0 && (
@@ -407,7 +410,8 @@ export default function Products() {
             </div>
           )}
         </Card>
-      ))}
+        )
+      })}
 
       {/* 分类对话框 */}
       <Dialog open={!!catDialog} onClose={() => setCatDialog(null)} title={catDialog?.mode === 'add' ? t('products.addCategory', '新增分类') : t('products.editCategory', '编辑分类')} width="max-w-sm">
