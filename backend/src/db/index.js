@@ -342,53 +342,41 @@ try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEF
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 
-// ========== 操作人字段迁移：created_by / created_by_name / updated_by / updated_by_name ==========
-// 订单：谁下的单、谁改的状态
+// ========== 操作人字段迁移 ==========
 try { db.prepare("ALTER TABLE orders ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE orders ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE orders ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE orders ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 商品
 try { db.prepare("ALTER TABLE products ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE products ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE products ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE products ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 分类
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 外卖报表
 try { db.prepare("ALTER TABLE platform_reports ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platform_reports ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 外卖平台
 try { db.prepare("ALTER TABLE platforms ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 备忘录
 try { db.prepare("ALTER TABLE memos ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE memos ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 会员
 try { db.prepare("ALTER TABLE members ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE members ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 优惠券
 try { db.prepare("ALTER TABLE coupons ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE coupons ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 桌台
 try { db.prepare("ALTER TABLE tables ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE tables ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE tables ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE tables ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 轮播图
 try { db.prepare("ALTER TABLE carousel ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE carousel ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE carousel ADD COLUMN updated_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE carousel ADD COLUMN updated_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 口味标签
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
-// 订单状态
 try { db.prepare("ALTER TABLE order_statuses ADD COLUMN created_by INTEGER").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE order_statuses ADD COLUMN created_by_name TEXT DEFAULT ''").run(); } catch (e) {}
 
@@ -401,6 +389,71 @@ try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_radius REAL DEFAULT 
 try { db.prepare("ALTER TABLE platforms ADD COLUMN contact_person TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN rating REAL DEFAULT 0").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE platforms ADD COLUMN launch_date TEXT DEFAULT ''").run(); } catch (e) {}
+
+// ========== 菜单数据：主食 + 甜品 ==========
+try {
+  // 找到或创建"主食"分类
+  let stapleCat = db.prepare("SELECT id FROM categories WHERE name = '主食'").get();
+  if (!stapleCat) {
+    const maxSort = db.prepare("SELECT MAX(sort_order) as m FROM categories").get();
+    db.prepare("INSERT INTO categories (name, name_en, sort_order, enabled) VALUES ('主食', 'Rice & Noodles', ?, 1)").run((maxSort?.m || 0) + 1);
+    stapleCat = db.prepare("SELECT id FROM categories WHERE name = '主食'").get();
+  }
+  const stapleId = stapleCat.id;
+
+  // 找到或创建"甜品"分类
+  let dessertCat = db.prepare("SELECT id FROM categories WHERE name = '甜品'").get();
+  if (!dessertCat) {
+    const maxSort = db.prepare("SELECT MAX(sort_order) as m FROM categories").get();
+    db.prepare("INSERT INTO categories (name, name_en, sort_order, enabled) VALUES ('甜品', 'Dessert', ?, 1)").run((maxSort?.m || 0) + 1);
+    dessertCat = db.prepare("SELECT id FROM categories WHERE name = '甜品'").get();
+  }
+  const dessertId = dessertCat.id;
+
+  // 主食菜品
+  const staples = [
+    ['蛋炒饭', 'Egg Fried Rice', 9.95],
+    ['菜炒饭', 'Veggie Fried Rice', 10.95],
+    ['鸡炒饭', 'Chicken Fried Rice', 11.95],
+    ['虾炒饭', 'Shrimp Fried Rice', 13.95],
+    ['蛋炒面', 'Egg Fried Noodle', 12.95],
+    ['菜炒面', 'Veggie Fried Noodle', 13.95],
+    ['鸡炒面', 'Chicken Fried Noodle', 13.95],
+    ['虾炒面', 'Shrimp Fried Noodle', 15.95],
+    ['海鲜炒面', 'Seafood Fried Noodle', 15.95],
+  ];
+
+  // 甜品
+  const desserts = [
+    ['芝士蛋糕', 'NY Cheese Cake', 7.95],
+    ['红丝绒蛋糕', 'Red Velvet Cake', 7.95],
+    ['八宝饭', 'Eight-Treasure Rice', 7.95],
+    ['长乐冰饭', 'Changle Iced Sticky Rice', 8.95],
+    ['奶茶冰饭', 'Milk Tea Iced Sticky Rice', 9.95],
+    ['多彩流心酒酿丸子', 'Rainbow Mochi Sweet Soup', 12.95],
+  ];
+
+  const insertProduct = db.prepare("INSERT INTO products (name, name_en, category_id, price, available, sort_order) VALUES (?, ?, ?, ?, 1, ?)");
+  const checkProduct = db.prepare("SELECT id FROM products WHERE name = ? AND category_id = ?");
+
+  let stapleSort = 1;
+  staples.forEach(([name, nameEn, price]) => {
+    if (!checkProduct.get(name, stapleId)) {
+      insertProduct.run(name, nameEn, stapleId, price, stapleSort++);
+    }
+  });
+
+  let dessertSort = 1;
+  desserts.forEach(([name, nameEn, price]) => {
+    if (!checkProduct.get(name, dessertId)) {
+      insertProduct.run(name, nameEn, dessertId, price, dessertSort++);
+    }
+  });
+
+  console.log('[菜单] 主食' + staples.length + '道、甜品' + desserts.length + '道已就绪');
+} catch (e) {
+  console.error('[菜单] 主食/甜品导入失败:', e.message);
+}
 
 // ========== 运行各模块初始化数据 ==========
 require('./seeds/users')(db);
