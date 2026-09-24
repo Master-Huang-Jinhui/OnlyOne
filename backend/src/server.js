@@ -13,7 +13,7 @@ if (fs.existsSync(envPath)) {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
       const [key, ...valueParts] = trimmed.split('=');
-      const value = valueParts.join('=').trim().replace(/^["\']|["\']$/g, '');
+      const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
       if (!process.env[key.trim()]) process.env[key.trim()] = value;
     }
   });
@@ -36,16 +36,29 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-const allowedOrigins = [
-  /^https?:\\/\\/localhost(:\\d+)?$/,
-  /^https?:\\/\\/127\\.0\\.0\\.1(:\\d+)?$/,
-  /^https?:\\/\\/10\\.\\d+\\.\\d+\\.\\d+(:\\d+)?$/,
-  /^https?:\\/\\/172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+(:\\d+)?$/,
-  /^https?:\\/\\/192\\.168\\.\\d+\\.\\d+(:\\d+)?$/,
-];
+// CORS：允许本地和局域网来源（用hostname字符串判断，避免正则转义问题）
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  try {
+    const u = new URL(origin);
+    const h = u.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return true;
+    if (h.startsWith('10.')) return true;
+    if (h.startsWith('192.168.')) return true;
+    if (h.startsWith('172.')) {
+      const parts = h.split('.');
+      if (parts.length === 4) {
+        const second = parseInt(parts[1], 10);
+        if (second >= 16 && second <= 31) return true;
+      }
+    }
+    return false;
+  } catch { return false; }
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.some(regex => regex.test(origin))) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       console.log(`[CORS 拦截] 拒绝来源: ${origin}`);
@@ -134,7 +147,7 @@ app.get('/go', (req, res) => {
   }
   if (!target) target = req.query.url || req.query.target || '';
   if (!target) return res.redirect('/');
-  if (!/^https?:\\/\\//i.test(target)) return res.status(400).send('无效的跳转链接');
+  if (!target.startsWith('http://') && !target.startsWith('https://')) return res.status(400).send('无效的跳转链接');
   if (!platformId && !carouselId) console.log(`[外部跳转] 目标: ${target}, IP: ${req.ip}, 时间: ${new Date().toLocaleString()}`);
   res.redirect(302, target);
 });
@@ -174,7 +187,7 @@ try {
   platforms.forEach(p => {
     if (p.password && !isEncrypted(p.password)) {
       const encrypted = encrypt(p.password);
-      db.prepare('UPDATE platforms SET password = ? WHERE id = ?').run(encrypted, p.id);
+      db.prepare('UPDATE platforms SET password = ?').run(encrypted, p.id);
       migratedCount++;
       console.log(`[迁移] 平台 "${p.name}" 密码已加密`);
     }
