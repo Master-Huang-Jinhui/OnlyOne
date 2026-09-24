@@ -2,6 +2,8 @@ const express = require('express');
 const db = require('../db');
 const { auth, managerAccess } = require('../middleware/auth');
 
+// name_en 列已在 flavorTags.js 迁移
+
 const router = express.Router();
 
 const parseCategoryIds = (str) => { if (!str) return []; try { return JSON.parse(str); } catch (e) { return []; } };
@@ -29,21 +31,28 @@ router.post('/all', auth, managerAccess, (req, res) => {
 });
 
 router.post('/', auth, managerAccess, (req, res) => {
-  const { name, sort_order = 0, enabled = 1, category_ids = [] } = req.body;
+  const { name, name_en = '', sort_order = 0, enabled = 1, category_ids = [] } = req.body;
   if (!name) return res.status(400).json({ error: '请填写分类名称' });
   const exists = db.prepare('SELECT id FROM flavor_categories WHERE name = ?').get(name);
   if (exists) return res.status(400).json({ error: '该分类已存在' });
   const catIdsStr = JSON.stringify(Array.isArray(category_ids) ? category_ids : []);
-  const r = db.prepare('INSERT INTO flavor_categories (name, sort_order, enabled, category_ids) VALUES (?, ?, ?, ?)').run(name, sort_order, enabled, catIdsStr);
-  res.json({ id: r.lastInsertRowid, name, sort_order, enabled, category_ids });
+  const r = db.prepare('INSERT INTO flavor_categories (name, name_en, sort_order, enabled, category_ids) VALUES (?, ?, ?, ?, ?)').run(name, name_en, sort_order, enabled, catIdsStr);
+  res.json({ id: r.lastInsertRowid, name, name_en, sort_order, enabled, category_ids });
 });
 
 router.post('/update/:id', auth, managerAccess, (req, res) => {
-  const { name, sort_order, enabled, category_ids } = req.body;
+  const { name, name_en, sort_order, enabled, category_ids } = req.body;
   const cat = db.prepare('SELECT * FROM flavor_categories WHERE id = ?').get(req.params.id);
   if (!cat) return res.status(404).json({ error: '分类不存在' });
   const catIdsStr = category_ids !== undefined ? JSON.stringify(Array.isArray(category_ids) ? category_ids : []) : cat.category_ids;
-  db.prepare('UPDATE flavor_categories SET name = ?, sort_order = ?, enabled = ?, category_ids = ? WHERE id = ?').run(name || cat.name, sort_order !== undefined ? sort_order : cat.sort_order, enabled !== undefined ? enabled : cat.enabled, catIdsStr, req.params.id);
+  db.prepare('UPDATE flavor_categories SET name = ?, name_en = ?, sort_order = ?, enabled = ?, category_ids = ? WHERE id = ?').run(
+    name || cat.name,
+    name_en !== undefined ? name_en : (cat.name_en || ''),
+    sort_order !== undefined ? sort_order : cat.sort_order,
+    enabled !== undefined ? enabled : cat.enabled,
+    catIdsStr,
+    req.params.id
+  );
   if (name && name !== cat.name) { db.prepare('UPDATE flavor_tags SET category = ? WHERE category_id = ?').run(name, req.params.id); }
   res.json({ success: true });
 });
