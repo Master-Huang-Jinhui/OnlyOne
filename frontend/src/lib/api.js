@@ -102,8 +102,14 @@ export const api = {
       if (!res.ok) {
         const err = new Error(data.error || '上传失败')
         err.status = res.status
-        err.__handled = true
-        handleApiError(err, '/platform-reports/upload')
+        // 409重复报表：标记duplicate，不自动弹红色toast，交给前端弹紫色确认框
+        if (res.status === 409 && data.duplicate) {
+          err.duplicate = true
+          err.existing_id = data.existing_id
+        } else {
+          err.__handled = true
+          handleApiError(err, '/platform-reports/upload')
+        }
         throw err
       }
       return data
@@ -360,7 +366,7 @@ export const api = {
   getProductIngredients: (productId) => request(`/inventory/ingredients/list?product_id=${productId}`),
   saveProductIngredients: (productId, ingredients) => request('/inventory/ingredients/save', { body: JSON.stringify({ product_id: productId, ingredients }) }),
   getInventoryAlerts: () => request('/inventory/alerts'),
-  getInventoryTransactions: (params) => request(`/inventory/transactions/list?${new URLSearchParams(params || {}).toString()}`),
+  getInventoryTransactions: (params) => request(`/inventory/transactions/list?${new URLSearchParams(params).toString()}`),
   adjustStock: (data) => request('/inventory/goods/adjust', { body: JSON.stringify(data) }),
 
   getKDSPendingOrders: () => request('/kds/pending'),
