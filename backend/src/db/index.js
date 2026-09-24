@@ -207,6 +207,39 @@ try {
   }
 } catch (e) { console.error('[菜单] v8失败:', e.message); }
 
+// ========== 默认口味大类种子（幂等：已存在则跳过） ==========
+try {
+  const defaultFlavors = [
+    { name: '冰度', name_en: 'Ice Level', sort: 1, tags: [
+      ['正常冰', 'Regular Ice', 0, 1],
+      ['少冰', 'Less Ice', 0, 0],
+      ['去冰', 'No Ice', 0, 0],
+    ]},
+    { name: '甜度', name_en: 'Sweetness', sort: 2, tags: [
+      ['正常糖', 'Regular Sugar', 0, 1],
+      ['少糖', 'Less Sugar', 0, 0],
+      ['无糖', 'No Sugar', 0, 0],
+    ]},
+    { name: '辣度', name_en: 'Spiciness', sort: 3, tags: [
+      ['不辣', 'Non-spicy', 0, 1],
+      ['微辣', 'Mild', 0, 0],
+      ['中辣', 'Medium', 0, 0],
+      ['大辣', 'Spicy', 0, 0],
+    ]},
+  ];
+  for (const fc of defaultFlavors) {
+    const existing = db.prepare('SELECT id FROM flavor_categories WHERE name = ?').get(fc.name);
+    if (!existing) {
+      const catId = db.prepare('INSERT INTO flavor_categories (name, name_en, sort_order, enabled, category_ids) VALUES (?, ?, ?, 1, ?)').run(fc.name, fc.name_en, fc.sort, '[]').lastInsertRowid;
+      fc.tags.forEach(([tn, ten, price, isDef], i) => {
+        db.prepare('INSERT INTO flavor_tags (category_id, category, name, name_en, price, is_default, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, 1)')
+          .run(catId, fc.name, tn, ten, price, isDef, i + 1);
+      });
+      console.log(`[口味] 已添加默认大类：${fc.name} (${fc.name_en})，${fc.tags.length}个标签`);
+    }
+  }
+} catch (e) { console.error('[口味] 默认种子失败:', e.message); }
+
 require('./seeds/users')(db);
 require('./seeds/menus')(db);
 require('./seeds/platforms')(db);
