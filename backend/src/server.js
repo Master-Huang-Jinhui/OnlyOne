@@ -36,7 +36,6 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// CORS：允许本地和局域网来源（用hostname字符串判断，避免正则转义问题）
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
   try {
@@ -101,25 +100,31 @@ app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/queue', require('./routes/queue'));
 app.use('/api/translations', require('./routes/translations'));
 
-// 静态文件服务：uploads目录下的图片、报表等文件
-// PDF和CSV设置inline内联预览，不施加严格CSP以免浏览器查看器被阻止
 const uploadsDir = path.join(__dirname, '..', 'uploads');
+
+// CSV文件拦截：将CSV内容包装成HTML页面，确保浏览器内联显示而非下载
+app.use('/uploads', (req, res, next) => {
+  if (!req.path.endsWith('.csv')) return next();
+  const filePath = path.join(uploadsDir, req.path);
+  if (!fs.existsSync(filePath)) return next();
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const escaped = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>CSV报表</title><style>body{font-family:sans-serif;margin:0;padding:20px;background:#f0f2f5}.wrap{max-width:1200px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden}.header{padding:16px 24px;background:#1e293b;color:#fff}.header h1{margin:0;font-size:16px}pre{margin:0;padding:24px;overflow:auto;font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all}</style></head><body><div class="wrap"><div class="header"><h1>CSV 报表</h1></div><pre>' + escaped + '</pre></div></body></html>');
+  } catch (e) { next(e); }
+});
+
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (filePath.endsWith('.pdf')) {
-      // PDF报表：允许浏览器直接内联预览
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline');
-    } else if (filePath.endsWith('.csv')) {
-      // CSV报表：用text/plain让浏览器内联显示（text/csv会被浏览器强制下载）
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', 'inline');
     } else if (filePath.endsWith('.svg')) {
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Content-Disposition', 'inline');
     } else {
-      // 图片等其他文件：保持严格CSP
       res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
     }
   },
