@@ -123,6 +123,14 @@ export const api = {
   updateCategory: (id, data) => request(`/products/categories/update/${id}`, { body: JSON.stringify(data) }),
   deleteCategory: (id) => request(`/products/categories/delete/${id}`),
 
+  // 组合套餐
+  getCombos: () => request('/combos/list'),
+  getAllCombos: () => getRequest('/combos/all'),
+  getComboById: (id) => request(`/combos/detail/${id}`),
+  createCombo: (data) => request('/combos', { body: JSON.stringify(data) }),
+  updateCombo: (id, data) => request(`/combos/update/${id}`, { body: JSON.stringify(data) }),
+  deleteCombo: (id) => request(`/combos/delete/${id}`),
+
   createOrder: (data) => request('/orders', { body: JSON.stringify(data) }),
   getOrders: (params) => {
     const qs = new URLSearchParams()
