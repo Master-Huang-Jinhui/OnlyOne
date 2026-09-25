@@ -46,23 +46,38 @@ import EmployeeTableDetail from './pages/employee/EmployeeTableDetail'
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null } }
-  static getDerivedStateFromError(error) { return { hasError: true, error: null } }
+  static getDerivedStateFromError(error) { return { hasError: true, error } }
   componentDidCatch(error, errorInfo) { console.error('[渲染错误]', error, errorInfo) }
   render() {
     if (this.state.hasError) {
+      // 判断当前是否在管理端/员工端，决定"返回"按钮跳到哪里
+      const isAdminArea = window.location.pathname.startsWith('/admin')
+      const isEmployeeArea = window.location.pathname.startsWith('/employee')
+      const homePath = isEmployeeArea ? '/employee' : (isAdminArea ? '/admin' : '/')
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-            <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">页面出现错误</h2>
-            <p className="text-sm text-gray-500 mb-4">很抱歉，页面加载时遇到了问题。</p>
-            <div className="bg-red-50 rounded-lg p-3 mb-4 text-left">
-              <p className="text-xs text-red-600 font-mono break-all">{this.state.error?.message || '未知错误'}</p>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center gap-3 px-5 py-4 bg-amber-50 border-b border-amber-100 rounded-t-xl">
+              <span className="text-2xl">⏳</span>
+              <h3 className="text-lg font-semibold text-amber-700">系统正在为你处理</h3>
             </div>
-            <p className="text-xs text-amber-600 mb-4">该功能尚未完善，请联系管理员</p>
-            <div className="flex gap-2 justify-center">
-              <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/' }} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">返回首页</button>
+            <div className="p-5">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                很抱歉，页面加载时遇到了问题。我们正在为你处理，请稍后重试。
+              </p>
+              {this.state.error?.message && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 font-mono break-all">{this.state.error.message}</p>
+                </div>
+              )}
+              <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p className="text-sm text-amber-700">📞 该功能尚未完善，请联系管理员</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-3">
               <button onClick={() => window.location.reload()} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">刷新页面</button>
+              <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = homePath }} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">返回工作台</button>
             </div>
           </div>
         </div>
@@ -77,9 +92,10 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false, e
   const { t } = useLanguage()
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">{t('common.loading', '加载中...')}</div>
   if (!user) return <Navigate to="/login" />
-  if (superAdminOnly && user.role !== 'admin') return <Navigate to="/" />
-  if (adminOnly && user.role !== 'admin' && user.role !== 'manager') return <Navigate to="/" />
-  if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/" />
+  // 权限不足时：根据角色回到各自工作台，而不是跳到客户前台
+  if (superAdminOnly && user.role !== 'admin') return <Navigate to={user.role === 'employee' ? '/employee' : '/admin'} />
+  if (adminOnly && user.role !== 'admin' && user.role !== 'manager') return <Navigate to={user.role === 'employee' ? '/employee' : '/admin'} />
+  if (employeeOnly && user.role !== 'admin' && user.role !== 'employee') return <Navigate to="/admin" />
   return children
 }
 

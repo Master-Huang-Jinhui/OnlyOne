@@ -243,6 +243,12 @@ export function ErrorDialogContainer() {
     setErrorDialogFn(({ title, detail, showContact }) => {
       setError({ title, detail, showContact })
     })
+    // 监听 errorHandler.js 派发的 CustomEvent（全局API错误弹窗，不跳页）
+    const handler = (e) => {
+      setError({ title: e.detail.title, detail: e.detail.detail, showContact: e.detail.showContact })
+    }
+    window.addEventListener('app-error-dialog', handler)
+    return () => window.removeEventListener('app-error-dialog', handler)
   }, [])
 
   if (!error) return null
@@ -251,15 +257,15 @@ export function ErrorDialogContainer() {
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={() => setError(null)} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md animate-fade-in">
-        {/* 错误标题栏 */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border-b border-red-100 rounded-t-xl">
-          <span className="text-2xl">⚠️</span>
-          <h3 className="text-lg font-semibold text-red-700">{error.title || '操作失败'}</h3>
+        {/* 标题栏：系统正在为你处理 */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-amber-50 border-b border-amber-100 rounded-t-xl">
+          <span className="text-2xl">⏳</span>
+          <h3 className="text-lg font-semibold text-amber-700">{error.title || '系统正在为你处理'}</h3>
         </div>
         {/* 错误详情 */}
         <div className="p-5">
           <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap break-all">
-            {error.detail || '发生了未知错误，请稍后重试。'}
+            {error.detail || '发生了错误，请稍后重试。'}
           </p>
           {error.showContact && (
             <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">

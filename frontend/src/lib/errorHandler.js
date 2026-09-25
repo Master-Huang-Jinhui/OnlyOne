@@ -16,6 +16,16 @@ function showToast(message, type = 'error') {
   if (toastFn) toastFn(message, type)
 }
 
+// 通过 CustomEvent 弹出组件式错误对话框（不跳页、不刷新）
+// ErrorDialogContainer 在 App.jsx 中挂载，会监听此事件
+function showErrorModal(title, detail, showContact = true) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('app-error-dialog', {
+      detail: { title, detail, showContact }
+    }))
+  }
+}
+
 // 记录错误到控制台（开发环境可查看详细堆栈）
 function logError(error, context) {
   const prefix = context ? `[${context}]` : '[错误]'
@@ -31,7 +41,7 @@ function logError(error, context) {
 // 参数：
 //   error - 捕获到的Error对象
 //   context - 出错的接口路径或场景描述
-//   silent - 设为true则不自动弹toast（调用方自己处理提示）
+//   silent - 设为true则不自动弹（调用方自己处理）
 // ============================================================
 export function handleApiError(error, context, silent = false) {
   logError(error, context)
@@ -47,7 +57,7 @@ export function handleApiError(error, context, silent = false) {
 
   // 401 未授权：token过期或未登录
   if (error.status === 401) {
-    showToast('登录已过期，请重新登录', 'error')
+    showToast('登录已过期，正在跳转登录页...', 'error')
     setTimeout(() => { window.location.href = '/login' }, 1500)
     return
   }
@@ -64,9 +74,13 @@ export function handleApiError(error, context, silent = false) {
     return
   }
 
-  // 500 服务器内部错误
+  // 500 服务器内部错误：弹组件式对话框，不跳页
   if (error.status >= 500) {
-    showToast('服务器内部错误，请稍后重试', 'error')
+    showErrorModal(
+      '系统正在为你处理',
+      error.message && error.message !== '请求失败' ? error.message : '服务器开小差了，请稍后重试。',
+      true
+    )
     return
   }
 
@@ -76,39 +90,31 @@ export function handleApiError(error, context, silent = false) {
     return
   }
 
-  // 未知错误：显示通用提示
-  showToast(FEATURE_NOT_IMPLEMENTED, 'error')
+  // 未知错误：弹对话框
+  showErrorModal('系统正在为你处理', FEATURE_NOT_IMPLEMENTED, true)
 }
 
 // ============================================================
-// 显示"功能尚未完善"提示
+// 显示"功能尚未完善"对话框
 // 参数：featureName - 功能名称（可选）
 // ============================================================
 export function showFeatureNotImplemented(featureName) {
   const msg = featureName
     ? `「${featureName}」${FEATURE_NOT_IMPLEMENTED}`
     : FEATURE_NOT_IMPLEMENTED
-  showToast(msg, 'error')
+  showErrorModal('系统正在为你处理', msg, true)
 }
 
 // ============================================================
-// 显示错误弹窗（详细错误信息+联系管理员按钮）
-// 通过setErrorDialogFn注册渲染函数
+// 弹出错误对话框（兼容旧调用）
 // ============================================================
 let errorDialogFn = null
 export function setErrorDialogFn(fn) { errorDialogFn = fn }
-
-// 弹出错误对话框
-// 参数：
-//   title - 错误标题（如"操作失败"）
-//   detail - 详细错误信息（如后端返回的error字段）
-//   showContact - 是否显示"联系管理员"按钮（默认true）
 export function showErrorDialog(title = '操作失败', detail = '', showContact = true) {
   if (errorDialogFn) {
     errorDialogFn({ title, detail, showContact })
   } else {
-    // 如果弹窗组件未挂载，降级为toast
-    showToast(detail || title, 'error')
+    showErrorModal(title, detail, showContact)
   }
 }
 
@@ -126,22 +132,19 @@ export function initGlobalErrorHandlers() {
     if (reason && reason.__handled) return
 
     logError(reason, '未处理的Promise错误')
-
-    const message = reason?.message || FEATURE_NOT_IMPLEMENTED
-    showToast(message, 'error')
+    showErrorModal('系统正在为你处理', reason?.message || FEATURE_NOT_IMPLEMENTED, true)
   })
 
   // 捕获运行时JavaScript错误（同步代码中的未捕获异常）
   window.addEventListener('error', (event) => {
     logError(event.error || event.message, '运行时错误')
-    // 不在这里弹toast，避免React组件渲染错误时频繁弹窗
+    // 不在这里弹，避免React组件渲染错误时频繁弹窗
     // 渲染错误由ErrorBoundary组件统一处理
   })
 }
 
 // ============================================================
 // 包装异步函数，自动捕获错误并弹提示
-// 用法：const safeLoad = withErrorHandler(async () => { ... })
 // ============================================================
 export function withErrorHandler(fn, context = '操作') {
   return async (...args) => {
@@ -149,7 +152,7 @@ export function withErrorHandler(fn, context = '操作') {
       return await fn(...args)
     } catch (error) {
       handleApiError(error, context)
-      throw error // 仍然抛出，让调用方可以决定是否继续
+      throw error
     }
   }
 }
