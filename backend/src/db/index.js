@@ -49,6 +49,12 @@ try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN price REAL DEFAULT 0").run(
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN category_ids TEXT DEFAULT '[]'").run(); } catch (e) {}
+// members 表补充缺失列
+try { db.prepare("ALTER TABLE members ADD COLUMN birthday TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE members ADD COLUMN level TEXT DEFAULT '普通会员'").run(); } catch (e) {}
+// points_logs 表补充缺失列
+try { db.prepare("ALTER TABLE points_logs ADD COLUMN balance INTEGER DEFAULT 0").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE points_logs ADD COLUMN reason TEXT DEFAULT ''").run(); } catch (e) {}
 [
   ['orders','created_by'],['orders','created_by_name'],['orders','updated_by'],['orders','updated_by_name'],
   ['products','created_by'],['products','created_by_name'],['products','updated_by'],['products','updated_by_name'],
@@ -235,7 +241,6 @@ try {
 try {
   const t = (key, page, zh, en, desc = '') => ({ key, page, desc, translations: { zh, en } });
   const seed = [
-    // 侧边栏
     t('nav.dashboard','sidebar','仪表盘','Dashboard'),
     t('nav.order_center','sidebar','订单中心','Order Center'),
     t('nav.all_orders','sidebar','全部订单','All Orders'),
@@ -265,12 +270,10 @@ try {
     t('nav.menu_config','sidebar','菜单配置','Menu Config'),
     t('nav.forms','sidebar','表单管理','Form Management'),
     t('nav.translations','sidebar','翻译管理','Translations'),
-    // 顶部栏
     t('top.welcome','topbar','欢迎回来','Welcome back'),
     t('top.view_frontend','topbar','查看前台','View Frontend'),
     t('top.logout','topbar','退出登录','Logout'),
     t('top.super_admin','topbar','超级管理员','Super Admin'),
-    // 仪表盘
     t('dash.today_orders','dashboard','今日订单',"Today's Orders"),
     t('dash.today_revenue','dashboard','今日营收',"Today's Revenue"),
     t('dash.pending_orders','dashboard','待处理订单','Pending Orders'),
@@ -287,7 +290,6 @@ try {
     t('dash.platforms','dashboard','外卖平台','Delivery Platforms'),
     t('dash.manage','dashboard','管理','Manage'),
     t('dash.no_phone','dashboard','无电话','No Phone'),
-    // 通用按钮
     t('common.save','common','保存','Save'),
     t('common.cancel','common','取消','Cancel'),
     t('common.delete','common','删除','Delete'),
