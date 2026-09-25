@@ -3,6 +3,7 @@ const router = express.Router()
 const db = require('../db')
 const { auth, managerAccess } = require('../middleware/auth')
 
+// 仪表盘概览
 router.post('/overview', auth, managerAccess, (req, res) => {
   const { start_date, end_date } = req.body || {}
   let w = "WHERE status != 'cancelled'"; const p = []
@@ -16,6 +17,31 @@ router.post('/overview', auth, managerAccess, (req, res) => {
   const todayO = db.prepare("SELECT COUNT(*) c FROM orders WHERE date(created_at)=? AND status!='cancelled'").get(t).c
   const todayR = db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE date(created_at)=? AND status!='cancelled'").get(t).s
   res.json({ totalOrders, totalRevenue, avgOrder: totalOrders>0?totalRevenue/totalOrders:0, totalQty, todayOrders: todayO, todayRevenue: todayR })
+})
+
+// 仪表盘：热销 TOP5（前端仪表盘调用此路径）
+router.post('/products/top5', auth, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT o.items FROM orders o
+      WHERE o.status NOT IN ('cancelled','completed')
+    `).all()
+    const pm = {}
+    rows.forEach(o => {
+      try {
+        JSON.parse(o.items || '[]').forEach(it => {
+          const id = it.id || it.product_id
+          if (!id) return
+          if (!pm[id]) pm[id] = { product_id: id, name: it.name || '', name_en: it.name_en || '', image: it.image || '', quantity: 0, revenue: 0 }
+          pm[id].quantity += +it.quantity || 0
+          pm[id].revenue += (+it.price || 0) * (+it.quantity || 0)
+        })
+      } catch {}
+    })
+    res.json(Object.values(pm).sort((a, b) => b.quantity - a.quantity).slice(0, 5))
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 router.post('/trend', auth, managerAccess, (req, res) => {
@@ -79,7 +105,7 @@ router.post('/top/products', auth, managerAccess, (req, res) => {
   res.json(Object.values(pm).sort((a,b)=>b.quantity-a.quantity).slice(0,limit))
 })
 
-// 外卖菜品报表：只统计配送+外带订单的菜品销售
+// 外卖菜品报表
 router.post('/delivery-products', auth, managerAccess, (req, res) => {
   const { start_date, end_date } = req.body||{}
   let w = "WHERE o.status!='cancelled' AND o.dining_type IN ('delivery','takeout')"; const p = []
