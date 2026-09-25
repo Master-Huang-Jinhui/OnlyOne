@@ -46,7 +46,6 @@ try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEF
 try { db.prepare("ALTER TABLE categories ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN price REAL DEFAULT 0").run(); } catch (e) {}
-// 口味标签/大类双语字段迁移（旧库补列）
 try { db.prepare("ALTER TABLE flavor_tags ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
 try { db.prepare("ALTER TABLE flavor_categories ADD COLUMN category_ids TEXT DEFAULT '[]'").run(); } catch (e) {}
@@ -195,7 +194,6 @@ try {
       items.forEach(([n,en,p,pid]) => { ins.run(n, en, C[catName], p, img(pid), s++); total++; });
     }
 
-    // 小料
     db.prepare('DELETE FROM flavor_tags').run();
     db.prepare('DELETE FROM flavor_categories').run();
     const fcId = db.prepare("INSERT INTO flavor_categories (name, sort_order, enabled) VALUES ('小料 Toppings', 1, 1)").lastInsertRowid;
@@ -211,20 +209,13 @@ try {
 try {
   const defaultFlavors = [
     { name: '冰度', name_en: 'Ice Level', sort: 1, tags: [
-      ['正常冰', 'Regular Ice', 0, 1],
-      ['少冰', 'Less Ice', 0, 0],
-      ['去冰', 'No Ice', 0, 0],
+      ['正常冰', 'Regular Ice', 0, 1], ['少冰', 'Less Ice', 0, 0], ['去冰', 'No Ice', 0, 0],
     ]},
     { name: '甜度', name_en: 'Sweetness', sort: 2, tags: [
-      ['正常糖', 'Regular Sugar', 0, 1],
-      ['少糖', 'Less Sugar', 0, 0],
-      ['无糖', 'No Sugar', 0, 0],
+      ['正常糖', 'Regular Sugar', 0, 1], ['少糖', 'Less Sugar', 0, 0], ['无糖', 'No Sugar', 0, 0],
     ]},
     { name: '辣度', name_en: 'Spiciness', sort: 3, tags: [
-      ['不辣', 'Non-spicy', 0, 1],
-      ['微辣', 'Mild', 0, 0],
-      ['中辣', 'Medium', 0, 0],
-      ['大辣', 'Spicy', 0, 0],
+      ['不辣', 'Non-spicy', 0, 1], ['微辣', 'Mild', 0, 0], ['中辣', 'Medium', 0, 0], ['大辣', 'Spicy', 0, 0],
     ]},
   ];
   for (const fc of defaultFlavors) {
@@ -239,6 +230,98 @@ try {
     }
   }
 } catch (e) { console.error('[口味] 默认种子失败:', e.message); }
+
+// ========== 翻译种子（幂等：已存在则跳过，不覆盖用户自定义） ==========
+try {
+  const t = (key, page, zh, en, desc = '') => ({ key, page, desc, translations: { zh, en } });
+  const seed = [
+    // 侧边栏
+    t('nav.dashboard','sidebar','仪表盘','Dashboard'),
+    t('nav.order_center','sidebar','订单中心','Order Center'),
+    t('nav.all_orders','sidebar','全部订单','All Orders'),
+    t('nav.dinein_tables','sidebar','堂吃桌台','Dine-in Tables'),
+    t('nav.queue','sidebar','排队叫号','Queue'),
+    t('nav.kitchen','sidebar','厨房显示','Kitchen Display'),
+    t('nav.order_status','sidebar','订单状态配置','Order Status Config'),
+    t('nav.menu','sidebar','菜单管理','Menu Management'),
+    t('nav.products','sidebar','菜品列表','Product List'),
+    t('nav.flavors','sidebar','口味规格','Flavor Specs'),
+    t('nav.combos','sidebar','组合套餐','Combos'),
+    t('nav.delivery','sidebar','外卖管理','Delivery'),
+    t('nav.platforms','sidebar','外卖平台','Platforms'),
+    t('nav.platform_reports','sidebar','外卖报表','Reports'),
+    t('nav.product_reports','sidebar','外卖菜品报表','Product Reports'),
+    t('nav.members_staff','sidebar','会员与员工','Members & Staff'),
+    t('nav.members','sidebar','会员列表','Members'),
+    t('nav.coupons','sidebar','优惠券','Coupons'),
+    t('nav.staff','sidebar','员工列表','Staff'),
+    t('nav.roles','sidebar','角色权限','Roles & Permissions'),
+    t('nav.finance','sidebar','财务与报表','Finance & Reports'),
+    t('nav.sales','sidebar','销售统计','Sales Stats'),
+    t('nav.deep_reports','sidebar','深度报表','Deep Reports'),
+    t('nav.inventory','sidebar','货物进货','Inventory'),
+    t('nav.settings','sidebar','系统设置','Settings'),
+    t('nav.homepage','sidebar','首页内容','Homepage Content'),
+    t('nav.menu_config','sidebar','菜单配置','Menu Config'),
+    t('nav.forms','sidebar','表单管理','Form Management'),
+    t('nav.translations','sidebar','翻译管理','Translations'),
+    // 顶部栏
+    t('top.welcome','topbar','欢迎回来','Welcome back'),
+    t('top.view_frontend','topbar','查看前台','View Frontend'),
+    t('top.logout','topbar','退出登录','Logout'),
+    t('top.super_admin','topbar','超级管理员','Super Admin'),
+    // 仪表盘
+    t('dash.today_orders','dashboard','今日订单',"Today's Orders"),
+    t('dash.today_revenue','dashboard','今日营收',"Today's Revenue"),
+    t('dash.pending_orders','dashboard','待处理订单','Pending Orders'),
+    t('dash.week_orders','dashboard','本周订单',"This Week's Orders"),
+    t('dash.top5','dashboard','菜品热销 TOP5','Top 5 Products'),
+    t('dash.view_full','dashboard','点击查看完整统计','View Full Stats'),
+    t('dash.no_sales','dashboard','暂无销售数据','No Sales Data'),
+    t('dash.memos','dashboard','备忘录/重点事项','Memos / Important Notes'),
+    t('dash.add','dashboard','添加','Add'),
+    t('dash.no_memos','dashboard','暂无备忘','No Memos'),
+    t('dash.today_pending','dashboard','今日待处理订单',"Today's Pending Orders"),
+    t('dash.all_orders','dashboard','全部订单','All Orders'),
+    t('dash.no_pending','dashboard','今日暂无待处理订单','No Pending Orders Today'),
+    t('dash.platforms','dashboard','外卖平台','Delivery Platforms'),
+    t('dash.manage','dashboard','管理','Manage'),
+    t('dash.no_phone','dashboard','无电话','No Phone'),
+    // 通用按钮
+    t('common.save','common','保存','Save'),
+    t('common.cancel','common','取消','Cancel'),
+    t('common.delete','common','删除','Delete'),
+    t('common.edit','common','编辑','Edit'),
+    t('common.add','common','添加','Add'),
+    t('common.search','common','搜索','Search'),
+    t('common.confirm','common','确认','Confirm'),
+    t('common.close','common','关闭','Close'),
+    t('common.submit','common','提交','Submit'),
+    t('common.export','common','导出','Export'),
+    t('common.import','common','导入','Import'),
+    t('common.enabled','common','启用','Enabled'),
+    t('common.disabled','common','禁用','Disabled'),
+    t('common.status','common','状态','Status'),
+    t('common.name','common','名称','Name'),
+    t('common.price','common','价格','Price'),
+    t('common.action','common','操作','Action'),
+    t('common.created_at','common','创建时间','Created At'),
+    t('common.updated_at','common','更新时间','Updated At'),
+    t('common.remark','common','备注','Note'),
+    t('common.tip','common','提示','Notice'),
+    t('common.success','common','成功','Success'),
+    t('common.error','common','错误','Error'),
+    t('common.no_data','common','暂无数据','No Data'),
+    t('common.loading','common','加载中...','Loading...'),
+  ];
+  const ins = db.prepare('INSERT OR IGNORE INTO translations (key, page, description, translations) VALUES (?, ?, ?, ?)');
+  let n = 0;
+  seed.forEach(item => {
+    ins.run(item.key, item.page, item.desc, JSON.stringify(item.translations));
+    n++;
+  });
+  console.log(`[翻译] 已检查 ${n} 条默认翻译（已存在的不覆盖）`);
+} catch (e) { console.error('[翻译] 种子失败:', e.message); }
 
 require('./seeds/users')(db);
 require('./seeds/menus')(db);
