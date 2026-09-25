@@ -1,5 +1,8 @@
 // 菜单初始化数据（含中英文名称）
 module.exports = function(db) {
+  // 旧库补 name_en 列
+  try { db.prepare("ALTER TABLE menus ADD COLUMN name_en TEXT DEFAULT ''").run(); } catch (e) {}
+
   db.prepare(`DELETE FROM menus`).run();
 
   const parentMenus = [
