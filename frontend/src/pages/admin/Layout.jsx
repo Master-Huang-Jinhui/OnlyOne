@@ -7,13 +7,16 @@ import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
   const [menus, setMenus] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState([])
+
+  // 根据当前语言返回菜单显示名
+  const menuName = (m) => language === 'en' ? (m.name_en || m.name) : m.name
 
   const toggleMenu = (id) => {
     setExpandedMenus(prev =>
@@ -36,14 +39,10 @@ export default function AdminLayout() {
   useEffect(() => {
     api.getAllMenus().then(data => {
       let menuList = Array.isArray(data) ? data : []
-      // 只显示启用的菜单
       menuList = menuList.filter(m => m.enabled === 1 || m.enabled === true)
-      // 非超级管理员都需要过滤菜单（基于角色权限或用户个人权限）
       if (user?.role !== 'admin') {
         try {
           const perms = user.permissions || {}
-          // 只有配置了 menus 字段才过滤（空数组表示无权限）
-          // 未配置 menus 字段的老数据保持全部可见
           if (perms.menus !== undefined) {
             const allowedIds = perms.menus || []
             const allowed = menuList.filter(m => allowedIds.includes(m.id))
@@ -54,7 +53,6 @@ export default function AdminLayout() {
         } catch {}
       }
       setMenus(menuList)
-      // 默认展开所有有子菜单的一级菜单
       const toNum = (v) => v == null ? 0 : Number(v)
       const parentIds = menuList.filter(m => toNum(m.parent_id) === 0 && menuList.some(child => toNum(child.parent_id) === toNum(m.id))).map(m => m.id)
       setExpandedMenus(parentIds)
@@ -70,7 +68,6 @@ export default function AdminLayout() {
 
   return (
     <div className={`flex min-h-screen bg-gray-50 ${darkMode ? 'dark-admin' : ''}`}>
-      {/* 移动端遮罩 */}
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
@@ -78,7 +75,6 @@ export default function AdminLayout() {
         />
       )}
 
-      {/* 侧边栏 - 手机端fixed抽屉，桌面端sticky固定 */}
       <aside className={`
         fixed top-0 left-0 h-full bg-white border-r border-gray-200 flex flex-col z-50
         transition-transform duration-300 lg:transition-none
@@ -107,7 +103,6 @@ export default function AdminLayout() {
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           {(() => {
-            // 构建树形菜单（兼容 parent_id 为 0/NULL/字符串/数字）
             const toNum = (v) => v == null ? 0 : Number(v)
             const parents = menus.filter(m => toNum(m.parent_id) === 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
             const childrenOf = (pid) => menus.filter(m => toNum(m.parent_id) === toNum(pid) && toNum(m.parent_id) !== 0).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
@@ -116,7 +111,6 @@ export default function AdminLayout() {
               const children = childrenOf(menu.id)
               const hasChildren = children.length > 0
 
-              // 有子菜单的一级菜单：只展开/收起，不跳转
               if (hasChildren) {
                 return (
                   <div key={menu.id} className="mb-1">
@@ -127,12 +121,11 @@ export default function AdminLayout() {
                       <span className="text-lg">{menu.icon || '📄'}</span>
                       {!desktopCollapsed && (
                         <>
-                          <span className="flex-1 text-left">{menu.name}</span>
+                          <span className="flex-1 text-left">{menuName(menu)}</span>
                           <span className="text-xs text-gray-400">{expandedMenus.includes(menu.id) ? '▼' : '▶'}</span>
                         </>
                       )}
                     </button>
-                    {/* 子菜单 */}
                     {expandedMenus.includes(menu.id) && !desktopCollapsed && (
                       <div className="mt-1">
                         {children.map(child => (
@@ -147,7 +140,7 @@ export default function AdminLayout() {
                             }
                           >
                             <span className="text-xs">└</span>
-                            <span>{child.name}</span>
+                            <span>{menuName(child)}</span>
                           </NavLink>
                         ))}
                       </div>
@@ -156,7 +149,6 @@ export default function AdminLayout() {
                 )
               }
 
-              // 没有子菜单的一级菜单：直接跳转
               return (
                 <NavLink
                   key={menu.id}
@@ -169,7 +161,7 @@ export default function AdminLayout() {
                   }
                 >
                   <span className="text-lg">{menu.icon || '📄'}</span>
-                  {!desktopCollapsed && <span>{menu.name}</span>}
+                  {!desktopCollapsed && <span>{menuName(menu)}</span>}
                 </NavLink>
               )
             })
@@ -177,9 +169,7 @@ export default function AdminLayout() {
         </nav>
       </aside>
 
-      {/* 主内容区 */}
       <div className="flex-1 min-w-0">
-        {/* 顶部栏 - 手机端显示汉堡按钮 */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
@@ -212,7 +202,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* 页面内容 */}
         <main className="p-4 lg:p-6">
           <Outlet />
         </main>
