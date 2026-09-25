@@ -376,21 +376,34 @@ db.exec(`
 `);
 
 // ========== 自动迁移：新增列 ==========
-try {
-  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run();
-} catch (e) {}
-try {
-  db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run();
-} catch (e) {}
-// tables表补字段
+try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run(); } catch (e) {}
+
+// tables表补字段（旧库可能缺）
+try { db.prepare('ALTER TABLE tables ADD COLUMN zone_id INTEGER').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN note TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN min_charge REAL DEFAULT 0').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN waiter_id INTEGER').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN waiter_name TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN qr_custom_url TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN current_session TEXT').run(); } catch (e) {}
-// orders表补table_session
+
+// orders表补字段
 try { db.prepare('ALTER TABLE orders ADD COLUMN table_session TEXT').run(); } catch (e) {}
+
+// members表补字段
+try { db.prepare("ALTER TABLE members ADD COLUMN email TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE members ADD COLUMN birthday TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE members ADD COLUMN note TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE members ADD COLUMN level TEXT DEFAULT '普通会员'").run(); } catch (e) {}
+
+// points_logs表补字段
+try { db.prepare('ALTER TABLE points_logs ADD COLUMN balance INTEGER DEFAULT 0').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE points_logs ADD COLUMN reason TEXT DEFAULT ''").run(); } catch (e) {}
+
+// member_coupons表补claimed_at
+try { db.prepare("ALTER TABLE member_coupons ADD COLUMN claimed_at TEXT DEFAULT (datetime('now','localtime'))").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE member_coupons ADD COLUMN used_at TEXT').run(); } catch (e) {}
 
 // ========== 运行各模块初始化数据 ==========
 require('./seeds/users')(db);
