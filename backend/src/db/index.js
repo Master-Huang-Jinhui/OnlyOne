@@ -379,6 +379,13 @@ db.exec(`
 try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_count INTEGER DEFAULT 0').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE platform_reports ADD COLUMN refund_amount REAL DEFAULT 0').run(); } catch (e) {}
 
+// users表补字段（旧库可能缺）
+try { db.prepare('ALTER TABLE users ADD COLUMN role_id INTEGER').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE users ADD COLUMN avatar TEXT').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE users ADD COLUMN enabled INTEGER DEFAULT 1').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch (e) {}
+
 // tables表补字段（旧库可能缺）
 try { db.prepare('ALTER TABLE tables ADD COLUMN zone_id INTEGER').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN note TEXT').run(); } catch (e) {}
