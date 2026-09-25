@@ -9,32 +9,30 @@ function getBusinessDayStart() {
   const setting = db.prepare("SELECT value FROM settings WHERE key = 'business_day_start'").get();
   const startStr = setting?.value || '04:00';
   const [startHour, startMinute] = startStr.split(':').map(Number);
-  
+
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(startHour, startMinute, 0, 0);
-  
-  // 如果当前时间早于今天的营业日开始时间，则营业日从昨天开始
+
   if (now < todayStart) {
     todayStart.setDate(todayStart.getDate() - 1);
   }
-  
-  // 格式化为 SQLite datetime 格式
+
   const pad = (n) => String(n).padStart(2, '0');
   return `${todayStart.getFullYear()}-${pad(todayStart.getMonth() + 1)}-${pad(todayStart.getDate())} ${pad(todayStart.getHours())}:${pad(todayStart.getMinutes())}:00`;
 }
 
-// KDS 待制作订单列表（pending + preparing 状态，只显示当前营业日的订单，按时间正序，最早下单的先做）
+// KDS 待制作订单列表（pending + preparing 状态，只显示当前营业日的订单）
 router.post('/pending', auth, (req, res) => {
   const businessDayStart = getBusinessDayStart();
   const orders = db.prepare(`
-    SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id, o.table_session,
-           t.table_no as table_name, t.zone as table_position
+    SELECT o.id, o.order_no, o.items, o.dining_type, o.customer_name, o.note, o.status, o.created_at, o.table_id,
+           t.table_no as table_name
     FROM orders o
     LEFT JOIN tables t ON o.table_id = t.id
     WHERE o.status IN ('pending', 'preparing')
       AND o.created_at >= ?
-    ORDER BY 
+    ORDER BY
       CASE o.status WHEN 'pending' THEN 0 ELSE 1 END,
       o.created_at ASC
   `).all(businessDayStart);
@@ -73,13 +71,7 @@ router.post('/advance/:id', auth, (req, res) => {
     return res.status(400).json({ error: '当前状态无法推进' });
   }
 
-  const timeField = nextStatus === 'preparing' ? 'start_time' : nextStatus === 'ready' ? 'ready_time' : null;
-  if (timeField) {
-    db.prepare(`UPDATE orders SET status = ?, ${timeField} = datetime('now','localtime') WHERE id = ?`).run(nextStatus, order.id);
-  } else {
-    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(nextStatus, order.id);
-  }
-
+  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(nextStatus, order.id);
   res.json({ success: true, status: nextStatus, label: nextLabel });
 });
 
@@ -88,16 +80,15 @@ router.post('/complete/:id', auth, (req, res) => {
   const order = db.prepare('SELECT id, status, dining_type FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: '订单不存在' });
 
-  // 堂吃订单不能在KDS完成，需要到收银台结账
   if (order.dining_type === 'dinein' || order.dining_type === 'dine_in') {
     return res.status(400).json({ error: '堂吃订单请到收银台结账' });
   }
 
-  db.prepare(`UPDATE orders SET status = 'completed', complete_time = datetime('now','localtime') WHERE id = ?`).run(order.id);
+  db.prepare("UPDATE orders SET status = 'completed' WHERE id = ?").run(order.id);
   res.json({ success: true });
 });
 
-// KDS 统计（待做数量、制作中数量、今日完成数量，只统计当前营业日的订单）
+// KDS 统计
 router.post('/stats', auth, (req, res) => {
   const businessDayStart = getBusinessDayStart();
   const pending = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending' AND created_at >= ?").get(businessDayStart).cnt;
@@ -128,7 +119,7 @@ router.post('/receipt/:id', auth, (req, res) => {
     dining_type: order.dining_type,
     customer_name: order.customer_name,
     customer_phone: order.customer_phone,
-    customer_address: order.customer_address,
+    address: order.address,
     note: order.note,
     items,
     subtotal: order.subtotal,
