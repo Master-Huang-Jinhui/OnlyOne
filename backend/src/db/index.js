@@ -42,6 +42,19 @@ db.exec(`
     sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1,
     weekly_status TEXT DEFAULT '{}',
+    account TEXT DEFAULT '',
+    phone TEXT DEFAULT '',
+    note TEXT DEFAULT '',
+    commission_rate REAL DEFAULT 0,
+    payout_schedule TEXT DEFAULT 'weekly',
+    delivery_type TEXT DEFAULT 'platform',
+    min_order REAL DEFAULT 0,
+    delivery_radius REAL DEFAULT 0,
+    contact_person TEXT DEFAULT '',
+    rating REAL DEFAULT 0,
+    launch_date TEXT DEFAULT '',
+    online_status INTEGER DEFAULT 0,
+    online_updated_at TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
 
@@ -386,6 +399,21 @@ try { db.prepare('ALTER TABLE users ADD COLUMN avatar TEXT').run(); } catch (e) 
 try { db.prepare('ALTER TABLE users ADD COLUMN enabled INTEGER DEFAULT 1').run(); } catch (e) {}
 try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch (e) {}
 
+// platforms表补字段（旧库可能缺）
+try { db.prepare("ALTER TABLE platforms ADD COLUMN account TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN phone TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN note TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN commission_rate REAL DEFAULT 0').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN payout_schedule TEXT DEFAULT 'weekly'").run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN delivery_type TEXT DEFAULT 'platform'").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN min_order REAL DEFAULT 0').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN delivery_radius REAL DEFAULT 0').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN contact_person TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN rating REAL DEFAULT 0').run(); } catch (e) {}
+try { db.prepare("ALTER TABLE platforms ADD COLUMN launch_date TEXT DEFAULT ''").run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN online_status INTEGER DEFAULT 0').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE platforms ADD COLUMN online_updated_at TEXT').run(); } catch (e) {}
+
 // tables表补字段（旧库可能缺）
 try { db.prepare('ALTER TABLE tables ADD COLUMN zone_id INTEGER').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE tables ADD COLUMN note TEXT').run(); } catch (e) {}
@@ -416,5 +444,6 @@ try { db.prepare('ALTER TABLE member_coupons ADD COLUMN used_at TEXT').run(); } 
 require('./seeds/users')(db);
 require('./seeds/menus')(db);
 require('./seeds/platforms')(db);
+require('./seeds/translations')(db);
 
 module.exports = db;
