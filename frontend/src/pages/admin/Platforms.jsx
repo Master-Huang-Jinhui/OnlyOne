@@ -7,7 +7,7 @@ import { useLanguage } from '../../context/LanguageContext'
 const emptyForm = {
   name: '', logo: '', url: '', account: '', password: '', phone: '', note: '', enabled: true, sort_order: 0,
   commission_rate: 30, payout_schedule: 'weekly', delivery_type: 'platform', min_order: 0,
-  delivery_radius: 3, contact_person: '', rating: 0, launch_date: ''
+  delivery_radius: 3, contact_person: '', rating: 0, launch_date: '', online_status: false
 }
 
 export default function Platforms() {
@@ -25,7 +25,7 @@ export default function Platforms() {
   const load = () => { api.getPlatforms().then(setPlatforms).catch(() => {}) }
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialog(true) }
-  const openEdit = (p) => { setEditing(p); setForm({ ...p, enabled: !!p.enabled }); setDialog(true) }
+  const openEdit = (p) => { setEditing(p); setForm({ ...p, enabled: !!p.enabled, online_status: !!p.online_status }); setDialog(true) }
 
   const save = async () => {
     if (!form.name) { toast(t('platforms.nameRequired', '平台名称必填'), 'error'); return }
@@ -42,6 +42,16 @@ export default function Platforms() {
   }
 
   const toggleEnabled = async (p) => { await api.updatePlatform(p.id, { enabled: !p.enabled }); load() }
+
+  // 切换平台在线/下线状态，后端自动记录切换时间
+  const toggleOnline = async (p) => {
+    const next = !p.online_status
+    try {
+      await api.updatePlatform(p.id, { online_status: next })
+      toast(next ? t('platforms.statusUpdatedOnline', '平台已上线') : t('platforms.statusUpdatedOffline', '平台已下线'))
+      load()
+    } catch (e) { toast(e.message, 'error') }
+  }
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -86,10 +96,10 @@ export default function Platforms() {
     { header: '电话', render: p => (
       <span className="text-sm text-gray-600">{p.phone || '-'}</span>
     )},
-    { header: '配送/结算', render: p => (
-      <div className="text-xs text-gray-500 space-y-0.5">
-        <p>{p.delivery_type === 'platform' ? '平台配送' : p.delivery_type === 'self' ? '商家自送' : '仅自取'}</p>
-        <p>{p.payout_schedule === 'weekly' ? '周结' : p.payout_schedule === 'biweekly' ? '双周结' : '月结'}</p>
+    { header: t('platforms.onlineStatusCol', '在线状态'), render: p => (
+      <div className="flex flex-col gap-1">
+        <Badge variant={p.online_status ? 'success' : 'default'}>{p.online_status ? t('platforms.online', '在线') : t('platforms.offline', '下线')}</Badge>
+        {p.online_updated_at && <span className="text-[11px] text-gray-400">{t('platforms.updatedAt', '更新')}: {p.online_updated_at}</span>}
       </div>
     )},
     { header: t('common.status', '状态'), render: p => <Badge variant={p.enabled ? 'success' : 'default'}>{p.enabled ? t('platforms.enabled', '启用') : t('platforms.disabled', '停用')}</Badge> },
@@ -117,6 +127,12 @@ export default function Platforms() {
           <Table columns={columns} data={platforms} actions={p => (
             <div className="flex gap-2">
               <button onClick={() => openEdit(p)} className="text-primary-500 hover:text-primary-700 text-sm">{t('common.edit', '编辑')}</button>
+              <button
+                onClick={() => toggleOnline(p)}
+                className={`text-sm font-medium ${p.online_status ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
+              >
+                {p.online_status ? t('platforms.goOffline', '下线') : t('platforms.goOnline', '上线')}
+              </button>
               <button onClick={() => toggleEnabled(p)} className="text-gray-500 hover:text-gray-700 text-sm">{p.enabled ? t('platforms.disabled', '停用') : t('platforms.enabled', '启用')}</button>
               <button onClick={() => remove(p.id)} className="text-red-400 hover:text-red-600 text-sm">{t('common.delete', '删除')}</button>
             </div>
@@ -186,6 +202,7 @@ export default function Platforms() {
           <div className="text-sm font-semibold text-gray-500 border-b pb-1 mt-4">其他</div>
           <Textarea label={t('platforms.noteLabel', '备注')} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="其他备注信息" rows={2} />
           <div className="flex items-center gap-4">
+            <Switch checked={form.online_status} onChange={v => setForm({ ...form, online_status: v })} label={t('platforms.onlineStatusLabel', '在线状态（上线/下线）')} />
             <Switch checked={form.enabled} onChange={v => setForm({ ...form, enabled: v })} label={t('platforms.enableLabel', '启用该平台')} />
           </div>
         </div>
