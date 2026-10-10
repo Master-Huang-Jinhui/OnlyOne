@@ -8,7 +8,8 @@ const router = express.Router();
 
 // 所有允许更新的平台字段
 const PLATFORM_FIELDS = ['name', 'logo', 'url', 'account', 'password', 'phone', 'note', 'enabled', 'weekly_status', 'sort_order',
-  'commission_rate', 'payout_schedule', 'delivery_type', 'min_order', 'delivery_radius', 'contact_person', 'rating', 'launch_date'];
+  'commission_rate', 'payout_schedule', 'delivery_type', 'min_order', 'delivery_radius', 'contact_person', 'rating', 'launch_date',
+  'online_status'];
 
 router.post('/list', auth, (req, res) => {
   const platforms = db.prepare('SELECT * FROM platforms ORDER BY sort_order, id').all();
@@ -55,12 +56,16 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
         values.push(encrypt(req.body[key]));
       } else if (key === 'weekly_status') {
         values.push(JSON.stringify(req.body[key]));
-      } else if (key === 'enabled') {
+      } else if (key === 'enabled' || key === 'online_status') {
         values.push(req.body[key] ? 1 : 0);
       } else {
         values.push(req.body[key]);
       }
     }
+  }
+  // 切换在线状态时自动记录切换时间
+  if (req.body.online_status !== undefined) {
+    fields.push("online_updated_at = datetime('now','localtime')");
   }
   if (fields.length === 0) return res.status(400).json({ error: '没有要更新的字段' });
   values.push(req.params.id);
@@ -68,6 +73,18 @@ router.post('/update/:id', auth, managerAccess, (req, res) => {
   const platform = db.prepare('SELECT name FROM platforms WHERE id = ?').get(req.params.id);
   auditLog(req, 'UPDATE_PLATFORM', `更新平台: ${platform?.name || req.params.id}`, { platformId: req.params.id, fields: fields.map(f => f.split(' ')[0]) });
   res.json({ success: true });
+});
+
+// 快捷切换平台在线状态（上线/下线），自动记录切换时间
+router.post('/status/:id', auth, managerAccess, (req, res) => {
+  const id = req.params.id;
+  const online = req.body.online ? 1 : 0;
+  const platform = db.prepare('SELECT id, name FROM platforms WHERE id = ?').get(id);
+  if (!platform) return res.status(404).json({ error: '平台不存在' });
+  db.prepare("UPDATE platforms SET online_status = ?, online_updated_at = datetime('now','localtime') WHERE id = ?").run(online, id);
+  auditLog(req, 'UPDATE_PLATFORM_STATUS', `${online ? '上线' : '下线'}平台: ${platform.name}`, { platformId: id, online });
+  const updated = db.prepare('SELECT online_updated_at FROM platforms WHERE id = ?').get(id);
+  res.json({ success: true, online, updated_at: updated.online_updated_at });
 });
 
 router.post('/delete/:id', auth, adminOnly, (req, res) => {
